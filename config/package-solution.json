@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "morden-ui-nfa-client-side-solution",
+    "id": "7c95635e-2064-41ec-a463-91a30ef58813",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.22.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "morden-ui-nfa description"
+      },
+      "longDescription": {
+        "default": "morden-ui-nfa description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "morden-ui-nfa Feature",
+        "description": "The feature that activates elements of the morden-ui-nfa solution.",
+        "id": "3a1f4a47-fd1a-425a-88e8-41742634ba40",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/morden-ui-nfa.sppkg"
+  }
+}

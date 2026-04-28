@@ -1,0 +1,868 @@
+/* src/Share/styles/global.scss */
+
+@import "./variables.scss";
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: $font-primary;
+}
+
+/* ── Page ── */
+.pageContainer {
+  background: $page-bg;
+  min-height: 100%;
+  padding: $space-md;
+}
+
+/* ── Header ── */
+.appHeader {
+  background: $header-bg;
+  color: $header-text;
+  border-bottom: none;
+  width: 100%;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  position: relative;
+  z-index: 10;
+}
+
+.headerLogoScript {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 400;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.headerLogoSub {
+  font-family: $font-primary;
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.headerDivider {
+  width: 1px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.25);
+  margin: 0 $space-md;
+}
+
+.headerTitle {
+  font-family: $font-primary;
+  font-size: $font-size-base;
+  font-weight: $font-medium;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.3px;
+}
+
+.headerUserName {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-normal;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.3px;
+}
+
+.headerAvatar {
+  background: $color-accent;
+  width: 34px;
+  height: 34px;
+  border-radius: $radius-full;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  font-weight: $font-semibold;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+/* ── Sidebar Wrapper ── */
+.sidebarWrapper {
+  flex-shrink: 0;
+  width: 224px;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  border-radius: $radius-xl;
+  border: 1px solid $sidebar-border;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+
+  &.sidebarCollapsed {
+    width: 56px;
+  }
+}
+
+/* ── Sidebar Header (toggle lives here) ── */
+.sidebarHeader {
+  background: $color-brand;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 0 14px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: ($radius-xl - 1px) ($radius-xl - 1px) 0 0;
+}
+
+.sidebarHeaderTitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-family: $font-heading;
+  font-size: $font-size-xs;
+  font-weight: $font-semibold;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sidebarToggleBtn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border-radius: $radius-md;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.24);
+  }
+}
+
+/* ── Sidebar Body ── */
+.sidebar {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $sidebar-border;
+    border-radius: $radius-full;
+  }
+}
+
+/* ── Section Title ── */
+.sidebarSectionTitle {
+  background: #f8fafc;
+  color: $text-muted;
+  font-family: $font-heading;
+  font-size: 10px;
+  font-weight: $font-bold;
+  padding: 10px 14px 5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-top: 1px solid $sidebar-border;
+
+  &:first-child {
+    border-top: none;
+  }
+}
+
+/* ── Nav Link ── */
+.sidebarLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  color: $sidebar-text;
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  border-left: 3px solid transparent;
+
+  .sidebarLinkIcon {
+    flex-shrink: 0;
+    color: #94a3b8;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+  }
+
+  .sidebarLinkLabel {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover {
+    background: #eff6ff;
+    color: $color-brand;
+
+    .sidebarLinkIcon {
+      color: $color-brand;
+    }
+  }
+
+  &.active {
+    background: $color-accent-light;
+    color: $color-brand;
+    font-weight: $font-semibold;
+    border-left-color: $color-accent;
+
+    .sidebarLinkIcon {
+      color: $color-accent;
+    }
+  }
+}
+
+/* ── Badge ── */
+.sidebarBadge {
+  background: $color-accent;
+  color: #fff;
+  font-size: 10px;
+  font-weight: $font-semibold;
+  border-radius: $radius-full;
+  padding: 2px 7px;
+  min-width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ── Collapsed overrides ── */
+.sidebarWrapper.sidebarCollapsed {
+
+  .sidebarHeader {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sidebarSectionTitle {
+    height: 1px;
+    padding: 0;
+    margin: 4px 8px;
+    font-size: 0;
+    border-radius: $radius-full;
+    background: $sidebar-border;
+    border-top: none;
+  }
+
+  .sidebarLink {
+    justify-content: center;
+    padding: 12px 0;
+    border-left: none;
+    border-right: 3px solid transparent;
+    gap: 0;
+
+    .sidebarLinkLabel,
+    .sidebarBadge {
+      display: none;
+    }
+
+    &.active {
+      border-right-color: $color-accent;
+      border-left: none;
+
+      .sidebarLinkIcon {
+        color: $color-accent;
+      }
+    }
+
+    &:hover .sidebarLinkIcon {
+      color: $color-brand;
+    }
+  }
+}
+
+/* ── Form Controls ── */
+.formLabel {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-semibold;
+  color: $text-secondary;
+  display: block;
+  margin-bottom: 5px;
+  letter-spacing: 0.1px;
+}
+
+.formInput {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  color: $input-text;
+  background: $input-bg;
+  border: 1.5px solid $input-border;
+  padding: 8px 12px;
+  width: 100%;
+  outline: none;
+  border-radius: $radius-lg;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+
+  &:focus {
+    border-color: $input-focus-border;
+    box-shadow: 0 0 0 3px $input-focus-ring;
+  }
+
+  &::placeholder {
+    color: $input-placeholder;
+  }
+
+  &:disabled {
+    background: $input-disabled-bg;
+    color: $text-muted;
+    cursor: not-allowed;
+    border-color: $content-border;
+  }
+}
+
+.formSelect {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+/* ── Buttons ── */
+.btn {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-semibold;
+  padding: 8px 20px;
+  border: none;
+  cursor: pointer;
+  border-radius: $radius-lg;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.btnPrimary {
+  background: $btn-primary-bg;
+  color: $btn-primary-text;
+  border: 1.5px solid $btn-primary-border;
+  box-shadow: $shadow-xs;
+
+  &:hover:not(:disabled) {
+    background: $btn-primary-hover;
+    box-shadow: $shadow-md;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: $shadow-xs;
+  }
+}
+
+.btnDanger {
+  background: $btn-danger-bg;
+  color: $btn-danger-text;
+  border: 1.5px solid $btn-danger-border;
+  box-shadow: $shadow-xs;
+
+  &:hover:not(:disabled) {
+    background: $btn-danger-hover;
+    box-shadow: $shadow-md;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+.btnSecondary {
+  background: $btn-secondary-bg;
+  color: $btn-secondary-text;
+  border: 1.5px solid $btn-secondary-border;
+
+  &:hover:not(:disabled) {
+    background: $btn-secondary-hover;
+    border-color: #94a3b8;
+  }
+}
+
+/* ── Content Card ── */
+.contentCard {
+  background: $content-bg;
+  border: 1px solid $content-border;
+  border-radius: $radius-xl;
+  padding: $space-xl $space-2xl;
+  box-shadow: $shadow-sm;
+}
+
+/* ── Section Title Bar ── */
+.sectionTitleBar {
+  background: $content-bg;
+  border-left: 4px solid $color-brand;
+  padding: 10px 16px 10px 14px;
+  margin-bottom: $space-lg;
+  border-radius: 0 $radius-lg $radius-lg 0;
+  box-shadow: $shadow-xs;
+}
+
+.sectionTitle {
+  font-family: $font-heading;
+  font-size: $font-size-lg;
+  font-weight: $font-semibold;
+  color: $color-brand;
+  letter-spacing: 0.1px;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: $text-secondary;
+  padding: 5px 7px;
+  border-radius: $radius-md;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+
+  &:hover {
+    color: $color-brand;
+    background: $color-accent-light;
+  }
+}
+
+/* ── Export Button ── */
+.exportBtn {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-semibold;
+  color: $color-accent;
+  background: transparent;
+  border: 1.5px solid $color-accent;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: $radius-lg;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    background: $color-accent-light;
+    border-color: $color-brand;
+    color: $color-brand;
+  }
+}
+
+/* ── Table ── */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: $radius-xl;
+  border: 1px solid $content-border;
+  box-shadow: $shadow-sm;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: $page-bg;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: $radius-full;
+  }
+}
+
+.commonTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  min-width: 900px;
+}
+
+.tableHeader {
+  background: $table-header-bg;
+  color: $table-header-text;
+  font-family: $font-heading;
+  font-size: $font-size-sm;
+  font-weight: $font-semibold;
+  padding: 11px 12px;
+  text-align: left;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  letter-spacing: 0.1px;
+
+  &:last-child {
+    border-right: none;
+  }
+}
+
+.tableRow {
+  border-bottom: 1px solid $table-row-border;
+  transition: background 0.12s;
+
+  &:hover {
+    background: $table-row-hover;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.tableCell {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  color: $input-text;
+  padding: 9px 12px;
+  border-right: 1px solid $table-row-border;
+  white-space: nowrap;
+
+  &:last-child {
+    border-right: none;
+  }
+}
+
+.tableLinkBtn {
+  background: none;
+  border: none;
+  color: $color-accent;
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0;
+  font-weight: $font-semibold;
+  transition: color 0.15s;
+
+  &:hover {
+    color: $color-brand;
+    text-decoration: underline;
+  }
+}
+
+/* ── Status Badges ── */
+.statusBadge {
+  font-family: $font-primary;
+  font-size: $font-size-xs;
+  font-weight: $font-semibold;
+  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: $radius-full;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+}
+
+.statusApproved {
+  background: $success-bg;
+  color: $success-color;
+  border-color: $success-border;
+}
+
+.statusRejected {
+  background: $error-bg;
+  color: $error-color;
+  border-color: $error-border;
+}
+
+.statusPending {
+  background: $warning-bg;
+  color: $warning-color;
+  border-color: $warning-border;
+}
+
+/* ── Rich Text Editor ── */
+.rteToolbar {
+  background: #f8fafc;
+  border: 1.5px solid $input-border;
+  border-bottom: none;
+  border-radius: $radius-lg $radius-lg 0 0;
+  padding: 4px 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.rteBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  padding: 3px 7px;
+  min-width: 28px;
+  line-height: 1.4;
+  transition: all 0.1s;
+  border-radius: $radius-sm;
+
+  &:hover {
+    background: $color-accent-light;
+    color: $color-brand;
+  }
+}
+
+.rteBody {
+  border: 1.5px solid $input-border;
+  border-top: none;
+  background: $input-bg;
+  position: relative;
+}
+
+.rteContent {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  color: $input-text;
+  padding: 12px 14px;
+  line-height: 1.7;
+  outline: none;
+}
+
+.rteScrollBtn {
+  position: absolute;
+  right: 4px;
+  background: transparent;
+  border: none;
+  font-size: 10px;
+  color: $text-muted;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rteFooter {
+  background: #f8fafc;
+  border: 1.5px solid $input-border;
+  border-top: none;
+  border-radius: 0 0 $radius-lg $radius-lg;
+  padding: 4px 8px;
+}
+
+.rteFooterBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: $font-size-base;
+  color: $text-muted;
+  padding: 0 4px;
+  border-radius: $radius-sm;
+  transition: color 0.15s;
+
+  &:hover {
+    color: $color-brand;
+  }
+}
+
+.rteHelpBtn {
+  background: $color-brand;
+  color: $color-white;
+  border: none;
+  border-radius: $radius-full;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Form Page Title ── */
+.formPageTitle {
+  font-family: $font-primary;
+  font-size: $font-size-xl;
+  font-weight: $font-bold;
+  color: $color-brand;
+  text-align: center;
+  margin-bottom: $space-2xl;
+  padding-bottom: $space-md;
+  border-bottom: 2px solid $color-accent-light;
+}
+
+/* ── Input Wrapper ── */
+.inputWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+/* ── Report Table (accent-header style) ── */
+.reportTableHeader {
+  background: $color-accent;
+  color: #ffffff;
+  font-family: $font-heading;
+  font-size: $font-size-sm;
+  font-weight: $font-semibold;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+
+  &:last-child {
+    border-right: none;
+  }
+}
+
+.reportTableCell {
+  font-family: $font-primary;
+  font-size: $font-size-sm;
+  color: $input-text;
+  padding: 9px 12px;
+  border-right: 1px solid $table-row-border;
+  background: #f8fafc;
+  white-space: nowrap;
+
+  &:last-child {
+    border-right: none;
+  }
+}
+
+/* ── Day Wise Ageing Rows ── */
+.dayWiseRowEven {
+  background: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+
+  td {
+    font-family: $font-primary;
+    font-size: $font-size-sm;
+    color: $input-text;
+    padding: 9px 12px;
+  }
+}
+
+.dayWiseRowOdd {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+
+  td {
+    font-family: $font-primary;
+    font-size: $font-size-sm;
+    color: $input-text;
+    padding: 9px 12px;
+  }
+}
+
+.dayWiseGrandTotal {
+  background: #dbeafe;
+  border-top: 2px solid $color-accent;
+
+  td {
+    font-family: $font-heading;
+    font-size: $font-size-sm;
+    font-weight: $font-semibold;
+    color: $color-brand;
+    padding: 10px 12px;
+  }
+}
+
+/* ── Filter Card ── */
+.filterCard {
+  background: $content-bg;
+  border: 1px solid $content-border;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+  margin-bottom: $space-lg;
+}
+
+.filterCardHeader {
+  background: #f8fafc;
+  border-bottom: 1px solid $content-border;
+  padding: 9px 20px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  font-weight: $font-semibold;
+  letter-spacing: 0.2px;
+}
+
+.filterCardBody {
+  padding: $space-xl $space-2xl;
+}
+
+/* ── Form Section ── */
+.formSection {
+  border: 1px solid $content-border;
+  border-radius: $radius-xl;
+  overflow: hidden;
+  margin-bottom: $space-xl;
+}
+
+.formSectionHeader {
+  background: linear-gradient(90deg, #f1f5f9, #f8fafc);
+  border-bottom: 1px solid $content-border;
+  padding: 9px 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: $color-brand;
+  font-family: $font-heading;
+  font-size: $font-size-xs;
+  font-weight: $font-bold;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.formSectionBody {
+  padding: $space-xl $space-2xl;
+  background: $content-bg;
+}
+
+/* ── Table Toolbar ── */
+.tableToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+/* ── Masters Link ── */
+.mastersLink {
+  color: $color-accent;
+  font-weight: $font-medium;
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: $color-brand;
+    text-decoration: underline;
+  }
+}
+
+/* ── Alert Boxes ── */
+.alertError {
+  background: $error-bg;
+  color: $error-color;
+  border: 1px solid $error-border;
+  border-radius: $radius-lg;
+  padding: $space-md $space-lg;
+  font-size: $font-size-sm;
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  margin-bottom: $space-md;
+}
+

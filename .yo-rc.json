@@ -1,0 +1,19 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "useGulp": false,
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.22.2",
+    "sdksVersions": {},
+    "version": "1.22.2",
+    "libraryName": "morden-ui-nfa",
+    "libraryId": "7c95635e-2064-41ec-a463-91a30ef58813",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "morden-ui-nfa",
+    "solutionShortDescription": "morden-ui-nfa description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}

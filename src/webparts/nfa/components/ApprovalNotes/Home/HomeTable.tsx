@@ -1,0 +1,103 @@
+import * as React from 'react';
+import { useState }    from 'react';
+import { CommonTable } from '../../../../../Share/Components/CommonTable';
+import { Pagination }  from '../../../../../Share/Components/Pagination';
+import TableToolbar    from '../../../../../Share/Components/TableToolbar';
+import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
+import "../../../../../Share/styles/global.scss";
+
+interface NFARecord {
+  requestNo: string; function: string; contractorName: string;
+  createdOn: string; status: string; approvedRejBy: string;
+  approvedRejDate: string; pendingAt: string; pendingFrom: string;
+  level: number; project: string;
+}
+
+interface HomeTableProps {
+  data: NFARecord[];
+  onRequestClick?: (requestNo: string) => void;
+}
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+const exportColumns = [
+  { key: 'requestNo',       label: 'Request No.'         },
+  { key: 'function',        label: 'Function'             },
+  { key: 'contractorName',  label: 'Contractor Name'      },
+  { key: 'createdOn',       label: 'Created On'           },
+  { key: 'status',          label: 'Status'               },
+  { key: 'approvedRejBy',   label: 'Approved/Reject By'   },
+  { key: 'approvedRejDate', label: 'Approved/Reject Date' },
+  { key: 'pendingAt',       label: 'Pending At'           },
+  { key: 'pendingFrom',     label: 'Pending From'         },
+  { key: 'level',           label: 'Level'                },
+  { key: 'project',         label: 'Project'              },
+];
+
+const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
+  const [pageSize,     setPageSize]    = useState(10);
+  const [search,       setSearch]      = useState('');
+  const [currentPage,  setCurrentPage] = useState(1);
+
+  const columns = [
+    {
+      key: 'requestNo', label: 'Request No.',
+      render: (val: string) => (
+        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRequestClick?.(val); }}>
+          {val}
+        </button>
+      ),
+    },
+    { key: 'function',        label: 'Function'             },
+    { key: 'contractorName',  label: 'Contractor Name'      },
+    { key: 'createdOn',       label: 'Created On'           },
+    {
+      key: 'status', label: 'Status',
+      render: (val: string) => (
+        <span className={`statusBadge ${val === 'Approved' ? 'statusApproved' : val === 'Rejected' ? 'statusRejected' : 'statusPending'}`}>
+          {val}
+        </span>
+      ),
+    },
+    { key: 'approvedRejBy',   label: 'Approved/Reject By'   },
+    { key: 'approvedRejDate', label: 'Approved/Reject Date' },
+    { key: 'pendingAt',       label: 'Pending At'           },
+    { key: 'pendingFrom',     label: 'Pending From'         },
+    { key: 'level',           label: 'Level'                },
+    { key: 'project',         label: 'Project'              },
+  ];
+
+  const filtered    = data.filter((row) =>
+    Object.keys(row).some((k) => String((row as any)[k]).toLowerCase().includes(search.toLowerCase()))
+  );
+  const totalPages  = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated   = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleSearch         = (val: string) => { setSearch(val);     setCurrentPage(1); };
+  const handlePageSizeChange = (size: number) => { setPageSize(size); setCurrentPage(1); };
+
+  return (
+    <div className="contentCard">
+
+      {/* Export row */}
+      <div className="flex justify-end mb-3">
+        <ExportToExcel data={data} columns={exportColumns} fileName="NFA_Home" sheetName="NFA Data" />
+      </div>
+
+      <TableToolbar
+        pageSize={pageSize} pageSizeOptions={PAGE_SIZE_OPTIONS} onPageSizeChange={handlePageSizeChange}
+        search={search} onSearch={handleSearch}
+      />
+
+      <CommonTable columns={columns} data={paginated} emptyMessage="No NFA records found" />
+
+      <Pagination
+        page={currentPage} total={totalPages} pageSize={pageSize}
+        totalRecords={filtered.length} pageSizeOptions={PAGE_SIZE_OPTIONS}
+        onPageChange={setCurrentPage} onPageSizeChange={handlePageSizeChange}
+      />
+    </div>
+  );
+};
+
+export default HomeTable;
