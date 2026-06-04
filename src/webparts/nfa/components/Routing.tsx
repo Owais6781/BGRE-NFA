@@ -2,6 +2,8 @@ import * as React from "react";
 import { Routes, Route, HashRouter } from "react-router-dom";
 import { INfaProps } from "./INfaProps";
 import "../../../Share/styles/global.scss";
+import "primereact/resources/themes/lara-light-blue/theme.css";
+import "primereact/resources/primereact.min.css";
 import Sidebar from "./SideBar/Sidebar";
 import Header from "./Layouts/Header";
 import Home from "./ApprovalNotes/Home/Home";
@@ -30,8 +32,9 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
 
           <main className="flex-1 overflow-auto bg-white rounded-xl shadow-sm" style={{ padding: '20px', minHeight: 0 }}>
             <Routes>
-              <Route path="/"                    element={<Home />} />
-              <Route path="/new-nfa"             element={<NewNFA />} />
+              <Route path="/"                    element={<Home context={context} sp={sp}/>} />
+              <Route path="/new-nfa"             element={<NewNFA context={context} sp={sp}/>} />
+              <Route path="/new-nfa/:id"         element={<NewNFA context={context} sp={sp}/>} />
               <Route path="/inbox"               element={<Inbox />} />
               <Route path="/approver-detail"     element={<ApprovalDetailsView />} />
               <Route path="/approved-rejected"   element={<ApprovedRejectedByMe />} />

@@ -24,7 +24,7 @@ export const TextAreaField: React.FC<TextAreaFieldProps> = ({
       </label>
       <textarea
         rows={rows}
-        value={value}
+        value={value || ''}
         placeholder={placeholder}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}

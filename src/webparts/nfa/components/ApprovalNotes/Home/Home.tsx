@@ -1,7 +1,12 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import HomeFilter from './HomeFilter';
 import HomeTable  from './HomeTable';
+import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { SPFI } from "@pnp/sp";
+import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
+import { NFAService } from '../../../../../Share/Services/NFAService';
+import { useNavigate } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
 
 const SAMPLE_DATA = [
@@ -13,12 +18,46 @@ const SAMPLE_DATA = [
   },
 ];
 
-const Home: React.FC = () => {
-  const [tableData, setTableData] = useState(SAMPLE_DATA);
+interface IHomeProps {
+  context: WebPartContext;
+  sp: SPFI;
+}
+
+const Home: React.FC<IHomeProps> = ({ context, sp }) => {
+  const [tableData, setTableData] = useState<any[]>([]);
+  const [projectOptions, setProjectOptions] = useState<IDropdownOption[]>([]);
+  const [functionOptions, setFunctionOptions] = useState<IDropdownOption[]>([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadData = async () => {
+      const dropdownService = new DropdownService(context);
+      const nfaService = new NFAService(context);
+      try {
+        console.log("Home Component: Starting to load data...");
+        const [projects, funcs, nfas] = await Promise.all([
+          dropdownService.getProjects(),
+          dropdownService.getFunctionMaster(),
+          nfaService.getNFAList()
+        ]);
+        
+        console.log("Home Component: Projects loaded:", projects.length);
+        console.log("Home Component: Functions loaded:", funcs.length);
+        console.log("Home Component: NFA Records loaded:", nfas.length);
+        
+        setProjectOptions(projects);
+        setFunctionOptions(funcs);
+        setTableData(nfas);
+      } catch (err) {
+        console.error("Failed to load Home data:", err);
+      }
+    };
+    loadData();
+  }, []);
 
   const handleSearch = (filters: any) => {
     console.log('Search filters:', filters);
-    setTableData(SAMPLE_DATA);
+    // In a real app, we'd filter tableData here based on dates, etc.
   };
 
   return (
@@ -29,12 +68,16 @@ const Home: React.FC = () => {
       </div>
 
       {/* ── Filter ── */}
-      <HomeFilter onSearch={handleSearch} />
+      <HomeFilter 
+        onSearch={handleSearch} 
+        projectOptions={projectOptions} 
+        functionOptions={functionOptions} 
+      />
 
       {/* ── Table ── */}
       <HomeTable
         data={tableData}
-        onRequestClick={(no) => console.log('Clicked:', no)}
+        onRequestClick={(id) => navigate(`/new-nfa/${id}`)}
       />
 
     </div>

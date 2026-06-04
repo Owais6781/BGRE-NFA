@@ -7,31 +7,31 @@ import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
 import "../../../../../Share/styles/global.scss";
 
 interface NFARecord {
-  requestNo: string; function: string; contractorName: string;
-  createdOn: string; status: string; approvedRejBy: string;
-  approvedRejDate: string; pendingAt: string; pendingFrom: string;
-  level: number; project: string;
+  id: number;
+  requestNo: string; 
+  function: string; 
+  project: string;
+  createdOn: string; // CDate
+  status: string; 
+  pendingAt: string;
+  level: number;
 }
 
 interface HomeTableProps {
   data: NFARecord[];
-  onRequestClick?: (requestNo: string) => void;
+  onRequestClick?: (id: number) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const exportColumns = [
-  { key: 'requestNo',       label: 'Request No.'         },
-  { key: 'function',        label: 'Function'             },
-  { key: 'contractorName',  label: 'Contractor Name'      },
-  { key: 'createdOn',       label: 'Created On'           },
-  { key: 'status',          label: 'Status'               },
-  { key: 'approvedRejBy',   label: 'Approved/Reject By'   },
-  { key: 'approvedRejDate', label: 'Approved/Reject Date' },
-  { key: 'pendingAt',       label: 'Pending At'           },
-  { key: 'pendingFrom',     label: 'Pending From'         },
-  { key: 'level',           label: 'Level'                },
-  { key: 'project',         label: 'Project'              },
+  { key: 'requestNo', label: 'Request No.' },
+  { key: 'function',  label: 'Function'    },
+  { key: 'project',   label: 'Project'     },
+  { key: 'createdOn', label: 'CDate'       },
+  { key: 'status',    label: 'Status'      },
+  { key: 'pendingAt', label: 'Pending At'  },
+  { key: 'level',     label: 'Level'       },
 ];
 
 const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
@@ -41,16 +41,16 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
 
   const columns = [
     {
-      key: 'requestNo', label: 'Request No.',
-      render: (val: string) => (
-        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRequestClick?.(val); }}>
+      key: 'requestNo', label: 'Title / Request No.',
+      render: (val: string, row: NFARecord) => (
+        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRequestClick?.(row.id); }}>
           {val}
         </button>
       ),
     },
-    { key: 'function',        label: 'Function'             },
-    { key: 'contractorName',  label: 'Contractor Name'      },
-    { key: 'createdOn',       label: 'Created On'           },
+    { key: 'function', label: 'Function' },
+    { key: 'project',  label: 'Project'  },
+    { key: 'createdOn', label: 'CDate'   },
     {
       key: 'status', label: 'Status',
       render: (val: string) => (
@@ -59,12 +59,8 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
         </span>
       ),
     },
-    { key: 'approvedRejBy',   label: 'Approved/Reject By'   },
-    { key: 'approvedRejDate', label: 'Approved/Reject Date' },
-    { key: 'pendingAt',       label: 'Pending At'           },
-    { key: 'pendingFrom',     label: 'Pending From'         },
-    { key: 'level',           label: 'Level'                },
-    { key: 'project',         label: 'Project'              },
+    { key: 'pendingAt', label: 'Pending At' },
+    { key: 'level',     label: 'Level'      },
   ];
 
   const filtered    = data.filter((row) =>

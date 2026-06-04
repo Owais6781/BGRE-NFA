@@ -5,6 +5,7 @@ interface NumberInputProps {
   label: string;
   value: string | number;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
@@ -14,7 +15,7 @@ interface NumberInputProps {
 }
 
 export const NumberInput: React.FC<NumberInputProps> = ({
-  label, value, onChange, placeholder = '0.00',
+  label, value, onChange, onBlur, placeholder = '0.00',
   required = false, disabled = false, min, step = 0.01, error,
 }) => {
   return (
@@ -24,13 +25,18 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         {required && <span className="text-red-500 ml-[2px]">*</span>}
       </label>
       <input
-        type="number"
+        type="text"
         value={value}
         placeholder={placeholder}
         disabled={disabled}
-        min={min}
-        step={step}
-        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        onChange={(e) => {
+          // Allow only numbers and a single decimal point
+          const val = e.target.value.replace(/[^0-9.]/g, '');
+          if ((val.match(/\./g) || []).length <= 1) {
+            onChange(val);
+          }
+        }}
         className={`formInput${error ? ' border-red-400' : ''}`}
       />
       {error && (

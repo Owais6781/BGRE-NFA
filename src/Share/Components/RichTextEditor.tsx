@@ -29,7 +29,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       </label>
 
       <Editor
-        value={value}
+        value={value || ''}
         onTextChange={(e: EditorTextChangeEvent) => onChange(e.htmlValue || '')}
         style={{ height }}
         readOnly={readOnly}

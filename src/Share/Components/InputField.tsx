@@ -24,7 +24,7 @@ export const InputField: React.FC<IInputFieldProps> = ({
       </label>
       <input
         type={type}
-        value={value}
+        value={value || ''}
         placeholder={placeholder}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
