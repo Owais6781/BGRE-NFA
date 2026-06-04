@@ -4,6 +4,7 @@ import { CommonTable } from '../../../../../Share/Components/CommonTable';
 import { Pagination }  from '../../../../../Share/Components/Pagination';
 import TableToolbar    from '../../../../../Share/Components/TableToolbar';
 import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
+import { SearchInput } from '../../../../../Share/Components/SearchInput';
 import "../../../../../Share/styles/global.scss";
 
 interface NFARecord {
@@ -19,7 +20,7 @@ interface NFARecord {
 
 interface HomeTableProps {
   data: NFARecord[];
-  onRequestClick?: (id: number) => void;
+  onRequestClick?: (record: NFARecord) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -43,7 +44,7 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
     {
       key: 'requestNo', label: 'Title / Request No.',
       render: (val: string, row: NFARecord) => (
-        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRequestClick?.(row.id); }}>
+        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRequestClick?.(row); }}>
           {val}
         </button>
       ),
@@ -75,14 +76,15 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
   return (
     <div className="contentCard">
 
-      {/* Export row */}
-      <div className="flex justify-end mb-3">
-        <ExportToExcel data={data} columns={exportColumns} fileName="NFA_Home" sheetName="NFA Data" />
-      </div>
-
       <TableToolbar
         pageSize={pageSize} pageSizeOptions={PAGE_SIZE_OPTIONS} onPageSizeChange={handlePageSizeChange}
         search={search} onSearch={handleSearch}
+        right={
+          <div className="flex items-center gap-3">
+            <ExportToExcel data={data} columns={exportColumns} fileName="NFA_Home" sheetName="NFA Data" />
+            <SearchInput value={search} onChange={handleSearch} />
+          </div>
+        }
       />
 
       <CommonTable columns={columns} data={paginated} emptyMessage="No NFA records found" />

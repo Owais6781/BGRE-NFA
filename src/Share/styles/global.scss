@@ -19,69 +19,45 @@
 /* ── Header ── */
 .appHeader {
   background: $header-bg;
-  color: $header-text;
-  border-bottom: none;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   width: 100%;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  height: 80px;
+  flex-shrink: 0;
   position: relative;
   z-index: 10;
-}
-
-.headerLogoScript {
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 16px;
-  font-style: italic;
-  font-weight: 400;
-  color: #ffffff;
-  letter-spacing: 0.5px;
-  line-height: 1.2;
-}
-
-.headerLogoSub {
-  font-family: $font-primary;
-  font-size: 7px;
-  letter-spacing: 1.5px;
-  color: rgba(255, 255, 255, 0.65);
-  text-transform: uppercase;
-  line-height: 1;
-  margin-top: 2px;
-}
-
-.headerDivider {
-  width: 1px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.25);
-  margin: 0 $space-md;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-top-right-radius: $radius-xl;
+  border-bottom-right-radius: $radius-xl;
 }
 
 .headerTitle {
-  font-family: $font-primary;
-  font-size: $font-size-base;
-  font-weight: $font-medium;
-  color: rgba(255, 255, 255, 0.9);
-  letter-spacing: 0.3px;
+  font-family: $font-heading;
+  font-size: 16px;
+  font-weight: $font-normal;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.8px;
 }
 
 .headerUserName {
   font-family: $font-primary;
   font-size: $font-size-sm;
-  font-weight: $font-normal;
+  font-weight: $font-medium;
   color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.3px;
 }
 
 .headerAvatar {
-  background: $color-accent;
-  width: 34px;
-  height: 34px;
+  background: rgba(255, 255, 255, 0.1);
+  width: 32px;
+  height: 32px;
   border-radius: $radius-full;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: $font-size-sm;
-  font-weight: $font-semibold;
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  font-size: 11px;
+  font-weight: $font-bold;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   flex-shrink: 0;
 }
 
@@ -91,11 +67,13 @@
   width: 224px;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
-  border-radius: $radius-xl;
-  border: 1px solid $sidebar-border;
-  box-shadow: $shadow-sm;
+  background: $sidebar-bg;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  border-right: 1px solid $sidebar-border;
+  border-top-left-radius: $radius-xl;
+  border-bottom-left-radius: $radius-xl;
 
   &.sidebarCollapsed {
     width: 56px;
@@ -104,14 +82,13 @@
 
 /* ── Sidebar Header (toggle lives here) ── */
 .sidebarHeader {
-  background: $color-brand;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 10px 0 14px;
-  height: 44px;
+  height: 80px;
   flex-shrink: 0;
-  border-radius: ($radius-xl - 1px) ($radius-xl - 1px) 0 0;
+  border-bottom: 1px solid $sidebar-border;
 }
 
 .sidebarHeaderTitle {
@@ -148,7 +125,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  background: #ffffff;
+  background: $sidebar-bg;
 
   &::-webkit-scrollbar {
     width: 3px;
@@ -157,19 +134,19 @@
     background: transparent;
   }
   &::-webkit-scrollbar-thumb {
-    background: $sidebar-border;
+    background: rgba(255, 255, 255, 0.2);
     border-radius: $radius-full;
   }
 }
 
 /* ── Section Title ── */
 .sidebarSectionTitle {
-  background: #f8fafc;
-  color: $text-muted;
+  background: rgba(0, 0, 0, 0.15);
+  color: rgba(255, 255, 255, 0.45);
   font-family: $font-heading;
   font-size: 10px;
   font-weight: $font-bold;
-  padding: 10px 14px 5px;
+  padding: 12px 14px 6px;
   letter-spacing: 1px;
   text-transform: uppercase;
   white-space: nowrap;
@@ -185,19 +162,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 14px;
+  padding: 10px 14px;
   color: $sidebar-text;
   font-family: $font-primary;
   font-size: $font-size-sm;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: all 0.15s ease;
   white-space: nowrap;
   border-left: 3px solid transparent;
 
   .sidebarLinkIcon {
     flex-shrink: 0;
-    color: #94a3b8;
+    color: rgba(255, 255, 255, 0.4);
     transition: color 0.15s;
     display: flex;
     align-items: center;
@@ -210,17 +187,17 @@
   }
 
   &:hover {
-    background: #eff6ff;
-    color: $color-brand;
+    background: $sidebar-hover-bg;
+    color: #ffffff;
 
     .sidebarLinkIcon {
-      color: $color-brand;
+      color: #ffffff;
     }
   }
 
   &.active {
-    background: $color-accent-light;
-    color: $color-brand;
+    background: $sidebar-active-bg;
+    color: #ffffff;
     font-weight: $font-semibold;
     border-left-color: $color-accent;
 
@@ -416,15 +393,15 @@
 .sectionTitleBar {
   background: $content-bg;
   border-left: 4px solid $color-brand;
-  padding: 10px 16px 10px 14px;
-  margin-bottom: $space-lg;
+  padding: 6px 14px;
+  margin-bottom: $space-md;
   border-radius: 0 $radius-lg $radius-lg 0;
   box-shadow: $shadow-xs;
 }
 
 .sectionTitle {
   font-family: $font-heading;
-  font-size: $font-size-lg;
+  font-size: $font-size-base;
   font-weight: $font-semibold;
   color: $color-brand;
   letter-spacing: 0.1px;

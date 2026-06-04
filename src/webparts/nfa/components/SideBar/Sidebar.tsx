@@ -6,6 +6,7 @@ import {
   List, Settings2, BarChart2, Clock, TrendingUp,
   CalendarDays, FileText, ChevronLeft, ChevronRight,
 } from 'lucide-react';
+const logo = require('../../assets/Leelalogo-black.svg');
 import "../../../../Share/styles/global.scss";
 
 type NavItem =
@@ -39,17 +40,28 @@ const Sidebar = () => {
   return (
     <div className={`sidebarWrapper${isCollapsed ? ' sidebarCollapsed' : ''}`}>
 
-      {/* Header with toggle */}
-      <div className="sidebarHeader">
-        {!isCollapsed && <span className="sidebarHeaderTitle">Navigation</span>}
+      {/* Header with logo and toggle */}
+      <div className={`sidebarHeader ${isCollapsed ? 'flex-col gap-3 py-3 h-auto' : 'h-[80px]'}`}>
+        <div className="flex items-center justify-center">
+          <img 
+            src={logo} 
+            alt="Leela Logo" 
+            style={{ 
+              height: isCollapsed ? '28px' : '60px', 
+              filter: 'brightness(0) invert(1)',
+              transition: 'all 0.2s ease',
+              display: 'block'
+            }} 
+          />
+        </div>
         <button
           className="sidebarToggleBtn"
           onClick={() => setIsCollapsed((c) => !c)}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed
-            ? <ChevronRight size={15} strokeWidth={2.5} />
-            : <ChevronLeft  size={15} strokeWidth={2.5} />
+            ? <ChevronRight size={14} strokeWidth={2.5} />
+            : <ChevronLeft  size={14} strokeWidth={2.5} />
           }
         </button>
       </div>

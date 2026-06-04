@@ -1,10 +1,9 @@
 
-
 /* =========================
    FONT FAMILY
 ========================= */
-$font-primary: "Segoe UI", Arial, sans-serif;
-$font-heading: "Segoe UI Semibold", Arial, sans-serif;
+$font-primary: "Segoe UI", "Open Sans", "Source Sans Pro", sans-serif;
+$font-heading: "Georgia", "Times New Roman", serif;
 
 /* =========================
    FONT SIZES
@@ -29,11 +28,11 @@ $font-bold:     700;
 /* =========================
    BRAND COLORS
 ========================= */
-$color-brand:        #1e3a5f;
-$color-brand-dark:   #152d4a;
-$color-accent:       #3b82f6;
-$color-accent-light: #dbeafe;
-$color-accent-ring:  rgba(59, 130, 246, 0.2);
+$color-brand:        #262626;  // Softened Charcoal
+$color-brand-dark:   #1a1a1a;
+$color-accent:       #AF8941;  // Signature Leela Gold/Copper
+$color-accent-light: #fdfcf7;  // Soft cream
+$color-accent-ring:  rgba(175, 137, 65, 0.2);
 
 $color-white: #ffffff;
 $color-black: #000000;
@@ -41,51 +40,51 @@ $color-black: #000000;
 /* =========================
    TEXT COLORS
 ========================= */
-$text-primary:   #0f172a;
-$text-secondary: #475569;
-$text-muted:     #94a3b8;
+$text-primary:   #262626;
+$text-secondary: #4a4a4a;
+$text-muted:     #8e8e8e;
 $text-on-dark:   #ffffff;
 
 /* =========================
    BACKGROUND COLORS
 ========================= */
-$page-bg:       #f1f5f9;
+$page-bg:       #f9f8f4;  // Elegant Off-white
 $content-bg:    #ffffff;
-$content-border: #e2e8f0;
+$content-border: #e8e6e1;
 
 /* =========================
    SIDEBAR COLORS
 ========================= */
-$sidebar-bg:          #f8fafc;
-$sidebar-header-bg:   #1e3a5f;
-$sidebar-active-bg:   #dbeafe;
-$sidebar-active-text: #1e3a5f;
-$sidebar-hover-bg:    #f1f5f9;
-$sidebar-text:        #334155;
+$sidebar-bg:          #333333;
+$sidebar-header-bg:   #2a2a2a;
+$sidebar-active-bg:   rgba(175, 137, 65, 0.2);
+$sidebar-active-text: #AF8941;
+$sidebar-hover-bg:    rgba(255, 255, 255, 0.05);
+$sidebar-text:        #d1d1d1;
 $sidebar-header-text: #ffffff;
-$sidebar-border:      #e2e8f0;
+$sidebar-border:      rgba(255, 255, 255, 0.1);
 
 /* =========================
    HEADER COLORS
 ========================= */
-$header-bg:   #1e3a5f;
+$header-bg:   #333333;
 $header-text: #ffffff;
 
 /* =========================
    TABLE COLORS
 ========================= */
-$table-header-bg:   #1e3a5f;
+$table-header-bg:   #333333;
 $table-header-text: #ffffff;
-$table-row-border:  #e2e8f0;
-$table-row-hover:   #f8fafc;
+$table-row-border:  #f0ede8;
+$table-row-hover:   #fdfcf7;
 
 /* =========================
    BUTTON COLORS
 ========================= */
-$btn-primary-bg:     #1e3a5f;
+$btn-primary-bg:     #AF8941;
 $btn-primary-text:   #ffffff;
-$btn-primary-border: #1e3a5f;
-$btn-primary-hover:  #152d4a;
+$btn-primary-border: #AF8941;
+$btn-primary-hover:  #946e35;
 
 $btn-danger-bg:     #ef4444;
 $btn-danger-border: #dc2626;
@@ -104,8 +103,8 @@ $input-bg:           #ffffff;
 $input-border:       #cbd5e1;
 $input-text:         #0f172a;
 $input-placeholder:  #94a3b8;
-$input-focus-border: #3b82f6;
-$input-focus-ring:   rgba(59, 130, 246, 0.2);
+$input-focus-border: #AF8941;
+$input-focus-ring:   rgba(175, 137, 65, 0.1);
 $input-disabled-bg:  #f8fafc;
 
 /* =========================

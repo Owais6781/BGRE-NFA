@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HomeFilter from './HomeFilter';
 import HomeTable  from './HomeTable';
 import { WebPartContext } from "@microsoft/sp-webpart-base";
@@ -7,16 +7,8 @@ import { SPFI } from "@pnp/sp";
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import { NFAService } from '../../../../../Share/Services/NFAService';
 import { useNavigate } from 'react-router-dom';
+import { Clock, CheckCircle2, XCircle, FileEdit } from 'lucide-react';
 import "../../../../../Share/styles/global.scss";
-
-const SAMPLE_DATA = [
-  {
-    requestNo: 'LPHRL/IT/2026/Apr/6035', function: 'IT', contractorName: 'Test data',
-    createdOn: '09/04/2026 1:21 AM', status: 'Approved', approvedRejBy: 'NFA CORP',
-    approvedRejDate: '09/04/2026 2:17 AM', pendingAt: 'NFA CORP',
-    pendingFrom: '09/04/2026 2:13 AM', level: 4, project: 'LPH Lee Pal Hot Res Lim',
-  },
-];
 
 interface IHomeProps {
   context: WebPartContext;
@@ -34,16 +26,11 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
       const dropdownService = new DropdownService(context);
       const nfaService = new NFAService(context);
       try {
-        console.log("Home Component: Starting to load data...");
         const [projects, funcs, nfas] = await Promise.all([
           dropdownService.getProjects(),
           dropdownService.getFunctionMaster(),
           nfaService.getNFAList()
         ]);
-        
-        console.log("Home Component: Projects loaded:", projects.length);
-        console.log("Home Component: Functions loaded:", funcs.length);
-        console.log("Home Component: NFA Records loaded:", nfas.length);
         
         setProjectOptions(projects);
         setFunctionOptions(funcs);
@@ -55,16 +42,45 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
     loadData();
   }, []);
 
+  // --- Calculate Stats ---
+  const stats = useMemo(() => {
+    return {
+      pending:  tableData.filter(item => (item.status || "").toLowerCase() === 'pending').length,
+      approved: tableData.filter(item => (item.status || "").toLowerCase() === 'approved').length,
+      rejected: tableData.filter(item => (item.status || "").toLowerCase() === 'rejected').length,
+      draft:    tableData.filter(item => (item.status || "").toLowerCase() === 'draft').length,
+    };
+  }, [tableData]);
+
   const handleSearch = (filters: any) => {
     console.log('Search filters:', filters);
-    // In a real app, we'd filter tableData here based on dates, etc.
   };
+
+  const SummaryCard = ({ icon: Icon, label, count, colorClass }: any) => (
+    <div className="flex-1 min-w-[160px] bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center gap-4 transition-transform hover:scale-[1.02]">
+      <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
+        <Icon size={20} className={colorClass.replace('bg-', 'text-')} />
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+        <p className="text-xl font-bold text-slate-800">{count}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="pageContainer">
 
       <div className="sectionTitleBar flex items-center justify-between">
         <span className="sectionTitle">Home</span>
+      </div>
+
+      {/* ── Summary Stats ── */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        <SummaryCard icon={Clock}        label="Pending"  count={stats.pending}  colorClass="bg-amber-500" />
+        <SummaryCard icon={CheckCircle2} label="Approved" count={stats.approved} colorClass="bg-emerald-500" />
+        <SummaryCard icon={XCircle}      label="Rejected" count={stats.rejected} colorClass="bg-rose-500" />
+        <SummaryCard icon={FileEdit}     label="Draft"    count={stats.draft}    colorClass="bg-slate-500" />
       </div>
 
       {/* ── Filter ── */}
@@ -77,7 +93,14 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
       {/* ── Table ── */}
       <HomeTable
         data={tableData}
-        onRequestClick={(id) => navigate(`/new-nfa/${id}`)}
+        onRequestClick={(record) => {
+           const status = (record.status || "").toLowerCase();
+           if (status === 'draft') {
+             navigate(`/new-nfa/${record.id}`);
+           } else {
+             navigate(`/view-nfa/${record.id}`);
+           }
+        }}
       />
 
     </div>

@@ -33,34 +33,31 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
   }, [context]);
 
   return (
-    <header className="appHeader flex items-center justify-between px-4 h-[54px]">
-      {/* Left — logo + title */}
-      <div className="flex items-center">
-        <div className="flex flex-col items-center leading-none">
-          <span className="headerLogoScript">The Leela</span>
-          <span className="headerLogoSub">PALACES · HOTELS · RESORTS</span>
-        </div>
-
-        <div className="headerDivider" />
-
-        <span className="headerTitle">NFA — Note for Approval</span>
+    <header className="appHeader flex items-center justify-between" style={{ paddingRight: '32px' }}>
+      {/* Left — Title with specific 50px margin */}
+      <div className="flex items-center" style={{ marginLeft: '38px' }}>
+        <span className="headerTitle uppercase tracking-widest text-[14px] text-white opacity-95">Note for Approval (NFA)</span>
       </div>
 
-      {/* Right — user info */}
-      <div className="flex items-center gap-3">
-        <span className="headerUserName">{userName}</span>
+      {/* Right — user info aligned with form end */}
+      <div className="flex items-center gap-6">
+        <div className="h-6 w-[1px] bg-white/20"></div>
 
-        <div className="headerAvatar overflow-hidden">
-          {userPhoto ? (
-            <img
-              src={userPhoto}
-              alt={userName}
-              className="w-full h-full object-cover"
-              onError={() => setUserPhoto("")}
-            />
-          ) : (
-            <span className="text-[12px] font-semibold">{userInitials}</span>
-          )}
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] font-medium text-white/90 tracking-tight">{userName}</span>
+
+          <div className="headerAvatar overflow-hidden border-white/20">
+            {userPhoto ? (
+              <img
+                src={userPhoto}
+                alt={userName}
+                className="w-full h-full object-cover"
+                onError={() => setUserPhoto("")}
+              />
+            ) : (
+              <span className="text-[11px] font-bold text-white/80">{userInitials}</span>
+            )}
+          </div>
         </div>
       </div>
     </header>
