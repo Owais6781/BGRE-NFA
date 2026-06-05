@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom';
 import {
   Home, FilePlus, Inbox, Eye, CheckCheck,
   List, Settings2, BarChart2, Clock, TrendingUp,
-  CalendarDays, FileText, ChevronLeft, ChevronRight,
+  CalendarDays, FileText, ChevronLeft, ChevronRight, Headphones
 } from 'lucide-react';
 const logo = require('../../assets/Leelalogo-black.svg');
 import "../../../../Share/styles/global.scss";
@@ -14,7 +14,7 @@ type NavItem =
   | { kind: 'link'; to: string; label: string; icon: React.ElementType; badge?: string; end?: boolean };
 
 const NAV: NavItem[] = [
-  { kind: 'section', label: 'Approval Notes' },
+  { kind: 'section', label: 'Navigation' },
   { kind: 'link', to: '/',                    label: 'Home',                      icon: Home,          end: true },
   { kind: 'link', to: '/new-nfa',             label: 'New NFA',                   icon: FilePlus },
   { kind: 'link', to: '/inbox',               label: 'My Inbox',                  icon: Inbox,         badge: '4' },
@@ -67,35 +67,67 @@ const Sidebar = () => {
       </div>
 
       {/* Scrollable nav */}
-      <div className="sidebar">
-        {NAV.map((item, i) => {
-          if (item.kind === 'section') {
-            return (
-              <div key={i} className="sidebarSectionTitle">
-                {item.label}
-              </div>
-            );
-          }
+      <div className="sidebar flex flex-col justify-between">
+        <div>
+          {NAV.map((item, i) => {
+            if (item.kind === 'section') {
+              return (
+                <div key={i} className="sidebarSectionTitle">
+                  {item.label}
+                </div>
+              );
+            }
 
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={linkClass}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <span className="sidebarLinkIcon">
-                <Icon size={16} strokeWidth={1.75} />
-              </span>
-              <span className="sidebarLinkLabel">{item.label}</span>
-              {item.badge && (
-                <span className="sidebarBadge">{item.badge}</span>
-              )}
-            </NavLink>
-          );
-        })}
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={linkClass}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <span className="sidebarLinkIcon">
+                  <Icon size={16} strokeWidth={1.75} />
+                </span>
+                <span className="sidebarLinkLabel">{item.label}</span>
+                {item.badge && (
+                  <span className="sidebarBadge">{item.badge}</span>
+                )}
+              </NavLink>
+            );
+          })}
+        </div>
+
+        {/* Support Box */}
+        <div className="mt-8">
+          {/* Divider matching section titles */}
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}></div>
+          
+          {!isCollapsed && (
+            <div className="m-4 mt-6 p-4 rounded-xl flex flex-col gap-3" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full" style={{ background: 'rgba(255, 255, 255, 0.1)' }}>
+                  <Headphones size={24} color="#ffffff" strokeWidth={1.5} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-white font-semibold text-sm">Need Help?</span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-300 leading-snug">
+                Our support team is available to assist you.
+              </p>
+              <button className="w-full py-2 rounded-lg font-semibold text-sm transition-colors mt-1" style={{ background: '#AF8941', color: '#ffffff' }}>
+                Contact Support
+              </button>
+            </div>
+          )}
+          {isCollapsed && (
+            <div className="mx-auto mt-6 mb-4 p-2 rounded-full cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center w-[36px] h-[36px]" title="Contact Support" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+               <Headphones size={20} color="#ffffff" strokeWidth={1.5} />
+            </div>
+          )}
+        </div>
       </div>
 
     </div>

@@ -55,14 +55,14 @@ $content-border: #e8e6e1;
 /* =========================
    SIDEBAR COLORS
 ========================= */
-$sidebar-bg:          #333333;
-$sidebar-header-bg:   #2a2a2a;
-$sidebar-active-bg:   rgba(175, 137, 65, 0.2);
+$sidebar-bg:          #05152b;
+$sidebar-header-bg:   #05152b;
+$sidebar-active-bg:   rgba(255, 255, 255, 0.1);
 $sidebar-active-text: #AF8941;
 $sidebar-hover-bg:    rgba(255, 255, 255, 0.05);
-$sidebar-text:        #d1d1d1;
+$sidebar-text:        #e2e8f0;
 $sidebar-header-text: #ffffff;
-$sidebar-border:      rgba(255, 255, 255, 0.1);
+$sidebar-border:      rgba(255, 255, 255, 0.08);
 
 /* =========================
    HEADER COLORS
@@ -73,8 +73,8 @@ $header-text: #ffffff;
 /* =========================
    TABLE COLORS
 ========================= */
-$table-header-bg:   #333333;
-$table-header-text: #ffffff;
+$table-header-bg:   #f8fafc;
+$table-header-text: #334155;
 $table-row-border:  #f0ede8;
 $table-row-hover:   #fdfcf7;
 

@@ -33,20 +33,20 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
   }, [context]);
 
   return (
-    <header className="appHeader flex items-center justify-between" style={{ paddingRight: '32px' }}>
+    <header className="appHeader flex items-center justify-between !bg-transparent !shadow-none !border-none !h-[50px]" style={{ paddingRight: '32px' }}>
       {/* Left — Title with specific 50px margin */}
       <div className="flex items-center" style={{ marginLeft: '38px' }}>
-        <span className="headerTitle uppercase tracking-widest text-[14px] text-white opacity-95">Note for Approval (NFA)</span>
+        <span className="headerTitle uppercase tracking-widest text-[14px] !text-slate-800 opacity-95">Note for Approval (NFA)</span>
       </div>
 
       {/* Right — user info aligned with form end */}
       <div className="flex items-center gap-6">
-        <div className="h-6 w-[1px] bg-white/20"></div>
+        <div className="h-6 w-[1px] bg-slate-300"></div>
 
         <div className="flex items-center gap-3">
-          <span className="text-[13px] font-medium text-white/90 tracking-tight">{userName}</span>
+          <span className="text-[13px] font-medium !text-slate-800 tracking-tight">{userName}</span>
 
-          <div className="headerAvatar overflow-hidden border-white/20">
+          <div className="headerAvatar overflow-hidden !border-slate-300 !bg-slate-100 !text-slate-700">
             {userPhoto ? (
               <img
                 src={userPhoto}
@@ -55,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
                 onError={() => setUserPhoto("")}
               />
             ) : (
-              <span className="text-[11px] font-bold text-white/80">{userInitials}</span>
+              <span className="text-[11px] font-bold">{userInitials}</span>
             )}
           </div>
         </div>

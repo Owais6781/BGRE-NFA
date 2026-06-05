@@ -23,7 +23,7 @@ interface HomeTableProps {
   onRequestClick?: (record: NFARecord) => void;
 }
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500];
 
 const exportColumns = [
   { key: 'requestNo', label: 'Request No.' },
@@ -36,7 +36,7 @@ const exportColumns = [
 ];
 
 const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
-  const [pageSize,     setPageSize]    = useState(10);
+  const [pageSize,     setPageSize]    = useState(50);
   const [search,       setSearch]      = useState('');
   const [currentPage,  setCurrentPage] = useState(1);
 

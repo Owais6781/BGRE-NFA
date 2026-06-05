@@ -24,16 +24,14 @@ import GenericReport from "./Reports/GenericReport/GenericReport";
 const Routing: React.FC<INfaProps> = ({ context, sp }) => {
   return (
     <HashRouter>
-      <div className="h-screen overflow-hidden" style={{ background: '#f1f5f9', padding: '10px' }}>
-        <div className="flex h-full overflow-hidden">
+      <div className="w-full flex" style={{ background: '#f1f5f9', padding: '10px', minHeight: 'calc(100vh - 140px)' }}>
+        <Sidebar />
 
-          <Sidebar />
+        <div className="flex flex-col flex-1">
+          <Header context={context} />
 
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <Header context={context} />
-
-            <main className="flex-1 overflow-auto" style={{ padding: '10px 0 0 20px' }}>
-              <Routes>
+          <main className="flex-1 w-full" style={{ padding: '10px 0 30px 20px' }}>
+            <Routes>
                 <Route path="/"                    element={<Home context={context} sp={sp}/>} />
                 <Route path="/new-nfa"             element={<NewNFA context={context} sp={sp}/>} />
                 <Route path="/new-nfa/:id"         element={<NewNFA context={context} sp={sp}/>} />
@@ -55,7 +53,7 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
           </div>
 
         </div>
-      </div>
+      
     </HashRouter>
   );
 };

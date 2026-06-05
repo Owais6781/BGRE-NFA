@@ -141,12 +141,12 @@
 
 /* ── Section Title ── */
 .sidebarSectionTitle {
-  background: rgba(0, 0, 0, 0.15);
-  color: rgba(255, 255, 255, 0.45);
-  font-family: $font-heading;
-  font-size: 10px;
+  background: transparent;
+  color: $color-accent;
+  font-family: $font-primary;
+  font-size: 11px;
   font-weight: $font-bold;
-  padding: 12px 14px 6px;
+  padding: 16px 14px 8px;
   letter-spacing: 1px;
   text-transform: uppercase;
   white-space: nowrap;
@@ -161,20 +161,20 @@
 .sidebarLink {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 12px 14px;
   color: $sidebar-text;
   font-family: $font-primary;
-  font-size: $font-size-sm;
+  font-size: $font-size-md;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
-  border-left: 3px solid transparent;
+  border-left: 4px solid transparent;
 
   .sidebarLinkIcon {
     flex-shrink: 0;
-    color: rgba(255, 255, 255, 0.4);
+    color: #ffffff;
     transition: color 0.15s;
     display: flex;
     align-items: center;
@@ -197,7 +197,7 @@
 
   &.active {
     background: $sidebar-active-bg;
-    color: #ffffff;
+    color: $sidebar-active-text;
     font-weight: $font-semibold;
     border-left-color: $color-accent;
 
@@ -484,7 +484,8 @@
   padding: 11px 12px;
   text-align: left;
   white-space: nowrap;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-right: 1px solid $table-row-border;
+  border-bottom: 2px solid $table-row-border;
   letter-spacing: 0.1px;
 
   &:last-child {

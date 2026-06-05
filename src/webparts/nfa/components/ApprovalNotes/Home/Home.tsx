@@ -7,7 +7,7 @@ import { SPFI } from "@pnp/sp";
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import { NFAService } from '../../../../../Share/Services/NFAService';
 import { useNavigate } from 'react-router-dom';
-import { Clock, CheckCircle2, XCircle, FileEdit } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, FileEdit, Files } from 'lucide-react';
 import "../../../../../Share/styles/global.scss";
 
 interface IHomeProps {
@@ -45,6 +45,7 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
   // --- Calculate Stats ---
   const stats = useMemo(() => {
     return {
+      total:    tableData.length,
       pending:  tableData.filter(item => (item.status || "").toLowerCase() === 'pending').length,
       approved: tableData.filter(item => (item.status || "").toLowerCase() === 'approved').length,
       rejected: tableData.filter(item => (item.status || "").toLowerCase() === 'rejected').length,
@@ -56,14 +57,14 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
     console.log('Search filters:', filters);
   };
 
-  const SummaryCard = ({ icon: Icon, label, count, colorClass }: any) => (
-    <div className="flex-1 min-w-[160px] bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center gap-4 transition-transform hover:scale-[1.02]">
-      <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
-        <Icon size={20} className={colorClass.replace('bg-', 'text-')} />
+  const SummaryCard = ({ icon: Icon, label, count, iconBgClass, iconColorClass }: any) => (
+    <div className="flex-1 min-w-[180px] max-w-[250px] h-24 bg-white rounded-2xl px-5 shadow-sm border border-[#AF8941]/40 hover:shadow-md hover:border-[#AF8941]/70 transition-all duration-300 group flex items-center gap-4">
+      <div className={`p-3 rounded-full flex items-center justify-center ${iconBgClass}`}>
+        <Icon size={24} className={iconColorClass} />
       </div>
-      <div>
-        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-        <p className="text-xl font-bold text-slate-800">{count}</p>
+      <div className="flex flex-col">
+        <span className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{label}</span>
+        <span className="text-3xl font-extrabold text-slate-800 leading-none">{count}</span>
       </div>
     </div>
   );
@@ -71,16 +72,17 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
   return (
     <div className="pageContainer">
 
-      <div className="sectionTitleBar flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <span className="sectionTitle">Home</span>
       </div>
 
       {/* ── Summary Stats ── */}
       <div className="flex flex-wrap gap-4 mb-6">
-        <SummaryCard icon={Clock}        label="Pending"  count={stats.pending}  colorClass="bg-amber-500" />
-        <SummaryCard icon={CheckCircle2} label="Approved" count={stats.approved} colorClass="bg-emerald-500" />
-        <SummaryCard icon={XCircle}      label="Rejected" count={stats.rejected} colorClass="bg-rose-500" />
-        <SummaryCard icon={FileEdit}     label="Draft"    count={stats.draft}    colorClass="bg-slate-500" />
+        <SummaryCard icon={Files}        label="Total Requests" count={stats.total}    iconBgClass="bg-blue-500 bg-opacity-10"    iconColorClass="text-blue-500" />
+        <SummaryCard icon={Clock}        label="Pending"        count={stats.pending}  iconBgClass="bg-amber-500 bg-opacity-10"   iconColorClass="text-amber-500" />
+        <SummaryCard icon={CheckCircle2} label="Approved"       count={stats.approved} iconBgClass="bg-emerald-500 bg-opacity-10" iconColorClass="text-emerald-500" />
+        <SummaryCard icon={XCircle}      label="Rejected"       count={stats.rejected} iconBgClass="bg-rose-500 bg-opacity-10"    iconColorClass="text-rose-500" />
+        <SummaryCard icon={FileEdit}     label="Draft"          count={stats.draft}    iconBgClass="bg-slate-500 bg-opacity-10"   iconColorClass="text-slate-500" />
       </div>
 
       {/* ── Filter ── */}
