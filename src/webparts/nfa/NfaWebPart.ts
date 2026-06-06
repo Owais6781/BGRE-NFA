@@ -5,6 +5,7 @@ import { spfi, SPFx } from '@pnp/sp';
 import '@pnp/sp/webs';
 import '@pnp/sp/lists';
 import '@pnp/sp/items';
+import '@pnp/sp/site-users';
 import '../../tailwind-generated.css';
 import "./Hide.scss"
 import Routing from './components/Routing';

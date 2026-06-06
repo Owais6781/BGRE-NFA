@@ -20,7 +20,8 @@ interface NFARecord {
 
 interface HomeTableProps {
   data: NFARecord[];
-  onRequestClick?: (record: NFARecord) => void;
+  onRowClick?: (record: NFARecord) => void;
+  loading?: boolean;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500];
@@ -35,8 +36,8 @@ const exportColumns = [
   { key: 'level',     label: 'Level'       },
 ];
 
-const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
-  const [pageSize,     setPageSize]    = useState(50);
+const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false }) => {
+  const [pageSize,     setPageSize]    = useState(10);
   const [search,       setSearch]      = useState('');
   const [currentPage,  setCurrentPage] = useState(1);
 
@@ -44,7 +45,7 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
     {
       key: 'requestNo', label: 'Title / Request No.',
       render: (val: string, row: NFARecord) => (
-        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRequestClick?.(row); }}>
+        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRowClick?.(row); }}>
           {val}
         </button>
       ),
@@ -87,7 +88,14 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRequestClick }) => {
         }
       />
 
-      <CommonTable columns={columns} data={paginated} emptyMessage="No NFA records found" />
+      <CommonTable
+        columns={columns}
+        data={paginated}
+        emptyMessage="No NFA records found"
+        stickyFirstColumn={true}
+        onRowClick={onRowClick}
+        loading={loading}
+      />
 
       <Pagination
         page={currentPage} total={totalPages} pageSize={pageSize}

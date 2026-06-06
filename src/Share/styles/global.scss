@@ -92,7 +92,7 @@
 }
 
 .sidebarHeaderTitle {
-  color: rgba(255, 255, 255, 0.9);
+  color: $sidebar-header-text;
   font-family: $font-heading;
   font-size: $font-size-xs;
   font-weight: $font-semibold;
@@ -102,9 +102,9 @@
 }
 
 .sidebarToggleBtn {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  background: rgba(30, 58, 95, 0.05);
+  border: 1px solid rgba(30, 58, 95, 0.1);
+  color: $sidebar-text;
   border-radius: $radius-md;
   width: 30px;
   height: 30px;
@@ -116,7 +116,7 @@
   flex-shrink: 0;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.24);
+    background: rgba(30, 58, 95, 0.12);
   }
 }
 
@@ -134,7 +134,7 @@
     background: transparent;
   }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(30, 58, 95, 0.1);
     border-radius: $radius-full;
   }
 }
@@ -142,7 +142,7 @@
 /* ── Section Title ── */
 .sidebarSectionTitle {
   background: transparent;
-  color: $color-accent;
+  color: $sidebar-section-title;
   font-family: $font-primary;
   font-size: 11px;
   font-weight: $font-bold;
@@ -174,7 +174,7 @@
 
   .sidebarLinkIcon {
     flex-shrink: 0;
-    color: #ffffff;
+    color: $sidebar-text;
     transition: color 0.15s;
     display: flex;
     align-items: center;
@@ -188,10 +188,10 @@
 
   &:hover {
     background: $sidebar-hover-bg;
-    color: #ffffff;
+    color: $sidebar-active-text;
 
     .sidebarLinkIcon {
-      color: #ffffff;
+      color: $sidebar-active-text;
     }
   }
 
@@ -199,10 +199,10 @@
     background: $sidebar-active-bg;
     color: $sidebar-active-text;
     font-weight: $font-semibold;
-    border-left-color: $color-accent;
+    border-left-color: $sidebar-active-border;
 
     .sidebarLinkIcon {
-      color: $color-accent;
+      color: $sidebar-active-text;
     }
   }
 }
@@ -451,11 +451,15 @@
 .tableWrapper {
   width: 100%;
   overflow-x: auto;
+  overflow-y: auto;
   border-radius: $radius-xl;
   border: 1px solid $content-border;
   box-shadow: $shadow-sm;
+  position: relative;
+  max-height: 70vh; /* Optional: adds vertical scroll if table is long */
 
   &::-webkit-scrollbar {
+    width: 6px;
     height: 6px;
   }
   &::-webkit-scrollbar-track {
@@ -469,10 +473,11 @@
 
 .commonTable {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate; /* Changed from collapse for sticky borders */
+  border-spacing: 0;
   font-family: $font-primary;
   font-size: $font-size-sm;
-  min-width: 900px;
+  min-width: max-content; /* Ensures columns don't squash */
 }
 
 .tableHeader {
@@ -491,6 +496,41 @@
   &:last-child {
     border-right: none;
   }
+}
+
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Sticky First Column Support */
+.stickyCol {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: #ffffff; /* Default row bg */
+  border-right: 2px solid $table-row-border !important;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -4px;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to right, rgba(0,0,0,0.05), transparent);
+    pointer-events: none;
+  }
+}
+
+.tableHeader.stickyCol {
+  z-index: 20;
+  background: $table-header-bg;
+}
+
+.tableRow:hover .stickyCol {
+  background: $table-row-hover;
 }
 
 .tableRow {
@@ -512,6 +552,7 @@
   color: $input-text;
   padding: 9px 12px;
   border-right: 1px solid $table-row-border;
+  border-bottom: 1px solid $table-row-border;
   white-space: nowrap;
 
   &:last-child {
@@ -694,6 +735,9 @@
   text-align: left;
   white-space: nowrap;
   border-right: 1px solid rgba(255, 255, 255, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 
   &:last-child {
     border-right: none;
@@ -1158,24 +1202,11 @@
 }
 
 /* ═══════════════════════════════════════════
-   EXTRA FIX: Force all parent containers
-   to allow overflow
+   EXTRA FIX: Allow overflow where needed 
+   (Surgical fix for dropdowns)
    ═══════════════════════════════════════════ */
 
-/* Flex row containing the dropdowns */
-.flex.flex-wrap {
-  overflow: visible !important;
-}
-
-/* Ensure page container doesn't clip */
-.pageContainer {
-  overflow: visible !important;
-}
-
-/* Force flex-1 items to allow overflow */
-.flex-1 {
-  overflow: visible !important;
-}
+/* Remove aggressive global overflows that break table scrolling */
 
 /* ═══════════════════════════════════════════
    POPUP / MODAL STYLES

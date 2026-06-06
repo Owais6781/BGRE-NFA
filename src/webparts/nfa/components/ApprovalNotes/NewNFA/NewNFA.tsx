@@ -111,9 +111,17 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const [doaMatrixOptions, setDoaMatrixOptions] = useState<IDropdownOption[]>([]);
   const [doaMatrixApprovers, setDoaMatrixApprovers] = useState<IDropdownOption[]>([]);
   const lastDoaCheck = useRef({ dept: '', amount: '' });
-  const [doaAlert, setDoaAlert] = useState<{ show: boolean, type: MessageType, title: string, messages: string[] }>({
-    show: false, type: 'info', title: '', messages: []
+  const [doaAlert, setDoaAlert] = useState<{ show: boolean, type: MessageType, title: string, messages: string[], onSuccessRedirect?: boolean }>({
+    show: false, type: 'info', title: '', messages: [], onSuccessRedirect: false
   });
+
+  const handlePopupClose = () => {
+    const redirect = doaAlert.onSuccessRedirect;
+    setDoaAlert(prev => ({ ...prev, show: false }));
+    if (redirect) {
+      navigate('/');
+    }
+  };
 
   const [form, setForm] = useState<INFAFormData>({
     originatorDept: '', date: today, project: '', projectSubEntity: [],
@@ -127,6 +135,8 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     workflow: 'MANUAL', doaMatrix: '',
     approvers: Array(12).fill(null),
     uniqId: '',
+    level: 0,
+    pendingAtId: null,
   });
 
   // --- 1. THE MASTER INITIALIZATION (Runs exactly once) ---
@@ -435,7 +445,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       </CollapsibleSection>
 
       <AttachmentPopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} onSave={(entries) => { setPendingAttachments(prev => [...prev, ...entries]); setIsPopupOpen(false); }} />
-      <MessagePopup isOpen={doaAlert.show} type={doaAlert.type} title={doaAlert.title} messages={doaAlert.messages} onClose={() => setDoaAlert(prev => ({ ...prev, show: false }))} />
+      <MessagePopup isOpen={doaAlert.show} type={doaAlert.type} title={doaAlert.title} messages={doaAlert.messages} onClose={handlePopupClose} />
       {errors.length > 0 && <ValidationErrors errors={errors} onClose={() => setErrors([])} />}
 
       <div className="flex justify-center gap-4 py-8">
@@ -447,8 +457,22 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             if (pendingAttachments.length > 0) await docService.saveDocuments(pendingAttachments, form.uniqId);
             const service = new NFAService(context);
             const res = id ? await service.updateNFA(parseInt(id), form, 'Pending', projectOptions, subEntityOptions) : await service.saveNFA(form, 'Pending', projectOptions, subEntityOptions);
-            alert(res.message); navigate('/');
-          } catch (err) { alert("Error saving NFA or Uploading Documents."); } finally { setIsSaving(false); }
+            setDoaAlert({
+              show: true,
+              type: res.success ? 'success' : 'error',
+              title: res.success ? 'Success' : 'Error',
+              messages: [res.message],
+              onSuccessRedirect: res.success
+            });
+          } catch (err) {
+            setDoaAlert({
+              show: true,
+              type: 'error',
+              title: 'Error Saving NFA',
+              messages: ["Error saving NFA or Uploading Documents."],
+              onSuccessRedirect: false
+            });
+          } finally { setIsSaving(false); }
         }} />
         <CommonButton text="Save Draft" variant="secondary" disabled={isSaving} onClick={async () => {
           if (!validate('Draft')) return;
@@ -458,8 +482,22 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             if (pendingAttachments.length > 0) await docService.saveDocuments(pendingAttachments, form.uniqId);
             const service = new NFAService(context);
             const res = id ? await service.updateNFA(parseInt(id), form, 'Draft', projectOptions, subEntityOptions) : await service.saveNFA(form, 'Draft', projectOptions, subEntityOptions);
-            alert(res.message); navigate('/');
-          } catch (err) { alert("Error saving Draft or Uploading Documents."); } finally { setIsSaving(false); }
+            setDoaAlert({
+              show: true,
+              type: res.success ? 'success' : 'error',
+              title: res.success ? 'Success' : 'Error',
+              messages: [res.message],
+              onSuccessRedirect: res.success
+            });
+          } catch (err) {
+            setDoaAlert({
+              show: true,
+              type: 'error',
+              title: 'Error Saving Draft',
+              messages: ["Error saving Draft or Uploading Documents."],
+              onSuccessRedirect: false
+            });
+          } finally { setIsSaving(false); }
         }} />
         <CommonButton text="Cancel" variant="danger" onClick={() => navigate('/')} />
       </div>

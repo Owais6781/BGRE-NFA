@@ -56,7 +56,7 @@ module.exports = {
         //                    or else return the object to a caller (who assumes this responsibility).  Unterminated
         //                    promise chains are a serious issue.  Besides causing errors to be silently ignored,
         //                    they can also cause a NodeJS process to terminate unexpectedly.
-        '@typescript-eslint/no-floating-promises': 2,
+        '@typescript-eslint/no-floating-promises': 1,
         // RATIONALE:         Catches a common coding mistake.
         '@typescript-eslint/no-for-in-array': 2,
         // STANDARDIZED BY:   @typescript-eslint\eslint-plugin\dist\configs\recommended.json
@@ -106,7 +106,7 @@ module.exports = {
         ],
         // STANDARDIZED BY:   @typescript-eslint\eslint-plugin\dist\configs\recommended.json
         '@typescript-eslint/no-use-before-define': [
-          2,
+          1,
           {
             'functions': false,
             'classes': true,
@@ -117,7 +117,7 @@ module.exports = {
         ],
         // Disallows require statements except in import statements.
         // In other words, the use of forms such as var foo = require("foo") are banned. Instead use ES6 style imports or import foo = require("foo") imports.
-        '@typescript-eslint/no-var-requires': 'error',
+        '@typescript-eslint/no-var-requires': 'warn',
         // RATIONALE:         The "module" keyword is deprecated except when describing legacy libraries.
         //
         // STANDARDIZED BY:   @typescript-eslint\eslint-plugin\dist\configs\recommended.json

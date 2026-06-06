@@ -14,15 +14,17 @@ interface HomeFilterProps {
     fromDate: string; toDate: string;
     function: string; status: string; project: string;
   }) => void;
+  onClear: () => void;
 }
 
 const statusOptions = [
+  { label: 'Draft',    value: 'Draft'    },
   { label: 'Pending',  value: 'Pending'  },
   { label: 'Approved', value: 'Approved' },
   { label: 'Rejected', value: 'Rejected' },
 ];
 
-const HomeFilter: React.FC<HomeFilterProps> = ({ onSearch, functionOptions, projectOptions }) => {
+const HomeFilter: React.FC<HomeFilterProps> = ({ onSearch, onClear, functionOptions, projectOptions }) => {
   const today   = new Date().toISOString().split('T')[0];
   const minus11 = new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -36,38 +38,63 @@ const HomeFilter: React.FC<HomeFilterProps> = ({ onSearch, functionOptions, proj
   const handleSearch = () =>
     onSearch({ fromDate, toDate, function: funcVal, status: statusVal, project: projectVal });
 
+  const handleClear = () => {
+    setFromDate(minus11);
+    setToDate(today);
+    setFuncVal('');
+    setStatusVal('');
+    setProjectVal('');
+    onClear();
+  };
+
   return (
     <div className={`filterCard ${isOpen ? 'filterCard--open' : 'filterCard--closed'}`}>
-      <div className="filterCardHeader cursor-pointer flex justify-between items-center" onClick={() => setIsOpen(!isOpen)}>
+      <div 
+        className="filterCardHeader flex items-center justify-between cursor-pointer select-none"
+        onClick={() => setIsOpen(!isOpen)}
+      >
         <div className="flex items-center gap-2">
-          <SlidersHorizontal size={14} />
+          <SlidersHorizontal size={14} className="text-[#AF8941]" />
           <span>Filters</span>
         </div>
-        <div className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-          <ChevronDown size={16} />
-        </div>
+        <ChevronDown 
+          size={16} 
+          className={`transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+        />
       </div>
-
       <div className={`formSectionBody--collapsible ${isOpen ? 'formSectionBody--expanded' : 'formSectionBody--collapsed'}`}>
         <div className="filterCardBody">
-          <div className="flex flex-wrap items-end gap-x-4 gap-y-4">
-            <div className="flex-1 min-w-[140px]">
+          <div className="flex flex-wrap lg:flex-nowrap items-end gap-3.5 w-full">
+            <div className="flex-1 min-w-[95px]">
               <DatePickerField label="From Date" value={fromDate} onChange={setFromDate} required />
             </div>
-            <div className="flex-1 min-w-[140px]">
+            <div className="flex-1 min-w-[95px]">
               <DatePickerField label="To Date"   value={toDate}   onChange={setToDate}   required />
             </div>
-            <div className="flex-1 min-w-[150px]">
+            <div className="flex-1 min-w-[95px]">
               <DropdownField label="Status"   value={statusVal}  onChange={setStatusVal}  options={statusOptions}   required />
             </div>
-            <div className="flex-[1.5] min-w-[200px]">
+            <div className="flex-[1.2] min-w-[120px]">
               <DropdownField label="Project" value={projectVal} onChange={setProjectVal} options={projectOptions} required />
             </div>
-            <div className="flex-1 min-w-[180px]">
+            <div className="flex-[1.2] min-w-[120px]">
               <DropdownField label="Function" value={funcVal}    onChange={setFuncVal}    options={functionOptions} required />
             </div>
-            <div className="flex-none">
-              <CommonButton text="Search" variant="primary" onClick={handleSearch} />
+            <div className="flex-none flex gap-2 h-[38px] items-center">
+              <button 
+                className="btn btnPrimary h-full" 
+                style={{ padding: '0 16px', minWidth: '75px', fontSize: '12px' }} 
+                onClick={handleSearch}
+              >
+                Search
+              </button>
+              <button 
+                className="btn btnDanger h-full" 
+                style={{ padding: '0 16px', minWidth: '75px', fontSize: '12px' }} 
+                onClick={handleClear}
+              >
+                Clear
+              </button>
             </div>
           </div>
         </div>

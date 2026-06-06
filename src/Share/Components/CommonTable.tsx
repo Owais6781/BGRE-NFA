@@ -13,6 +13,10 @@ interface CommonTableProps {
   onRowClick?: (row: any) => void;
   loading?: boolean;
   emptyMessage?: string;
+  stickyHeader?: boolean;
+  stickyFirstColumn?: boolean;
+  maxHeight?: string;
+  minWidth?: string;
 }
 
 export const CommonTable: React.FC<CommonTableProps> = ({
@@ -21,14 +25,21 @@ export const CommonTable: React.FC<CommonTableProps> = ({
   onRowClick,
   loading = false,
   emptyMessage = 'No records found',
+  stickyHeader = true,
+  stickyFirstColumn = false,
+  maxHeight,
+  minWidth,
 }) => {
   return (
-    <div className="tableWrapper">
-      <table className="commonTable">
+    <div className="tableWrapper" style={{ maxHeight }}>
+      <table className="commonTable" style={{ minWidth }}>
         <thead>
           <tr>
-            {columns.map((col) => (
-              <th key={col.key} className="tableHeader">
+            {columns.map((col, index) => (
+              <th
+                key={col.key}
+                className={`tableHeader ${stickyHeader ? 'stickyHeader' : ''} ${stickyFirstColumn && index === 0 ? 'stickyCol' : ''}`}
+              >
                 {col.label}
               </th>
             ))}
@@ -57,8 +68,11 @@ export const CommonTable: React.FC<CommonTableProps> = ({
                 className={`tableRow${onRowClick ? ' cursor-pointer' : ''}`}
                 onClick={() => onRowClick?.(row)}
               >
-                {columns.map((col) => (
-                  <td key={col.key} className="tableCell">
+                {columns.map((col, index) => (
+                  <td
+                    key={col.key}
+                    className={`tableCell ${stickyFirstColumn && index === 0 ? 'stickyCol' : ''}`}
+                  >
                     {col.render ? col.render(row[col.key], row) : row[col.key] ?? '—'}
                   </td>
                 ))}

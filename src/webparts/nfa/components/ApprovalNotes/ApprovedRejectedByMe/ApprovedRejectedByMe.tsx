@@ -85,7 +85,13 @@ const ApprovedRejectedByMe: React.FC = () => {
               search={search} onSearch={handleSearch}
             />
 
-            <CommonTable columns={columns} data={paginated} loading={loading} emptyMessage="No approved/rejected records found" />
+            <CommonTable
+              columns={columns}
+              data={paginated}
+              loading={loading}
+              emptyMessage="No approved/rejected records found"
+              stickyFirstColumn={true}
+            />
 
             <Pagination
               page={currentPage} total={totalPages} pageSize={pageSize}

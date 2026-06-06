@@ -25,7 +25,7 @@ const DropdownField: React.FC<DropdownFieldProps> = ({
         disabled={disabled}
         className="formInput formSelect"
       >
-        <option value="">— Select —</option>
+        <option value="">All</option>
         {options.map((item) => (
           <option key={item.value} value={item.value}>{item.label}</option>
         ))}

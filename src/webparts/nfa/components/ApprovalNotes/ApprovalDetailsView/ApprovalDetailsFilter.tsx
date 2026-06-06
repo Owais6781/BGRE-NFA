@@ -13,6 +13,7 @@ interface FilterValues {
 
 interface ApprovalDetailsFilterProps {
   onSearch: (filters: FilterValues) => void;
+  onClear:  () => void;
 }
 
 const functionOptions = [
@@ -27,7 +28,7 @@ const projectOptions = [
   { label: 'Project A', value: 'A' }, { label: 'Project B', value: 'B' },
 ];
 
-const ApprovalDetailsFilter: React.FC<ApprovalDetailsFilterProps> = ({ onSearch }) => {
+const ApprovalDetailsFilter: React.FC<ApprovalDetailsFilterProps> = ({ onSearch, onClear }) => {
   const today   = new Date().toISOString().split('T')[0];
   const minus18 = new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -36,6 +37,15 @@ const ApprovalDetailsFilter: React.FC<ApprovalDetailsFilterProps> = ({ onSearch 
   const [funcVal,    setFuncVal]    = useState('');
   const [statusVal,  setStatusVal]  = useState('');
   const [projectVal, setProjectVal] = useState('');
+
+  const handleClear = () => {
+    setFromDate(minus18);
+    setToDate(today);
+    setFuncVal('');
+    setStatusVal('');
+    setProjectVal('');
+    onClear();
+  };
 
   return (
     <div className="filterCard">
@@ -67,9 +77,10 @@ const ApprovalDetailsFilter: React.FC<ApprovalDetailsFilterProps> = ({ onSearch 
           <div className="flex-1 min-w-[200px] max-w-[calc(50%-12px)]">
             <DropdownField label="Project" value={projectVal} onChange={setProjectVal} options={projectOptions} required />
           </div>
-          <div className="flex flex-1 justify-end items-end">
+          <div className="flex flex-1 justify-end items-end gap-2">
             <CommonButton text="Search" variant="primary"
               onClick={() => onSearch({ fromDate, toDate, function: funcVal, status: statusVal, project: projectVal })} />
+            <CommonButton text="Clear" variant="danger" onClick={handleClear} />
           </div>
         </div>
 

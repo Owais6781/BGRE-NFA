@@ -141,6 +141,7 @@ const ApprovalDetailsTable: React.FC<ApprovalDetailsTableProps> = ({
         columns={columns}
         data={paginated}
         emptyMessage="No approval records found"
+        stickyFirstColumn={true}
       />
 
       {/* ── Pagination ── */}

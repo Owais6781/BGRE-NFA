@@ -22,7 +22,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   options,
   selectedValues,
   onChange,
-  placeholder = 'Select options',
+  placeholder = 'All',
   disabled = false,
   required = false,
 }) => {

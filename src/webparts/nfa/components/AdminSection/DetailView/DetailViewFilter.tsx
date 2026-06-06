@@ -15,6 +15,7 @@ interface FilterValues {
 
 interface DetailViewFilterProps {
   onSearch: (filters: FilterValues) => void;
+  onClear:  () => void;
 }
 
 const functionOptions = [
@@ -35,7 +36,7 @@ const projectOptions = [
   { label: 'Project B', value: 'B' },
 ];
 
-const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ onSearch }) => {
+const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ onSearch, onClear }) => {
   const today   = new Date().toISOString().split('T')[0];
   const minus18 = new Date(Date.now() - 18 * 24 * 60 * 60 * 1000)
                     .toISOString().split('T')[0];
@@ -54,6 +55,15 @@ const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ onSearch }) => {
       status:   statusVal,
       project:  projectVal,
     });
+  };
+
+  const handleClear = () => {
+    setFromDate(minus18);
+    setToDate(today);
+    setFuncVal('');
+    setStatusVal('');
+    setProjectVal('');
+    onClear();
   };
 
   return (
@@ -112,11 +122,16 @@ const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ onSearch }) => {
             required
           />
         </div>
-        <div className="flex flex-1 justify-end items-end">
+        <div className="flex flex-1 justify-end items-end gap-2">
           <CommonButton
             text="Search.."
             variant="primary"
             onClick={handleSearch}
+          />
+          <CommonButton
+            text="Clear"
+            variant="danger"
+            onClick={handleClear}
           />
         </div>
       </div>

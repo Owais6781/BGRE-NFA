@@ -14,7 +14,43 @@ interface DetailViewRecord {
 
 const DetailView: React.FC = () => {
   const [tableData,   setTableData]   = useState<DetailViewRecord[]>([]);
+  const [filters,     setFilters]     = useState<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // --- Filtering Logic ---
+  const displayData = React.useMemo(() => {
+    if (!filters) return tableData;
+
+    return tableData.filter(item => {
+      // Date Filter
+      if (filters.fromDate || filters.toDate) {
+        const itemDate = new Date(item.createdOn);
+        itemDate.setHours(0, 0, 0, 0);
+
+        if (filters.fromDate) {
+          const from = new Date(filters.fromDate);
+          from.setHours(0, 0, 0, 0);
+          if (itemDate < from) return false;
+        }
+        if (filters.toDate) {
+          const to = new Date(filters.toDate);
+          to.setHours(0, 0, 0, 0);
+          if (itemDate > to) return false;
+        }
+      }
+
+      // Dropdown Filters
+      if (filters.status && item.status !== filters.status) return false;
+      if (filters.function && item.function !== filters.function) return false;
+      if (filters.project && item.project !== filters.project) return false;
+
+      return true;
+    });
+  }, [tableData, filters]);
+
+  const handleSearch = (f: any) => {
+    setFilters(f);
+  };
 
   return (
     <div className="pageContainer">
@@ -28,8 +64,8 @@ const DetailView: React.FC = () => {
 
       {!isCollapsed && (
         <>
-          <DetailViewFilter onSearch={(f) => { console.log(f); setTableData([]); }} />
-          <DetailViewTable  data={tableData} onRecordClick={(nfa) => console.log('Clicked:', nfa)} />
+          <DetailViewFilter onSearch={handleSearch} onClear={() => setFilters(null)} />
+          <DetailViewTable  data={displayData} onRecordClick={(nfa) => console.log('Clicked:', nfa)} />
         </>
       )}
 

@@ -147,6 +147,7 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
         columns={columns}
         data={paginated}
         emptyMessage="No records found"
+        stickyFirstColumn={true}
       />
 
       {/* ── Pagination ── */}

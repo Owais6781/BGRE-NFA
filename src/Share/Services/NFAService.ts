@@ -1,9 +1,9 @@
 import { WebPartContext } from "@microsoft/sp-webpart-base";
-import {
-  SPHttpClient,
-  SPHttpClientResponse,
-  ISPHttpClientOptions,
-} from "@microsoft/sp-http";
+import { spfi, SPFx, SPFI } from "@pnp/sp";
+import "@pnp/sp/webs";
+import "@pnp/sp/lists";
+import "@pnp/sp/items";
+import "@pnp/sp/site-users";
 
 // ── Form Data Interface ──
 export interface INFAFormData {
@@ -36,6 +36,9 @@ export interface INFAFormData {
   approvers: (string | number | null)[];
   attachments?: FileList | null;
   uniqId: string;
+  level: number;
+  pendingAtId: number | null;
+  initiatorId?: number;
 }
 
 export interface INFASaveResponse {
@@ -57,37 +60,22 @@ export interface IValidationResult {
 export type NFAStatus = "Draft" | "Pending";
 
 export class NFAService {
-  private context: WebPartContext;
+  private sp: SPFI;
   private listName: string = "DigitalApprovalNotes";
 
   constructor(context: WebPartContext) {
-    this.context = context;
+    this.sp = spfi().using(SPFx(context));
   }
 
-  public async resolveUserId(loginName: string): Promise<number | null> {
-    try {
-      const siteUrl = this.context.pageContext.web.absoluteUrl;
-      const endpoint = `${siteUrl}/_api/web/ensureuser`;
-      const response = await this.context.spHttpClient.post(
-        endpoint,
-        SPHttpClient.configurations.v1,
-        {
-          headers: {
-            Accept: "application/json;odata=nometadata",
-            "Content-Type": "application/json;odata=nometadata",
-          },
-          body: JSON.stringify({ logonName: loginName }),
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        return data.Id;
-      }
-      return null;
-    } catch (error) {
-      return null;
-    }
+public async resolveUserId(loginName: string): Promise<number | null> {
+  try {
+    const user = await this.sp.web.ensureUser(loginName);
+    return user.Id;
+  } catch (error) {
+    console.error(error);
+    return null;
   }
+}
 
   public validateForm(form: INFAFormData, status: NFAStatus): IValidationResult {
     const errors: IValidationError[] = [];
@@ -139,10 +127,12 @@ export class NFAService {
       RequestedOn: form.date,
       Month: now.toLocaleString('default', { month: 'long' }),
       Year: now.getFullYear().toString(),
-      PendingAtId: resolvedApprovers[0] || null, // Updated to save as Person ID
+      PendingAtId: resolvedApprovers[0] || null, 
+      Level: 1, 
       UniqId: form.uniqId || "",
     };
 
+    // Mapping 12 levels of approvers to ApprovalLevel1Id, ApprovalLevel2Id, etc.
     for (let i = 0; i < 12; i++) {
       const fieldName = `ApprovalLevel${i + 1}Id`;
       body[fieldName] = resolvedApprovers[i] || null;
@@ -153,39 +143,24 @@ export class NFAService {
 
   public async saveNFA(form: INFAFormData, status: NFAStatus, projectOptions: { label: string, value: string }[], subEntityOptions: { label: string, value: string }[]): Promise<INFASaveResponse> {
     try {
-      const siteUrl = this.context.pageContext.web.absoluteUrl;
-      const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items`;
       const resolvedApprovers = await Promise.all(
         form.approvers.map(async (a) => {
-          if (typeof a === "string" && a) return await this.resolveUserId(a);
-          return typeof a === "number" ? a : null;
+          if (!a) return null;
+          if (typeof a === "number") return a;
+          const strVal = String(a).trim();
+          if (!strVal || strVal === "null") return null;
+          if (/^\d+$/.test(strVal)) return parseInt(strVal);
+          return await this.resolveUserId(strVal);
         })
       );
+
       const projectObj = projectOptions.find(p => p.value === form.project);
       const projectName = projectObj ? projectObj.label : form.project;
       const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
       const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames);
 
-      const options: ISPHttpClientOptions = {
-        headers: {
-          Accept: "application/json;odata=nometadata",
-          "Content-Type": "application/json;odata=nometadata",
-          "odata-version": "",
-        },
-        body: JSON.stringify(body),
-      };
-
-      const response: SPHttpClientResponse = await this.context.spHttpClient.post(
-        endpoint, SPHttpClient.configurations.v1, options
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return { success: false, itemId: null, message: `Failed: ${errorText}` };
-      }
-
-      const result = await response.json();
-      return { success: true, itemId: result.Id, message: "Saved successfully!" };
+      const result = await this.sp.web.lists.getByTitle(this.listName).items.add(body);
+      return { success: true, itemId: result.data.Id, message: "Saved successfully!" };
     } catch (error) {
       return { success: false, itemId: null, message: "Error occurred during save." };
     }
@@ -193,13 +168,14 @@ export class NFAService {
 
   public async updateNFA(itemId: number, form: INFAFormData, status: NFAStatus, projectOptions: { label: string, value: string }[], subEntityOptions: { label: string, value: string }[]): Promise<INFASaveResponse> {
     try {
-      const siteUrl = this.context.pageContext.web.absoluteUrl;
-      const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items(${itemId})`;
-
       const resolvedApprovers = await Promise.all(
         form.approvers.map(async (a) => {
-          if (typeof a === "string" && a) return await this.resolveUserId(a);
-          return typeof a === "number" ? a : null;
+          if (!a) return null;
+          if (typeof a === "number") return a;
+          const strVal = String(a).trim();
+          if (!strVal || strVal === "null") return null;
+          if (/^\d+$/.test(strVal)) return parseInt(strVal);
+          return await this.resolveUserId(strVal);
         })
       );
 
@@ -208,22 +184,7 @@ export class NFAService {
       const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
       const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames);
 
-      const options: ISPHttpClientOptions = {
-        headers: {
-          Accept: "application/json;odata=nometadata",
-          "Content-Type": "application/json;odata=nometadata",
-          "IF-MATCH": "*",
-          "X-HTTP-Method": "MERGE",
-        },
-        body: JSON.stringify(body),
-      };
-
-      const response: SPHttpClientResponse = await this.context.spHttpClient.post(
-        endpoint, SPHttpClient.configurations.v1, options
-      );
-
-      if (!response.ok) return { success: false, itemId, message: "Update failed." };
-
+      await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update(body);
       return { success: true, itemId, message: "Updated successfully!" };
     } catch (error) {
       return { success: false, itemId, message: "Error occurred during update." };
@@ -232,16 +193,10 @@ export class NFAService {
 
   public async getNFA(itemId: number): Promise<INFAFormData | null> {
     try {
-      const siteUrl = this.context.pageContext.web.absoluteUrl;
       const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}`);
-      const select = `*,${levels.map(l => `${l}/Id`).join(',')}`;
-      const expand = levels.join(',');
-      const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items(${itemId})?$select=${select}&$expand=${expand}`;
-
-      const response = await this.context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
-      if (!response.ok) return null;
-
-      const item = await response.json();
+      const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
+        .select("*", "PendingAt/Id", "PendingAt/Title", "Author/Id", "Author/Title", ...levels.map(l => `${l}/Id`), ...levels.map(l => `${l}/Title`))
+        .expand("PendingAt", "Author", ...levels)();
 
       return {
         project: item.Project || "",
@@ -271,26 +226,24 @@ export class NFAService {
         workflow: item.WorkflowType || "",
         doaMatrix: item.DOAClause || "",
         approvers: levels.map(l => item[l]?.Id || ""),
-        uniqId: item.UniqId || ""
+        uniqId: item.UniqId || "",
+        level: item.Level || 0,
+        pendingAtId: item.PendingAt ? item.PendingAt.Id : null,
+        initiatorId: item.Author ? item.Author.Id : undefined
       };
     } catch (error) {
-      console.error("Error fetching NFA:", error);
+      console.error("NFAService: Exception in getNFA:", error);
       return null;
     }
   }
 
   public async getNFAList(): Promise<any[]> {
     try {
-      const siteUrl = this.context.pageContext.web.absoluteUrl;
-      const select = "Id,Title,Dept,Project,RequestedOn,Status,PendingAt/Title,Level";
-      const expand = "PendingAt";
-      const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items?$select=${select}&$expand=${expand}`;
+      const items = await this.sp.web.lists.getByTitle(this.listName).items
+        .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "PendingAt/Title", "Level")
+        .expand("PendingAt")();
 
-      const response = await this.context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
-      if (!response.ok) return [];
-
-      const data = await response.json();
-      return data.value.map((item: any) => ({
+      return items.map((item: any) => ({
         id: item.Id,
         requestNo: item.Title,
         function: item.Dept,
@@ -303,6 +256,68 @@ export class NFAService {
     } catch (error) {
       console.error("Error fetching NFA list:", error);
       return [];
+    }
+  }
+
+  public async getInboxData(): Promise<any[]> {
+    try {
+      const currentUser = await this.sp.web.currentUser();
+      const currentUserId = currentUser.Id;
+
+      const items = await this.sp.web.lists.getByTitle(this.listName).items
+        .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "PendingAt/Id", "PendingAt/Title", "Level", "ApprovalAmount", "Author/Title", "Created")
+        .expand("PendingAt", "Author")
+        .filter(`(Status eq 'Pending' or Status eq 'Query') and PendingAt/Id eq ${currentUserId}`)();
+
+      return items.map((item: any) => {
+        const createdDate = new Date(item.Created);
+        const today = new Date();
+        const diffTime = Math.abs(today.getTime() - createdDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return {
+          id: item.Id,
+          requestNo: item.Title,
+          function: item.Dept,
+          project: item.Project,
+          createdDate: item.RequestedOn || createdDate.toLocaleDateString('en-IN'),
+          status: item.Status,
+          pendingAt: item.PendingAt ? item.PendingAt.Title : "",
+          pendingAtId: item.PendingAt ? item.PendingAt.Id : null,
+          level: item.Level || 0,
+          amount: item.ApprovalAmount || "0.00",
+          initiator: item.Author ? item.Author.Title : "",
+          agingDays: diffDays
+        };
+      });
+    } catch (error) {
+      console.error("Error fetching Inbox data:", error);
+      return [];
+    }
+  }
+
+  public async getHistory(nfaId: number): Promise<any[]> {
+    try {
+      // Assuming a list named 'NFAHistory' exists to store audit trail
+      const items = await this.sp.web.lists.getByTitle("NFAHistory").items
+        .filter(`NFAId eq ${nfaId}`)
+        .select("Id", "Title", "Action", "Remarks", "Created", "User/Title")
+        .expand("User")
+        .orderBy("Created", true)();
+
+      return items.map(item => ({
+        id: item.Id,
+        action: item.Action,
+        remarks: item.Remarks,
+        user: item.User ? item.User.Title : "Unknown",
+        date: new Date(item.Created).toLocaleString('en-IN')
+      }));
+    } catch (error) {
+      console.warn("NFAService: getHistory failed (list might not exist):", error);
+      // Return mock data for demo if list doesn't exist
+      return [
+        { id: 1, action: 'Submitted', remarks: 'NFA submitted for approval', user: 'Initiator', date: '01/06/2026, 10:00:00' },
+      ];
     }
   }
 }

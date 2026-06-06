@@ -11,6 +11,7 @@ import Home from "./ApprovalNotes/Home/Home";
 import NewNFA from "./ApprovalNotes/NewNFA/NewNFA";
 import ViewNFA from "./ApprovalNotes/ViewNFA/ViewNFA";
 import Inbox from "./ApprovalNotes/Inbox/Inbox";
+import ApproverPage from "./ApprovalNotes/ApproverPage/ApproverPage";
 import ApprovalDetailsView from "./ApprovalNotes/ApprovalDetailsView/ApprovalDetailsView";
 import ApprovedRejectedByMe from "./ApprovalNotes/ApprovedRejectedByMe/ApprovedRejectedByMe";
 import DetailView from "./AdminSection/DetailView/DetailView";
@@ -25,18 +26,19 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
   return (
     <HashRouter>
       <div className="w-full flex" style={{ background: '#f1f5f9', padding: '10px', minHeight: 'calc(100vh - 140px)' }}>
-        <Sidebar />
+        <Sidebar context={context} sp={sp} />
 
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 min-w-0">
           <Header context={context} />
 
-          <main className="flex-1 w-full" style={{ padding: '10px 0 30px 20px' }}>
+          <main className="flex-1 w-full min-w-0" style={{ padding: '10px 0 30px 20px' }}>
             <Routes>
                 <Route path="/"                    element={<Home context={context} sp={sp}/>} />
                 <Route path="/new-nfa"             element={<NewNFA context={context} sp={sp}/>} />
                 <Route path="/new-nfa/:id"         element={<NewNFA context={context} sp={sp}/>} />
                 <Route path="/view-nfa/:id"        element={<ViewNFA context={context} sp={sp}/>} />
-                <Route path="/inbox"               element={<Inbox />} />
+                <Route path="/approver-page/:id"   element={<ApproverPage context={context} sp={sp}/>} />
+                <Route path="/inbox"               element={<Inbox context={context} sp={sp}/>} />
                 <Route path="/approver-detail"     element={<ApprovalDetailsView />} />
                 <Route path="/approved-rejected"   element={<ApprovedRejectedByMe />} />
                 <Route path="/detail-view"         element={<DetailView />} />
