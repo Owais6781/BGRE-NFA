@@ -1,13 +1,14 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SlidersHorizontal, ChevronDown } from 'lucide-react';
 import DatePickerField from '../../../../../Share/Components/Dateinput';
 import DropdownField   from '../../../../../Share/Components/DropdownField';
 import CommonButton    from '../../../../../Share/Components/CommonButton';
 import { IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import "../../../../../Share/styles/global.scss";
-
+ 
 interface HomeFilterProps {
+  filters: any;
   functionOptions: IDropdownOption[];
   projectOptions: IDropdownOption[];
   onSearch: (filters: {
@@ -16,24 +17,40 @@ interface HomeFilterProps {
   }) => void;
   onClear: () => void;
 }
-
+ 
 const statusOptions = [
   { label: 'Draft',    value: 'Draft'    },
   { label: 'Pending',  value: 'Pending'  },
   { label: 'Approved', value: 'Approved' },
   { label: 'Rejected', value: 'Rejected' },
 ];
-
-const HomeFilter: React.FC<HomeFilterProps> = ({ onSearch, onClear, functionOptions, projectOptions }) => {
+ 
+const HomeFilter: React.FC<HomeFilterProps> = ({ filters, onSearch, onClear, functionOptions, projectOptions }) => {
   const today   = new Date().toISOString().split('T')[0];
   const minus11 = new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
+ 
   const [fromDate,   setFromDate]   = useState(minus11);
   const [toDate,     setToDate]     = useState(today);
   const [funcVal,    setFuncVal]    = useState('');
   const [statusVal,  setStatusVal]  = useState('');
   const [projectVal, setProjectVal] = useState('');
   const [isOpen,     setIsOpen]     = useState(true);
+
+  useEffect(() => {
+    if (filters) {
+      setFromDate(filters.fromDate || minus11);
+      setToDate(filters.toDate || today);
+      setFuncVal(filters.function || '');
+      setStatusVal(filters.status || '');
+      setProjectVal(filters.project || '');
+    } else {
+      setFromDate(minus11);
+      setToDate(today);
+      setFuncVal('');
+      setStatusVal('');
+      setProjectVal('');
+    }
+  }, [filters, today, minus11]);
 
   const handleSearch = () =>
     onSearch({ fromDate, toDate, function: funcVal, status: statusVal, project: projectVal });

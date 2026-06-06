@@ -22,6 +22,7 @@ interface HomeTableProps {
   data: NFARecord[];
   onRowClick?: (record: NFARecord) => void;
   loading?: boolean;
+  onClearFilters?: () => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500];
@@ -36,7 +37,18 @@ const exportColumns = [
   { key: 'level',     label: 'Level'       },
 ];
 
-const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false }) => {
+const formatDateFriendly = (dateStr: string) => {
+  if (!dateStr) return '—';
+  const dateObj = new Date(dateStr);
+  if (isNaN(dateObj.getTime())) return dateStr;
+  return dateObj.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false, onClearFilters }) => {
   const [pageSize,     setPageSize]    = useState(10);
   const [search,       setSearch]      = useState('');
   const [currentPage,  setCurrentPage] = useState(1);
@@ -52,16 +64,60 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
     },
     { key: 'function', label: 'Function' },
     { key: 'project',  label: 'Project'  },
-    { key: 'createdOn', label: 'CDate'   },
+    { 
+      key: 'createdOn', 
+      label: 'CDate',
+      render: (val: string) => formatDateFriendly(val)
+    },
     {
       key: 'status', label: 'Status',
-      render: (val: string) => (
-        <span className={`statusBadge ${val === 'Approved' ? 'statusApproved' : val === 'Rejected' ? 'statusRejected' : 'statusPending'}`}>
-          {val}
-        </span>
-      ),
+      render: (val: string) => {
+        const clsMap: Record<string, { bg: string, text: string, border: string }> = {
+          'Approved': { bg: 'bg-emerald-50/60', text: 'text-emerald-700', border: 'border-emerald-500/30' },
+          'Rejected': { bg: 'bg-rose-50/60', text: 'text-rose-700', border: 'border-rose-500/30' },
+          'Draft':    { bg: 'bg-slate-50/60', text: 'text-slate-700', border: 'border-slate-500/30' },
+          'Pending':  { bg: 'bg-amber-50/60', text: 'text-amber-700', border: 'border-amber-500/30' }
+        };
+        const style = clsMap[val] || { bg: 'bg-blue-50/60', text: 'text-blue-700', border: 'border-blue-500/30' };
+        
+        return (
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${style.bg} ${style.text} ${style.border}`}>
+            <span className="w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 bg-current opacity-75"></span>
+            {val}
+          </span>
+        );
+      }
     },
-    { key: 'pendingAt', label: 'Pending At' },
+    { 
+      key: 'pendingAt', 
+      label: 'Pending At',
+      render: (val: string) => {
+        if (!val) return <span className="text-slate-400 font-normal italic">—</span>;
+        
+        const parts = val.trim().split(/\s+/);
+        const initials = parts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
+        
+        const colors = [
+          'bg-blue-500/10 text-blue-600 border-blue-200',
+          'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+          'bg-indigo-500/10 text-indigo-600 border-indigo-200',
+          'bg-purple-500/10 text-purple-600 border-purple-200',
+          'bg-amber-500/10 text-amber-600 border-amber-200',
+          'bg-rose-500/10 text-rose-600 border-rose-200'
+        ];
+        const idx = Math.abs(val.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
+        const colorClass = colors[idx];
+        
+        return (
+          <div className="flex items-center gap-2">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border ${colorClass}`}>
+              {initials}
+            </div>
+            <span className="font-semibold text-slate-800 text-sm truncate max-w-[140px]">{val}</span>
+          </div>
+        );
+      }
+    },
     { key: 'level',     label: 'Level'      },
   ];
 
@@ -73,6 +129,11 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
 
   const handleSearch         = (val: string) => { setSearch(val);     setCurrentPage(1); };
   const handlePageSizeChange = (size: number) => { setPageSize(size); setCurrentPage(1); };
+
+  const handleResetAll = () => {
+    setSearch('');
+    onClearFilters?.();
+  };
 
   return (
     <div className="contentCard">
@@ -88,14 +149,64 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
         }
       />
 
-      <CommonTable
-        columns={columns}
-        data={paginated}
-        emptyMessage="No NFA records found"
-        stickyFirstColumn={true}
-        onRowClick={onRowClick}
-        loading={loading}
-      />
+      {loading ? (
+        <div className="tableWrapper">
+          <table className="commonTable">
+            <thead>
+              <tr>
+                {columns.map((col, index) => (
+                  <th 
+                    key={col.key} 
+                    className={`tableHeader stickyHeader ${index === 0 ? 'stickyCol' : ''}`}
+                  >
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array(5).fill(0).map((_, i) => (
+                <tr key={i} className="tableRow">
+                  {columns.map((col, index) => (
+                    <td 
+                      key={col.key} 
+                      className={`tableCell py-4 ${index === 0 ? 'stickyCol' : ''}`}
+                    >
+                      <div className="h-4 bg-slate-200/60 rounded animate-pulse w-full max-w-[120px] min-w-[50px]"></div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+          <div className="w-14 h-14 rounded-full bg-slate-50 flex items-center justify-center mb-4 text-slate-400 border border-slate-100">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+            </svg>
+          </div>
+          <h3 className="text-slate-700 font-bold text-sm mb-1">No NFA Records Found</h3>
+          <p className="text-slate-400 text-xs max-w-xs mb-4 leading-normal">We couldn't find any Note for Approval records matching your active filters or search query.</p>
+          <button 
+            onClick={handleResetAll}
+            className="btn btnPrimary px-4 py-2 text-xs font-semibold rounded-xl"
+            style={{ padding: '8px 16px' }}
+          >
+            Reset All Filters
+          </button>
+        </div>
+      ) : (
+        <CommonTable
+          columns={columns}
+          data={paginated}
+          emptyMessage="No NFA records found"
+          stickyFirstColumn={true}
+          onRowClick={onRowClick}
+          loading={false}
+        />
+      )}
 
       <Pagination
         page={currentPage} total={totalPages} pageSize={pageSize}
