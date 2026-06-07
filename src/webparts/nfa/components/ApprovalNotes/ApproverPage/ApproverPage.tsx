@@ -66,6 +66,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const [docs, setDocs] = useState<ISavedDocument[]>([]);
   const [users, setUsers] = useState<{label: string, value: string, email?: string}[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
   
   // Action State
   const [remarks, setRemarks] = useState('');
@@ -183,7 +184,104 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         if (nfaData) {
           setNfa(nfaData);
           setUsers(siteUsers);
-          setHistory(historyData);
+          
+          const parseCommentHistory = (commentHistoryText: string): any[] => {
+            if (!commentHistoryText) return [];
+            const lines = commentHistoryText.split("\n");
+            const parsed: any[] = [];
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              const match = line.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+              if (match) {
+                parsed.push({
+                  id: Math.random(),
+                  date: match[1],
+                  user: match[2],
+                  action: match[3],
+                  remarks: match[4]
+                });
+              } else {
+                parsed.push({
+                  id: Math.random(),
+                  date: "",
+                  user: "System",
+                  action: "Log",
+                  remarks: line
+                });
+              }
+            }
+            return parsed;
+          };
+
+          const parseWorkflowHistory = (workflowHistoryText: string): any[] => {
+            if (!workflowHistoryText) return [];
+            const lines = workflowHistoryText.split("\n");
+            const parsed: any[] = [];
+            for (const line of lines) {
+              const cleanLine = line
+                .replace(/<[^>]*>/g, "")
+                .replace(/&#58;/g, ":")
+                .replace(/&nbsp;/g, " ")
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .trim();
+              if (!cleanLine) continue;
+
+              const appMatch = cleanLine.match(/^NFA Request (.*?) by (.*?) at Level\s+(.*?)\.\s+on\s+(.*)$/);
+              if (appMatch) {
+                parsed.push({
+                  id: Math.random(),
+                  date: appMatch[4].trim(),
+                  user: appMatch[2].trim(),
+                  action: appMatch[1].trim(),
+                  rawText: cleanLine,
+                  remarks: ""
+                });
+                continue;
+              }
+
+              const initMatch = cleanLine.match(/^NFA Request Initiated by (.*?) on (.*)$/);
+              if (initMatch) {
+                parsed.push({
+                  id: Math.random(),
+                  date: initMatch[2].trim(),
+                  user: initMatch[1].trim(),
+                  action: "Initiated",
+                  rawText: cleanLine,
+                  remarks: ""
+                });
+                continue;
+              }
+
+              parsed.push({
+                id: Math.random(),
+                date: "",
+                user: "System",
+                action: "Log",
+                rawText: cleanLine,
+                remarks: cleanLine
+              });
+            }
+            return parsed;
+          };
+
+          let finalHistory = historyData;
+          if (!finalHistory || finalHistory.length === 0) {
+            if (nfaData.workflowHistory) {
+              finalHistory = parseWorkflowHistory(nfaData.workflowHistory);
+            } else if (nfaData.commentHistory) {
+              finalHistory = parseCommentHistory(nfaData.commentHistory);
+            }
+          }
+          setHistory(finalHistory.reverse());
+
+          let finalComments: any[] = [];
+          if (nfaData.commentHistory) {
+            finalComments = parseCommentHistory(nfaData.commentHistory);
+          }
+          setComments(finalComments);
+
           const attachedDocs = await docService.getDocumentsByUniqId(nfaData.uniqId);
           setDocs(attachedDocs);
         }
@@ -569,89 +667,6 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         {/* ── Right Column (30% Width) ── */}
         <div className="w-full lg:w-[30%] space-y-6">
           
-          {/* Workflow History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
-              <History size={15} className="text-blue-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
-            </div>
-            
-            <div className="space-y-4">
-              {history.length > 0 ? history.map((item, idx) => {
-                const isApproved = item.action === 'Approved';
-                const isRejected = item.action === 'Rejected';
-                const isQuery = item.action === 'Query';
-                
-                let badgeClass = 'bg-blue-50 text-blue-700 border-blue-100';
-                let dotClass = 'bg-blue-500';
-                
-                if (isApproved) {
-                  badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                  dotClass = 'bg-emerald-500';
-                } else if (isRejected) {
-                  badgeClass = 'bg-rose-50 text-rose-700 border-rose-100';
-                  dotClass = 'bg-rose-500';
-                } else if (isQuery) {
-                  badgeClass = 'bg-amber-50 text-amber-700 border-amber-100';
-                  dotClass = 'bg-amber-500';
-                }
-                
-                return (
-                  <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
-                    {idx < history.length - 1 && (
-                      <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
-                    )}
-                    <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-bold text-slate-700 truncate">{item.user}</span>
-                        <span className="text-[9px] text-slate-400 shrink-0">{item.date.split(',')[0]}</span>
-                      </div>
-                      <span className={`text-[9px] font-extrabold uppercase mt-1 border px-1.5 py-0.5 rounded-md w-fit ${badgeClass}`}>
-                        {item.action}
-                      </span>
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="text-center py-4 text-slate-400 italic text-[11px]">
-                  No audit history found.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Comments History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
-              <MessageSquare size={15} className="text-indigo-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Comments History</span>
-            </div>
-            
-            <div className="space-y-4">
-              {history.filter(item => item.remarks).length > 0 ? (
-                history.filter(item => item.remarks).map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col gap-1.5 p-3 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-extrabold text-slate-600">{item.user}</span>
-                      <span className="text-[9px] text-slate-400">{item.date.split(',')[0]}</span>
-                    </div>
-                    <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
-                      <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
-                      <p className="text-[10.5px] text-slate-500 leading-normal italic relative z-10">
-                        "{item.remarks}"
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-400 italic text-[11px]">
-                  No comments or remarks recorded.
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Attachments */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2.5">
@@ -698,6 +713,85 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 <span className="text-[10px] text-slate-400 font-bold italic">No attachments found</span>
               </div>
             )}
+          </div>
+
+          {/* Workflow History */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
+              <History size={15} className="text-blue-500 shrink-0"/> 
+              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
+            </div>
+            
+            <div className="space-y-4">
+              {history.length > 0 ? history.map((item, idx) => {
+                const isApproved = item.action === 'Approved';
+                const isRejected = item.action === 'Rejected';
+                const isQuery = item.action === 'Query';
+                
+                let badgeClass = 'bg-blue-50 text-blue-700 border-blue-100';
+                let dotClass = 'bg-blue-500';
+                
+                if (isApproved) {
+                  badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                  dotClass = 'bg-emerald-500';
+                } else if (isRejected) {
+                  badgeClass = 'bg-rose-50 text-rose-700 border-rose-100';
+                  dotClass = 'bg-rose-500';
+                } else if (isQuery) {
+                  badgeClass = 'bg-amber-50 text-amber-700 border-amber-100';
+                  dotClass = 'bg-amber-500';
+                }
+                
+                return (
+                  <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
+                    {idx < history.length - 1 && (
+                      <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
+                    )}
+                    <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
+                    <div className="flex flex-col min-w-0">
+                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                        {item.rawText || `${item.user} (${item.action})${item.remarks ? `: ${item.remarks}` : ""}`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="text-center py-4 text-slate-400 italic text-[11px]">
+                  No audit history found.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Comments History */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
+              <MessageSquare size={15} className="text-indigo-500 shrink-0"/> 
+              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Comments History</span>
+            </div>
+            
+            <div className="space-y-4">
+              {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
+                comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
+                  <div key={item.id || idx} className="flex flex-col gap-1.5 p-3 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-extrabold text-slate-600">{item.user}</span>
+                      <span className="text-[9px] text-slate-400">{item.date.split(',')[0]}</span>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                      <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
+                      <p className="text-[10.5px] text-slate-500 leading-normal italic relative z-10">
+                        "{item.remarks}"
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-slate-400 italic text-[11px]">
+                  No comments or remarks recorded.
+                </div>
+              )}
+            </div>
           </div>
 
         </div>

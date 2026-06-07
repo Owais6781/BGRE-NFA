@@ -1,8 +1,10 @@
 import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { formatHistoryDate } from "./NFAService";
 import { SPFI } from "@pnp/sp";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
+import "@pnp/sp/site-users";
 
 export class ApprovalService {
   private sp: SPFI;
@@ -12,23 +14,105 @@ export class ApprovalService {
     this.sp = sp;
   }
 
-  private async addHistoryLog(
+  private async getAndUpdateCommentHistory(
     itemId: number,
     action: string,
     remarks: string,
     currentUserId: number,
-    subject: string
+    updateBody: Record<string, any>
+  ): Promise<any> {
+    const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
+      .select("CommentHistory", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "Level")();
+
+    let userName = "Unknown User";
+    if (currentUserId) {
+      try {
+        const user = await this.sp.web.siteUsers.getById(currentUserId)();
+        userName = user.Title || "Unknown User";
+      } catch (uErr) {
+        console.error("ApprovalService: Error getting user for CommentHistory:", uErr);
+      }
+    }
+
+    const now = new Date();
+    const dateString = now.toLocaleString("en-IN");
+    const newCommentEntry = `[${dateString}] ${userName} (${action}): ${remarks || "No remarks"}`;
+
+    const dateStr = formatHistoryDate(now);
+    const newWorkflowEntry = `NFA Request ${action} by ${userName} at Level ${item.Level || 1}. on ${dateStr}</br>`;
+
+    const currentCommentHistory = item.CommentHistory || "";
+    const currentWorkflowHistory = item.WorkflowHistory || "";
+
+    updateBody.CommentHistory = currentCommentHistory 
+      ? `${currentCommentHistory}\n${newCommentEntry}`
+      : newCommentEntry;
+
+    updateBody.WorkflowHistory = currentWorkflowHistory
+      ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
+      : newWorkflowEntry;
+
+    await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update(updateBody);
+
+    return item;
+  }
+
+  private async writeWFLog(
+    item: any,
+    itemId: number,
+    remarks: string,
+    action: string,
+    newLevel: number | undefined,
+    newPendingAtId: number | null
   ): Promise<void> {
     try {
-      await this.sp.web.lists.getByTitle("NFAHistory").items.add({
-        Title: subject || "Action Note",
-        Action: action,
-        Remarks: remarks,
-        NFAId: itemId,
-        UserId: currentUserId
-      });
-    } catch (historyError) {
-      console.warn("ApprovalService: Failed to write to NFAHistory list (list may not exist):", historyError);
+      let pendingAtName = "";
+      if (newPendingAtId) {
+        try {
+          const user = await this.sp.web.siteUsers.getById(newPendingAtId)();
+          pendingAtName = user.Title || "";
+        } catch (uErr) {
+          console.error("ApprovalService: Error getting user for WFLogList:", uErr);
+        }
+      }
+
+      // Log 1: Completed Action Log (PPLPendingAt = null)
+      const logBody1: Record<string, any> = {
+        Title: item.Title || "NFA",
+        WFID: String(itemId),
+        FunctionID: item.Dept || "",
+        FunctionName: item.Dept || "",
+        Project: item.Project || "",
+        Amount: String(item.ApprovalAmount || "0.00"),
+        Status: action,
+        PendingAt: "",
+        WFLevel: String(item.Level || 1),
+        Remarks: remarks || ""
+      };
+
+      await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody1);
+
+      // Log 2: Next Pending Task Log (only if newPendingAtId is not null and action is not Rejected)
+      if (newPendingAtId && action !== "Rejected") {
+        const logBody2: Record<string, any> = {
+          Title: item.Title || "NFA",
+          WFID: String(itemId),
+          FunctionID: item.Dept || "",
+          FunctionName: item.Dept || "",
+          Project: item.Project || "",
+          Amount: String(item.ApprovalAmount || "0.00"),
+          Status: "Pending",
+          PendingAt: pendingAtName,
+          WFLevel: String(newLevel !== undefined ? newLevel : (item.Level || 1)),
+          Remarks: ""
+        };
+
+        logBody2.PPLPendingAtId = newPendingAtId;
+
+        await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody2);
+      }
+    } catch (logErr) {
+      console.warn("ApprovalService: Failed to write to WFLogList:", logErr);
     }
   }
 
@@ -65,9 +149,9 @@ export class ApprovalService {
         updateBody.Status = "Approved";
       }
       
-      await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update(updateBody);
+      const item = await this.getAndUpdateCommentHistory(itemId, "Approved", remarks, currentUserId, updateBody);
       
-      await this.addHistoryLog(itemId, "Approved", remarks, currentUserId, subject);
+      await this.writeWFLog(item, itemId, remarks, "Approved", updateBody.Level, updateBody.PendingAtId);
       
       return { success: true, message: nextApproverId ? "NFA approved and forwarded to next level." : "NFA fully approved!" };
     } catch (error) {
@@ -83,12 +167,14 @@ export class ApprovalService {
     subject: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
+      const updateBody = {
         Status: "Rejected",
         PendingAtId: null
-      });
+      };
       
-      await this.addHistoryLog(itemId, "Rejected", remarks, currentUserId, subject);
+      const item = await this.getAndUpdateCommentHistory(itemId, "Rejected", remarks, currentUserId, updateBody);
+
+      await this.writeWFLog(item, itemId, remarks, "Rejected", undefined, null);
       
       return { success: true, message: "NFA has been rejected." };
     } catch (error) {
@@ -105,12 +191,14 @@ export class ApprovalService {
     subject: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
+      const updateBody = {
         Status: "Query",
         PendingAtId: queryUserId
-      });
+      };
       
-      await this.addHistoryLog(itemId, "Query", remarks, currentUserId, subject);
+      const item = await this.getAndUpdateCommentHistory(itemId, "Query", remarks, currentUserId, updateBody);
+
+      await this.writeWFLog(item, itemId, remarks, "Query", undefined, queryUserId);
       
       return { success: true, message: "Query sent successfully." };
     } catch (error) {
@@ -136,9 +224,9 @@ export class ApprovalService {
         updateBody[`ApprovalLevel${currentLevel}Id`] = delegateUserId;
       }
       
-      await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update(updateBody);
-      
-      await this.addHistoryLog(itemId, "Delegate", remarks, currentUserId, subject);
+      const item = await this.getAndUpdateCommentHistory(itemId, "Delegate", remarks, currentUserId, updateBody);
+
+      await this.writeWFLog(item, itemId, remarks, "Delegate", currentLevel, delegateUserId);
       
       return { success: true, message: "NFA delegated successfully." };
     } catch (error) {
@@ -155,13 +243,15 @@ export class ApprovalService {
     subject: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
+      const updateBody = {
         Status: "Returned",
         PendingAtId: initiatorId,
         Level: 0
-      });
+      };
       
-      await this.addHistoryLog(itemId, "Returned", remarks, currentUserId, subject);
+      const item = await this.getAndUpdateCommentHistory(itemId, "Returned", remarks, currentUserId, updateBody);
+
+      await this.writeWFLog(item, itemId, remarks, "Returned", 0, initiatorId);
       
       return { success: true, message: "NFA returned to initiator." };
     } catch (error) {

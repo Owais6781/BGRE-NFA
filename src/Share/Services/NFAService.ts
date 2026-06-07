@@ -5,6 +5,22 @@ import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import "@pnp/sp/site-users";
 
+export const formatHistoryDate = (date: Date): string => {
+  const pad = (num: number) => num < 10 ? '0' + num : String(num);
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const year = date.getFullYear();
+  
+  let hours = date.getHours();
+  const minutes = pad(date.getMinutes());
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strTime = `${hours}:${minutes} ${ampm}`;
+  
+  return `${day}/${month}/${year} ${strTime}`;
+};
+
 // ── Form Data Interface ──
 export interface INFAFormData {
   project: string;
@@ -39,6 +55,8 @@ export interface INFAFormData {
   level: number;
   pendingAtId: number | null;
   initiatorId?: number;
+  commentHistory?: string;
+  workflowHistory?: string;
 }
 
 export interface INFASaveResponse {
@@ -62,8 +80,10 @@ export type NFAStatus = "Draft" | "Pending";
 export class NFAService {
   private sp: SPFI;
   private listName: string = "DigitalApprovalNotes";
+  private context: WebPartContext;
 
   constructor(context: WebPartContext) {
+    this.context = context;
     this.sp = spfi().using(SPFx(context));
   }
 
@@ -85,6 +105,15 @@ public async resolveUserId(loginName: string): Promise<number | null> {
     if (!form.originatorDept.trim()) errors.push({ field: "originatorDept", message: "Dept is required." });
     if (!form.referenceSubject.trim()) errors.push({ field: "referenceSubject", message: "Subject is required." });
     if (!form.approvers[0]) errors.push({ field: "approvers", message: "Approver Level-1 is required." });
+
+    const cost = parseFloat(String(form.packageAwardedCost || "").replace(/,/g, ''));
+    if (isNaN(cost) || cost <= 0) {
+      errors.push({ field: "packageAwardedCost", message: "Awarded Cost is required and must be greater than 0." });
+    }
+    const budgetVal = parseFloat(String(form.budget || "").replace(/,/g, ''));
+    if (isNaN(budgetVal) || budgetVal <= 0) {
+      errors.push({ field: "budget", message: "Budget is required and must be greater than 0." });
+    }
 
     return { isValid: errors.length === 0, errors };
   }
@@ -141,32 +170,119 @@ public async resolveUserId(loginName: string): Promise<number | null> {
     return body;
   }
 
-  public async saveNFA(form: INFAFormData, status: NFAStatus, projectOptions: { label: string, value: string }[], subEntityOptions: { label: string, value: string }[]): Promise<INFASaveResponse> {
+  private generateRequestNo(project: string, dateStr: string, status: NFAStatus, itemId: number): string {
+    let projectInitials = "NFA";
+    if (project) {
+      const clean = project.trim();
+      if (clean.includes(" ")) {
+        projectInitials = clean.split(/\s+/).map(w => w[0]).join("").toUpperCase();
+      } else {
+        projectInitials = clean.toUpperCase();
+      }
+    }
+    projectInitials = projectInitials.replace(/[^A-Z0-9]/g, "");
+
+    let dateObj = new Date();
+    if (dateStr && dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        const parsedDate = new Date(year, month, day);
+        if (!isNaN(parsedDate.getTime())) {
+          dateObj = parsedDate;
+        }
+      }
+    }
+
+    const year = dateObj.getFullYear().toString();
+    const month = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+
+    let suffix = "Draf";
+    if (status !== "Draft") {
+      if (itemId < 10) {
+        suffix = "00" + itemId;
+      } else if (itemId < 100) {
+        suffix = "0" + itemId;
+      } else {
+        suffix = String(itemId);
+      }
+    }
+    return `${projectInitials}-${year}-${month}-${suffix}`;
+  }
+
+  private async writeWFLog(
+    itemId: number,
+    requestNo: string,
+    form: INFAFormData,
+    resolvedApprovers: (number | null)[],
+    projectName: string,
+    functionOptions: { label: string, value: string }[]
+  ): Promise<void> {
     try {
-      const resolvedApprovers = await Promise.all(
-        form.approvers.map(async (a) => {
-          if (!a) return null;
-          if (typeof a === "number") return a;
-          const strVal = String(a).trim();
-          if (!strVal || strVal === "null") return null;
-          if (/^\d+$/.test(strVal)) return parseInt(strVal);
-          return await this.resolveUserId(strVal);
-        })
-      );
+      const funcObj = functionOptions.find(f => f.value === form.originatorDept);
+      const functionName = funcObj ? funcObj.label : form.originatorDept;
 
-      const projectObj = projectOptions.find(p => p.value === form.project);
-      const projectName = projectObj ? projectObj.label : form.project;
-      const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
-      const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames);
+      const pendingAtId = resolvedApprovers[0] || null;
+      let pendingAtName = "";
 
-      const result = await this.sp.web.lists.getByTitle(this.listName).items.add(body);
-      return { success: true, itemId: result.data.Id, message: "Saved successfully!" };
-    } catch (error) {
-      return { success: false, itemId: null, message: "Error occurred during save." };
+      if (pendingAtId) {
+        try {
+          const user = await this.sp.web.siteUsers.getById(pendingAtId)();
+          pendingAtName = user.Title || "";
+        } catch (userErr) {
+          console.error("NFAService: Error fetching site user for pendingAtId:", pendingAtId, userErr);
+        }
+      }
+
+      // Log 1: Completed Action Log (Submitted)
+      const logBody1: Record<string, any> = {
+        Title: requestNo,
+        WFID: String(itemId),
+        FunctionID: form.originatorDept,
+        FunctionName: functionName,
+        Project: projectName,
+        Amount: form.packageAwardedCost,
+        Status: "Submitted",
+        PendingAt: "",
+        WFLevel: "0",
+        Remarks: form.budgetRemarks || ""
+      };
+
+      await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody1);
+
+      // Log 2: Next Pending Task Log (Pending)
+      const logBody2: Record<string, any> = {
+        Title: requestNo,
+        WFID: String(itemId),
+        FunctionID: form.originatorDept,
+        FunctionName: functionName,
+        Project: projectName,
+        Amount: form.packageAwardedCost,
+        Status: "Pending",
+        PendingAt: pendingAtName,
+        WFLevel: "1",
+        Remarks: form.budgetRemarks || ""
+      };
+
+      if (pendingAtId) {
+        logBody2.PPLPendingAtId = pendingAtId;
+      }
+
+      await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody2);
+    } catch (logError) {
+      console.error("NFAService: Error writing to WFLogList:", logError);
     }
   }
 
-  public async updateNFA(itemId: number, form: INFAFormData, status: NFAStatus, projectOptions: { label: string, value: string }[], subEntityOptions: { label: string, value: string }[]): Promise<INFASaveResponse> {
+  public async saveNFA(
+    form: INFAFormData, 
+    status: NFAStatus, 
+    projectOptions: { label: string, value: string }[], 
+    subEntityOptions: { label: string, value: string }[],
+    functionOptions: { label: string, value: string }[]
+  ): Promise<INFASaveResponse> {
     try {
       const resolvedApprovers = await Promise.all(
         form.approvers.map(async (a) => {
@@ -184,10 +300,101 @@ public async resolveUserId(loginName: string): Promise<number | null> {
       const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
       const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames);
 
+      if (status === "Draft") {
+        body.Title = this.generateRequestNo(projectName, form.date, "Draft", 0);
+      }
+
+      const result = await this.sp.web.lists.getByTitle(this.listName).items.add(body);
+      const itemId = result.Id;
+
+      let requestNo = body.Title;
+
+      if (status === "Pending") {
+        requestNo = this.generateRequestNo(projectName, form.date, "Pending", itemId);
+        const initiatorName = this.context.pageContext.user.displayName || "Initiator";
+        const nowStr = new Date().toLocaleString("en-IN");
+        const dateStr = formatHistoryDate(new Date());
+        const initCommentHistory = `[${nowStr}] ${initiatorName} (Submitted): Note initiated.`;
+        const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
+
+        await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
+          Title: requestNo,
+          CommentHistory: initCommentHistory,
+          WorkflowHistory: initWorkflowHistory
+        });
+        await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions);
+      }
+
+      return { success: true, itemId: itemId, message: "Saved successfully!" };
+    } catch (error) {
+      console.error("NFAService: Error in saveNFA:", error);
+      const errMsg = error instanceof Error ? error.message : "Error occurred during save.";
+      return { success: false, itemId: null, message: errMsg };
+    }
+  }
+
+  public async updateNFA(
+    itemId: number, 
+    form: INFAFormData, 
+    status: NFAStatus, 
+    projectOptions: { label: string, value: string }[], 
+    subEntityOptions: { label: string, value: string }[],
+    functionOptions: { label: string, value: string }[]
+  ): Promise<INFASaveResponse> {
+    try {
+      const resolvedApprovers = await Promise.all(
+        form.approvers.map(async (a) => {
+          if (!a) return null;
+          if (typeof a === "number") return a;
+          const strVal = String(a).trim();
+          if (!strVal || strVal === "null") return null;
+          if (/^\d+$/.test(strVal)) return parseInt(strVal);
+          return await this.resolveUserId(strVal);
+        })
+      );
+
+      const projectObj = projectOptions.find(p => p.value === form.project);
+      const projectName = projectObj ? projectObj.label : form.project;
+      const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
+      const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames);
+
+      const requestNo = this.generateRequestNo(projectName, form.date, status, itemId);
+      body.Title = requestNo;
+
+      if (status === "Pending") {
+        try {
+          const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).select("CommentHistory", "WorkflowHistory")();
+          const currentCommentHistory = item.CommentHistory || "";
+          const currentWorkflowHistory = item.WorkflowHistory || "";
+          const initiatorName = this.context.pageContext.user.displayName || "Initiator";
+          const nowStr = new Date().toLocaleString("en-IN");
+          const dateStr = formatHistoryDate(new Date());
+          const initCommentHistory = `[${nowStr}] ${initiatorName} (Submitted): Note initiated.`;
+          const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
+          
+          body.CommentHistory = currentCommentHistory 
+            ? `${currentCommentHistory}\n${initCommentHistory}`
+            : initCommentHistory;
+
+          body.WorkflowHistory = currentWorkflowHistory
+            ? `${currentWorkflowHistory}\n${initWorkflowHistory}`
+            : initWorkflowHistory;
+        } catch (hErr) {
+          console.warn("NFAService: Error reading CommentHistory/WorkflowHistory in updateNFA:", hErr);
+        }
+      }
+
       await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update(body);
+
+      if (status === "Pending") {
+        await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions);
+      }
+
       return { success: true, itemId, message: "Updated successfully!" };
     } catch (error) {
-      return { success: false, itemId, message: "Error occurred during update." };
+      console.error("NFAService: Error in updateNFA:", error);
+      const errMsg = error instanceof Error ? error.message : "Error occurred during update.";
+      return { success: false, itemId, message: errMsg };
     }
   }
 
@@ -195,7 +402,7 @@ public async resolveUserId(loginName: string): Promise<number | null> {
     try {
       const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}`);
       const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-        .select("*", "PendingAt/Id", "PendingAt/Title", "Author/Id", "Author/Title", ...levels.map(l => `${l}/Id`), ...levels.map(l => `${l}/Title`))
+        .select("*", "PendingAt/Id", "PendingAt/Title", "Author/Id", "Author/Title", "CommentHistory", "WorkflowHistory", ...levels.map(l => `${l}/Id`), ...levels.map(l => `${l}/Title`))
         .expand("PendingAt", "Author", ...levels)();
 
       return {
@@ -229,7 +436,9 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         uniqId: item.UniqId || "",
         level: item.Level || 0,
         pendingAtId: item.PendingAt ? item.PendingAt.Id : null,
-        initiatorId: item.Author ? item.Author.Id : undefined
+        initiatorId: item.Author ? item.Author.Id : undefined,
+        commentHistory: item.CommentHistory || "",
+        workflowHistory: item.WorkflowHistory || ""
       };
     } catch (error) {
       console.error("NFAService: Exception in getNFA:", error);
@@ -297,27 +506,8 @@ public async resolveUserId(loginName: string): Promise<number | null> {
   }
 
   public async getHistory(nfaId: number): Promise<any[]> {
-    try {
-      // Assuming a list named 'NFAHistory' exists to store audit trail
-      const items = await this.sp.web.lists.getByTitle("NFAHistory").items
-        .filter(`NFAId eq ${nfaId}`)
-        .select("Id", "Title", "Action", "Remarks", "Created", "User/Title")
-        .expand("User")
-        .orderBy("Created", true)();
-
-      return items.map(item => ({
-        id: item.Id,
-        action: item.Action,
-        remarks: item.Remarks,
-        user: item.User ? item.User.Title : "Unknown",
-        date: new Date(item.Created).toLocaleString('en-IN')
-      }));
-    } catch (error) {
-      console.warn("NFAService: getHistory failed (list might not exist):", error);
-      // Return mock data for demo if list doesn't exist
-      return [
-        { id: 1, action: 'Submitted', remarks: 'NFA submitted for approval', user: 'Initiator', date: '01/06/2026, 10:00:00' },
-      ];
-    }
+    // Audit logs are now stored directly in the WorkflowHistory column of the DigitalApprovalNotes list item.
+    // Returning an empty array forces the UI to parse it from the loaded item properties.
+    return [];
   }
 }

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { SPHttpClient } from "@microsoft/sp-http";
-import { useState, useEffect, useRef } from 'react';
-import { Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2, History, MessageSquare
  } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton'; 
 import { InputField } from '../../../../../Share/Components/InputField';
@@ -31,16 +31,29 @@ interface CollapsibleSectionProps {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  hasError?: boolean;
 }
 
-const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ icon, title, children, defaultOpen = true }) => {
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ icon, title, children, defaultOpen = true, hasError = false }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
-    <div className={`formSection ${isOpen ? 'formSection--open' : 'formSection--closed'}`}>
-      <div className="formSectionHeader formSectionHeader--toggle" onClick={() => setIsOpen(!isOpen)}>
-        <div className="formSectionHeader__left">{icon}<span>{title}</span></div>
+    <div className={`formSection ${isOpen ? 'formSection--open' : 'formSection--closed'} ${hasError ? 'border-red-300 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`}>
+      <div 
+        className={`formSectionHeader formSectionHeader--toggle flex items-center justify-between cursor-pointer ${hasError ? 'bg-red-50/30' : ''}`} 
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="formSectionHeader__left flex items-center gap-2">
+          {icon}
+          <span>{title}</span>
+          {hasError && (
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            </span>
+          )}
+        </div>
         <div className={`formSectionHeader__chevron ${isOpen ? 'chevron--open' : 'chevron--closed'}`}>
-          <ChevronDown size={16} />
+          <ChevronDown size={16} className={hasError ? 'text-red-500' : ''} />
         </div>
       </div>
       <div className={`formSectionBody--collapsible ${isOpen ? 'formSectionBody--expanded' : 'formSectionBody--collapsed'}`}>
@@ -107,6 +120,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const [pendingAttachments, setPendingAttachments] = useState<IAttachmentEntry[]>([]);
   const [errors, setErrors] = useState<IValidationError[]>([]);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [manualSlotsCount, setManualSlotsCount] = useState(1);
   const [matrixApproverOptions, setMatrixApproverOptions] = useState<IDropdownOption[]>([]);
   const [doaMatrixOptions, setDoaMatrixOptions] = useState<IDropdownOption[]>([]);
   const [doaMatrixApprovers, setDoaMatrixApprovers] = useState<IDropdownOption[]>([]);
@@ -114,14 +128,8 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const [doaAlert, setDoaAlert] = useState<{ show: boolean, type: MessageType, title: string, messages: string[], onSuccessRedirect?: boolean }>({
     show: false, type: 'info', title: '', messages: [], onSuccessRedirect: false
   });
-
-  const handlePopupClose = () => {
-    const redirect = doaAlert.onSuccessRedirect;
-    setDoaAlert(prev => ({ ...prev, show: false }));
-    if (redirect) {
-      navigate('/');
-    }
-  };
+  const [history, setHistory] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
 
   const [form, setForm] = useState<INFAFormData>({
     originatorDept: '', date: today, project: '', projectSubEntity: [],
@@ -138,6 +146,57 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     level: 0,
     pendingAtId: null,
   });
+
+  const handlePopupClose = () => {
+    const redirect = doaAlert.onSuccessRedirect;
+    setDoaAlert(prev => ({ ...prev, show: false }));
+    if (redirect) {
+      navigate('/');
+    }
+  };
+
+  const hasSectionErrors = (fields: string[]) => {
+    return errors.some(e => fields.includes(e.field));
+  };
+
+  const financialsSummary = useMemo(() => {
+    const cost = parseFloat(String(form.packageAwardedCost || "0").replace(/,/g, '')) || 0;
+    const budget = parseFloat(String(form.budget || "0").replace(/,/g, '')) || 0;
+    const variance = budget - cost;
+    const percent = budget > 0 ? Math.round((cost / budget) * 100) : 0;
+    return { cost, budget, variance, percent };
+  }, [form.packageAwardedCost, form.budget]);
+
+  const getFileBadge = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const map: Record<string, { bg: string, text: string, border: string, label: string }> = {
+      'pdf':  { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'PDF' },
+      'xlsx': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'EXCEL' },
+      'xls':  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'EXCEL' },
+      'docx': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'WORD' },
+      'doc':  { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'WORD' },
+      'png':  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
+      'jpg':  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
+      'jpeg': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
+      'svg':  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' }
+    };
+    const style = map[ext || ''] || { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', label: 'FILE' };
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${style.bg} ${style.text} ${style.border}`}>
+        {style.label}
+      </span>
+    );
+  };
+
+  const shouldShowApprover = (idx: number) => {
+    if (form.workflow === 'AUTO') {
+      return form.approvers[idx] !== null && form.approvers[idx] !== '';
+    } else {
+      if (idx === 0) return true;
+      return (form.approvers[idx - 1] !== null && form.approvers[idx - 1] !== '') || (form.approvers[idx] !== null && form.approvers[idx] !== '');
+    }
+  };
+
 
   // --- 1. THE MASTER INITIALIZATION (Runs exactly once) ---
   useEffect(() => {
@@ -179,6 +238,101 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             setSavedDocuments(docs);
             setSubEntityOptions(subs);
             setForm(nfaData);
+            
+            const parseCommentHistory = (commentHistoryText: string): any[] => {
+              if (!commentHistoryText) return [];
+              const lines = commentHistoryText.split("\n");
+              const parsed: any[] = [];
+              for (const line of lines) {
+                if (!line.trim()) continue;
+                const match = line.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+                if (match) {
+                  parsed.push({
+                    id: Math.random(),
+                    date: match[1],
+                    user: match[2],
+                    action: match[3],
+                    remarks: match[4]
+                  });
+                } else {
+                  parsed.push({
+                    id: Math.random(),
+                    date: "",
+                    user: "System",
+                    action: "Log",
+                    remarks: line
+                  });
+                }
+              }
+              return parsed;
+            };
+
+            const parseWorkflowHistory = (workflowHistoryText: string): any[] => {
+              if (!workflowHistoryText) return [];
+              const lines = workflowHistoryText.split("\n");
+              const parsed: any[] = [];
+              for (const line of lines) {
+                const cleanLine = line
+                  .replace(/<[^>]*>/g, "")
+                  .replace(/&#58;/g, ":")
+                  .replace(/&nbsp;/g, " ")
+                  .replace(/&amp;/g, "&")
+                  .replace(/&lt;/g, "<")
+                  .replace(/&gt;/g, ">")
+                  .trim();
+                if (!cleanLine) continue;
+
+                const appMatch = cleanLine.match(/^NFA Request (.*?) by (.*?) at Level\s+(.*?)\.\s+on\s+(.*)$/);
+                if (appMatch) {
+                  parsed.push({
+                    id: Math.random(),
+                    date: appMatch[4].trim(),
+                    user: appMatch[2].trim(),
+                    action: appMatch[1].trim(),
+                    rawText: cleanLine,
+                    remarks: ""
+                  });
+                  continue;
+                }
+
+                const initMatch = cleanLine.match(/^NFA Request Initiated by (.*?) on (.*)$/);
+                if (initMatch) {
+                  parsed.push({
+                    id: Math.random(),
+                    date: initMatch[2].trim(),
+                    user: initMatch[1].trim(),
+                    action: "Initiated",
+                    rawText: cleanLine,
+                    remarks: ""
+                  });
+                  continue;
+                }
+
+                parsed.push({
+                  id: Math.random(),
+                  date: "",
+                  user: "System",
+                  action: "Log",
+                  rawText: cleanLine,
+                  remarks: cleanLine
+                });
+              }
+              return parsed;
+            };
+
+            if (nfaData.workflowHistory) {
+              setHistory(parseWorkflowHistory(nfaData.workflowHistory));
+            } else if (nfaData.commentHistory) {
+              setHistory(parseCommentHistory(nfaData.commentHistory));
+            }
+
+            if (nfaData.commentHistory) {
+              setComments(parseCommentHistory(nfaData.commentHistory));
+            }
+
+            // Calculate initial manual slots count
+            const lastFilledIdx = nfaData.approvers.map(a => a !== null && a !== '').lastIndexOf(true);
+            setManualSlotsCount(lastFilledIdx >= 0 ? lastFilledIdx + 1 : 1);
           }
         } else {
           const newId = docService.generateUniqId();
@@ -306,6 +460,9 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           }
           setDoaMatrixApprovers(approverOptionsList);
           setForm(prev => ({ ...prev, approvers: matrixApprovers }));
+          if (matrixApprovers[0]) {
+            clearFieldError('approvers');
+          }
         }
       } catch (err) {
         console.error("Error in fetchApproversFromMatrix:", err);
@@ -315,7 +472,12 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   }, [form.doaMatrix, form.workflow]);
 
   // --- HELPERS ---
+  const clearFieldError = (field: string) => {
+    setErrors(prev => prev.filter(e => e.field !== field));
+  };
+
   const handleProjectChange = async (projectId: string) => {
+    clearFieldError('project');
     setForm(prev => ({ ...prev, project: projectId, projectSubEntity: [] }));
     if (!projectId) {
       setSubEntityOptions([]);
@@ -331,11 +493,33 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     }
   };
 
-  const updateField = (key: string, val: any) => setForm(f => ({ ...f, [key]: val }));
+  const updateField = (key: string, val: any) => {
+    clearFieldError(key);
+    if (key === 'workflow') {
+      clearFieldError('approvers');
+    }
+    setForm(f => ({ ...f, [key]: val }));
+  };
+
   const updateApprover = (i: number, val: string) => {
+    if (i === 0) {
+      clearFieldError('approvers');
+    }
     const arr = [...form.approvers];
     arr[i] = val;
     setForm(f => ({ ...f, approvers: arr }));
+  };
+
+  const addApproverSlot = () => {
+    setManualSlotsCount(prev => Math.min(12, prev + 1));
+  };
+
+  const removeApproverSlot = (idxToRemove: number) => {
+    const updated = [...form.approvers];
+    updated.splice(idxToRemove, 1); // Remove the element at the index
+    updated.push(null); // Keep length 12
+    setForm(prev => ({ ...prev, approvers: updated }));
+    setManualSlotsCount(prev => Math.max(1, prev - 1));
   };
 
   const validate = (status: NFAStatus) => {
@@ -349,16 +533,20 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     return true;
   };
 
+  const getFieldError = (field: string) => {
+    return errors.find(e => e.field === field)?.message;
+  };
+
   if (isLoading) return <NFASkeleton />;
 
   return (
     <div className="pageContainer">
       <p className="formPageTitle">{id ? "Edit Note for Approval Request" : "Note for Approval Request Form"}</p>
-
-      <CollapsibleSection icon={<Building2 size={13} />} title="Basic Information">
+ 
+      <CollapsibleSection icon={<Building2 size={13} />} title="Basic Information" hasError={hasSectionErrors(['project', 'projectSubEntity', 'originatorDept'])}>
         <div className="flex flex-wrap gap-x-6 gap-y-4 mb-4">
           <div className="flex-1 min-w-[220px]">
-            <DropdownField label="Project" value={form.project} options={projectOptions} onChange={handleProjectChange} />
+            <DropdownField label="Project" value={form.project} options={projectOptions} onChange={handleProjectChange} emptyLabel="Select Project..." error={getFieldError('project')} />
           </div>
           <div className="flex-1 min-w-[220px]">
             <MultiSelectDropdown label="Sub-Entity" options={subEntityOptions} selectedValues={form.projectSubEntity} onChange={v => updateField('projectSubEntity', v)} disabled={loadingSubEntity || !form.project} />
@@ -366,83 +554,277 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
           <div className="flex-1 min-w-[220px]">
-            <DropdownField label="Function" value={form.originatorDept} options={functionOptions} onChange={v => updateField('originatorDept', v)} />
+            <DropdownField label="Function" value={form.originatorDept} options={functionOptions} onChange={v => updateField('originatorDept', v)} emptyLabel="Select Function..." error={getFieldError('originatorDept')} />
           </div>
           <div className="flex-1 min-w-[220px]">
             <InputField label="Date" value={form.date} onChange={() => { }} disabled />
           </div>
         </div>
       </CollapsibleSection>
-
-      <CollapsibleSection icon={<FileText size={13} />} title="NFA Details" defaultOpen={false}>
-        <div className="mb-4"><TextAreaField label="Subject" value={form.referenceSubject} onChange={v => updateField('referenceSubject', v)} rows={2} required /></div>
+ 
+      <CollapsibleSection icon={<FileText size={13} />} title="NFA Details" defaultOpen={false} hasError={hasSectionErrors(['referenceSubject', 'introduction', 'chronology', 'commercialProposal', 'paymentTerms'])}>
+        <div className="mb-4"><TextAreaField label="Subject" value={form.referenceSubject} onChange={v => updateField('referenceSubject', v)} rows={2} required error={getFieldError('referenceSubject')} /></div>
         <div className="mb-4"><RichTextEditor label="Introduction" value={form.introduction} onChange={v => updateField('introduction', v)} /></div>
         <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)} /></div>
         <div className="mb-4"><RichTextEditor label="Commercial Proposals" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)} /></div>
         <RichTextEditor label="Payment Terms" value={form.paymentTerms} onChange={v => updateField('paymentTerms', v)} />
       </CollapsibleSection>
-
-      <CollapsibleSection icon={<Wrench size={13} />} title="Contract Terms" defaultOpen={false}>
+ 
+      <CollapsibleSection icon={<Wrench size={13} />} title="Contract Terms" defaultOpen={false} hasError={hasSectionErrors(['liquidatedDamage', 'contractPerf', 'defectLiability', 'workCompletion'])}>
         <div className="mb-4"><TextAreaField label="LD" value={form.liquidatedDamage} onChange={v => updateField('liquidatedDamage', v)} rows={3} /></div>
         <div className="mb-4"><TextAreaField label="CPG" value={form.contractPerf} onChange={v => updateField('contractPerf', v)} rows={3} /></div>
         <div className="mb-4"><TextAreaField label="DLP" value={form.defectLiability} onChange={v => updateField('defectLiability', v)} rows={3} /></div>
         <TextAreaField label="Work Completion" value={form.workCompletion} onChange={v => updateField('workCompletion', v)} rows={3} />
       </CollapsibleSection>
-
-      <CollapsibleSection icon={<DollarSign size={13} />} title="Financials" defaultOpen={false}>
+ 
+      <CollapsibleSection icon={<DollarSign size={13} />} title="Financials" defaultOpen={false} hasError={hasSectionErrors(['budgetRemarks', 'packageAwardedCost', 'budget', 'capexSerialNo'])}>
         <div className="mb-4"><TextAreaField label="Remarks" value={form.budgetRemarks} onChange={v => updateField('budgetRemarks', v)} rows={3} /></div>
         <div className="flex gap-x-6 mb-4">
-          <div className="flex-1"><NumberInput label="Awarded Cost" value={form.packageAwardedCost} onChange={v => updateField('packageAwardedCost', v)} onBlur={() => fetchMatchingMatrix(true)} /></div>
-          <div className="flex-1"><NumberInput label="Budget" value={form.budget} onChange={v => updateField('budget', v)} /></div>
+          <div className="flex-1"><NumberInput label="Awarded Cost" value={form.packageAwardedCost} onChange={v => updateField('packageAwardedCost', v)} onBlur={() => fetchMatchingMatrix(true)} required error={getFieldError('packageAwardedCost')} /></div>
+          <div className="flex-1"><NumberInput label="Budget" value={form.budget} onChange={v => updateField('budget', v)} required error={getFieldError('budget')} /></div>
         </div>
-        <TextAreaField label="Capex No" value={form.capexSerialNo} onChange={v => updateField('capexSerialNo', v)} rows={3} />
+        <div className="mb-4"><TextAreaField label="Capex No" value={form.capexSerialNo} onChange={v => updateField('capexSerialNo', v)} rows={3} /></div>
+        {financialsSummary.budget > 0 && (
+          <div className="mt-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-200/80 flex flex-wrap gap-4 items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Variance (Budget - Cost)</span>
+              <span className={`text-sm font-extrabold ${financialsSummary.variance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {financialsSummary.variance >= 0 ? '+' : ''}
+                {financialsSummary.variance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Budget Utilization</span>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${financialsSummary.percent > 100 ? 'bg-rose-500' : 'bg-[#AF8941]'}`} 
+                    style={{ width: `${Math.min(100, financialsSummary.percent)}%` }}
+                  />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{financialsSummary.percent}%</span>
+              </div>
+            </div>
+          </div>
+        )}
       </CollapsibleSection>
-
-      <CollapsibleSection icon={<Star size={13} />} title="Recommendation" defaultOpen={false}>
+ 
+      <CollapsibleSection icon={<Star size={13} />} title="Recommendation" defaultOpen={false} hasError={hasSectionErrors(['recommendation', 'contractorName'])}>
         <div className="mb-4"><RichTextEditor label="Justification" value={form.recommendation} onChange={v => updateField('recommendation', v)} /></div>
         <InputField label="Contractor Name" value={form.contractorName} onChange={v => updateField('contractorName', v)} />
       </CollapsibleSection>
-
-      <CollapsibleSection icon={<Settings size={13} />} title="Workflow & Approvers" defaultOpen={false}>
+ 
+      <CollapsibleSection icon={<Settings size={13} />} title="Workflow & Approvers" defaultOpen={false} hasError={hasSectionErrors(['workflow', 'doaMatrix', 'approvers'])}>
         <div className="flex gap-x-6 mb-6">
-          <div className="flex-1"><DropdownField label="Workflow" value={form.workflow} options={workflowOptions} onChange={v => updateField('workflow', v)} /></div>
-          <div className="flex-1"><DropdownField label="DOA Matrix" value={form.doaMatrix} options={doaMatrixOptions} onChange={v => updateField('doaMatrix', v)} disabled={form.workflow !== 'AUTO'} /></div>
+          <div className="flex-1"><DropdownField label="Workflow" value={form.workflow} options={workflowOptions} onChange={v => updateField('workflow', v)} showEmptyOption={false} /></div>
+          <div className="flex-1">
+            <DropdownField 
+              label="DOA Matrix" 
+              value={form.doaMatrix} 
+              options={doaMatrixOptions} 
+              onChange={v => updateField('doaMatrix', v)} 
+              disabled={form.workflow !== 'AUTO'} 
+              emptyLabel="Select DOA Matrix..." 
+              error={form.workflow === 'AUTO' ? getFieldError('approvers') : undefined}
+            />
+          </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-          {form.approvers.map((app, idx) => (
-            <DropdownField key={idx} label={`Approver Level ${idx + 1}`} value={String(app ?? "")} options={form.workflow === 'AUTO' ? doaMatrixApprovers : matrixApproverOptions} onChange={(v) => updateApprover(idx, v)} disabled={form.workflow === 'AUTO'} />
-          ))}
-        </div>
+        {form.workflow === 'AUTO' ? (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {form.approvers.map((app, idx) => {
+                if (!app) return null;
+                return (
+                  <DropdownField key={idx} label={`Approver Level ${idx + 1}`} value={String(app ?? "")} options={doaMatrixApprovers} onChange={(v) => updateApprover(idx, v)} disabled emptyLabel="None" />
+                );
+              })}
+            </div>
+            {form.doaMatrix && (
+              <div className="mt-6 p-4 bg-slate-50/50 rounded-2xl border border-slate-200/80">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Auto Approval Chain Preview</p>
+                <div className="flex flex-col gap-2">
+                  {form.approvers.map((app, idx) => {
+                    if (!app) return null;
+                    const appObj = doaMatrixApprovers.find(o => o.value === app);
+                    const name = appObj ? appObj.label : `Approver ID: ${app}`;
+                    return (
+                      <div key={idx} className="flex items-center gap-3 py-1">
+                        <div className="w-6 h-6 rounded-full bg-[#AF8941]/10 text-[#AF8941] border border-[#AF8941]/20 flex items-center justify-center font-bold text-[10px] shrink-0">
+                          {idx + 1}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-slate-500">Level {idx + 1}:</span>
+                          <span className="text-xs font-bold text-slate-800">{name}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+              {Array.from({ length: manualSlotsCount }).map((_, idx) => {
+                const app = form.approvers[idx];
+                return (
+                  <div key={idx} className="flex items-end gap-2 relative group">
+                    <div className="flex-1">
+                      <DropdownField 
+                        label={`Approver Level ${idx + 1}`} 
+                        value={String(app ?? "")} 
+                        options={matrixApproverOptions} 
+                        onChange={(v) => updateApprover(idx, v)} 
+                        emptyLabel="Select Approver..."
+                        error={idx === 0 ? getFieldError('approvers') : undefined}
+                      />
+                    </div>
+                    {manualSlotsCount > 1 && idx === manualSlotsCount - 1 && (
+                      <button 
+                        type="button"
+                        onClick={() => removeApproverSlot(idx)}
+                        className="mb-1 p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 transition-all cursor-pointer"
+                        title={`Remove Level ${idx + 1}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {manualSlotsCount < 12 && (
+              <div className="flex justify-start mt-2">
+                <button
+                  type="button"
+                  onClick={addApproverSlot}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-[#AF8941] bg-[#AF8941]/5 hover:bg-[#AF8941]/10 rounded-xl border border-[#AF8941]/20 hover:border-[#AF8941]/30 transition-all cursor-pointer"
+                >
+                  + Add Approver Level
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </CollapsibleSection>
-
+ 
       <CollapsibleSection icon={<Paperclip size={13} />} title="Attachments" defaultOpen={false}>
         <div className="flex justify-end mb-4"><CommonButton text="+ Add Attachment" variant="primary" onClick={() => setIsPopupOpen(true)} /></div>
         {(savedDocuments.length > 0 || pendingAttachments.length > 0) ? (
-          <table className="savedDocsTable w-full border text-left">
-            <thead><tr><th className="p-2">#</th><th className="p-2">Type</th><th className="p-2">File</th><th className="p-2">Status</th><th className="p-2">Del</th></tr></thead>
-            <tbody>
-              {savedDocuments.map((doc, i) => (
-                <tr key={doc.id} className="border-t">
-                  <td className="p-2">{i + 1}</td>
-                  <td className="p-2">{doc.documentType}</td>
-                  <td className="p-2 text-blue-600">{doc.fileName}</td>
-                  <td className="p-2 text-green-600 font-semibold">Saved</td>
-                  <td className="p-2"><button onClick={async () => { if (confirm("Are you sure?")) { const s = new NFADocService(context); await s.deleteDocument(doc.id); setSavedDocuments(prev => prev.filter(d => d.id !== doc.id)); } }} className="text-red-500"><Trash2 size={14} /></button></td>
+          <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <table className="savedDocsTable w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500">
+                  <th className="p-3">#</th>
+                  <th className="p-3">Type</th>
+                  <th className="p-3">File Name</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3 text-center">Action</th>
                 </tr>
-              ))}
-              {pendingAttachments.map((entry, i) => (
-                <tr key={`pending-${i}`} className="border-t bg-blue-50/30">
-                  <td className="p-2">{savedDocuments.length + i + 1}</td>
-                  <td className="p-2">{entry.documentType}</td>
-                  <td className="p-2 text-gray-600 italic">{entry.file.name}</td>
-                  <td className="p-2 text-amber-600 font-semibold">Pending</td>
-                  <td className="p-2"><button onClick={() => setPendingAttachments(prev => prev.filter((_, idx) => idx !== i))} className="text-red-500"><Trash2 size={14} /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <p className="noDocsMessage">No documents attached.</p>}
+              </thead>
+              <tbody>
+                {savedDocuments.map((doc, i) => (
+                  <tr key={doc.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
+                    <td className="p-3 font-semibold text-slate-500">{i + 1}</td>
+                    <td className="p-3 flex items-center gap-2">
+                      {getFileBadge(doc.fileName)}
+                      <span className="text-xs font-bold text-slate-600">{doc.documentType}</span>
+                    </td>
+                    <td className="p-3 font-semibold text-blue-600 hover:underline cursor-pointer">{doc.fileName}</td>
+                    <td className="p-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        Saved
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <button onClick={async () => { if (confirm("Are you sure you want to delete this document?")) { const s = new NFADocService(context); await s.deleteDocument(doc.id); setSavedDocuments(prev => prev.filter(d => d.id !== doc.id)); } }} className="text-red-500 hover:text-red-700 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {pendingAttachments.map((entry, i) => (
+                  <tr key={`pending-${i}`} className="border-t border-slate-100 bg-blue-50/10 hover:bg-blue-50/20 transition-colors text-sm">
+                    <td className="p-3 font-semibold text-slate-500">{savedDocuments.length + i + 1}</td>
+                    <td className="p-3 flex items-center gap-2">
+                      {getFileBadge(entry.file.name)}
+                      <span className="text-xs font-bold text-slate-600">{entry.documentType}</span>
+                    </td>
+                    <td className="p-3 font-medium text-slate-500 italic">{entry.file.name}</td>
+                    <td className="p-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100 animate-pulse">
+                        Pending
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <button onClick={() => setPendingAttachments(prev => prev.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-700 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="noDocsMessage px-2">No documents attached.</p>}
       </CollapsibleSection>
+
+      {id && history.length > 0 && (
+        <CollapsibleSection icon={<History size={13} />} title="Workflow History" defaultOpen={false}>
+          <div className="space-y-4 max-w-2xl px-2 py-1">
+            {history.map((item, idx) => {
+              const isApproved = item.action === 'Approved';
+              const isRejected = item.action === 'Rejected';
+              const isQuery = item.action === 'Query';
+              
+              let dotClass = 'bg-blue-500';
+              if (isApproved) {
+                dotClass = 'bg-emerald-500';
+              } else if (isRejected) {
+                dotClass = 'bg-rose-500';
+              } else if (isQuery) {
+                dotClass = 'bg-amber-500';
+              }
+              
+              return (
+                <div key={item.id || idx} className="relative pl-7 pb-2 last:pb-0">
+                  {idx < history.length - 1 && (
+                    <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
+                  )}
+                  <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                      {item.rawText || `${item.user} (${item.action})${item.remarks ? `: ${item.remarks}` : ""}`}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {id && comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 && (
+        <CollapsibleSection icon={<MessageSquare size={13} />} title="Comments History" defaultOpen={false}>
+          <div className="space-y-4 max-w-2xl px-2 py-1">
+            {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
+              <div key={item.id || idx} className="flex flex-col gap-1.5 p-3 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-extrabold text-slate-600">{item.user}</span>
+                  <span className="text-[9px] text-slate-400">{item.date}</span>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                  <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
+                  <p className="text-[10.5px] text-slate-500 leading-normal italic relative z-10">
+                    "{item.remarks}"
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
 
       <AttachmentPopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} onSave={(entries) => { setPendingAttachments(prev => [...prev, ...entries]); setIsPopupOpen(false); }} />
       <MessagePopup isOpen={doaAlert.show} type={doaAlert.type} title={doaAlert.title} messages={doaAlert.messages} onClose={handlePopupClose} />
@@ -456,7 +838,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             const docService = new NFADocService(context);
             if (pendingAttachments.length > 0) await docService.saveDocuments(pendingAttachments, form.uniqId);
             const service = new NFAService(context);
-            const res = id ? await service.updateNFA(parseInt(id), form, 'Pending', projectOptions, subEntityOptions) : await service.saveNFA(form, 'Pending', projectOptions, subEntityOptions);
+            const res = id ? await service.updateNFA(parseInt(id), form, 'Pending', projectOptions, subEntityOptions, functionOptions) : await service.saveNFA(form, 'Pending', projectOptions, subEntityOptions, functionOptions);
             setDoaAlert({
               show: true,
               type: res.success ? 'success' : 'error',
@@ -465,11 +847,13 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               onSuccessRedirect: res.success
             });
           } catch (err) {
+            console.error("Error submitting NFA:", err);
+            const errMsg = err instanceof Error ? err.message : "Unknown error occurred.";
             setDoaAlert({
               show: true,
               type: 'error',
               title: 'Error Saving NFA',
-              messages: ["Error saving NFA or Uploading Documents."],
+              messages: ["Error saving NFA or Uploading Documents.", errMsg],
               onSuccessRedirect: false
             });
           } finally { setIsSaving(false); }
@@ -481,7 +865,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             const docService = new NFADocService(context);
             if (pendingAttachments.length > 0) await docService.saveDocuments(pendingAttachments, form.uniqId);
             const service = new NFAService(context);
-            const res = id ? await service.updateNFA(parseInt(id), form, 'Draft', projectOptions, subEntityOptions) : await service.saveNFA(form, 'Draft', projectOptions, subEntityOptions);
+            const res = id ? await service.updateNFA(parseInt(id), form, 'Draft', projectOptions, subEntityOptions, functionOptions) : await service.saveNFA(form, 'Draft', projectOptions, subEntityOptions, functionOptions);
             setDoaAlert({
               show: true,
               type: res.success ? 'success' : 'error',
@@ -490,11 +874,13 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               onSuccessRedirect: res.success
             });
           } catch (err) {
+            console.error("Error saving NFA draft:", err);
+            const errMsg = err instanceof Error ? err.message : "Unknown error occurred.";
             setDoaAlert({
               show: true,
               type: 'error',
               title: 'Error Saving Draft',
-              messages: ["Error saving Draft or Uploading Documents."],
+              messages: ["Error saving Draft or Uploading Documents.", errMsg],
               onSuccessRedirect: false
             });
           } finally { setIsSaving(false); }

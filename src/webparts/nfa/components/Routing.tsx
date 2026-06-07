@@ -40,7 +40,7 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
                 <Route path="/approver-page/:id"   element={<ApproverPage context={context} sp={sp}/>} />
                 <Route path="/inbox"               element={<Inbox context={context} sp={sp}/>} />
                 <Route path="/approver-detail"     element={<ApprovalDetailsView />} />
-                <Route path="/approved-rejected"   element={<ApprovedRejectedByMe />} />
+                <Route path="/approved-rejected"   element={<ApprovedRejectedByMe context={context} sp={sp}/>} />
                 <Route path="/detail-view"         element={<DetailView />} />
                 <Route path="/masters"             element={<Masters />} />
                 <Route path="/function-wise-status"    element={<FunctionWiseStatus />} />

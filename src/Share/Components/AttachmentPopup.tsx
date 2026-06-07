@@ -32,7 +32,7 @@ const AttachmentPopup: React.FC<IAttachmentPopupProps> = ({
   onClose,
   onSave,
 }) => {
-  const [documentType, setDocumentType] = useState<string>('');
+  const [documentType, setDocumentType] = useState<string>(documentTypeOptions[0].value);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [entries, setEntries] = useState<IAttachmentEntry[]>([]);
   const [error, setError] = useState<string>('');
@@ -40,7 +40,7 @@ const AttachmentPopup: React.FC<IAttachmentPopupProps> = ({
 
   // ── Reset Form ──
   const resetForm = (): void => {
-    setDocumentType('');
+    setDocumentType(documentTypeOptions[0].value);
     setSelectedFiles([]);
     setEntries([]);
     setError('');
@@ -146,6 +146,7 @@ const AttachmentPopup: React.FC<IAttachmentPopupProps> = ({
                 }}
                 options={documentTypeOptions}
                 required
+                showEmptyOption={false}
               />
             </div>
             <div className="flex-1 min-w-[200px]">

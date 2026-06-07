@@ -8,24 +8,33 @@ interface DropdownFieldProps {
   options: { label: string; value: string }[];
   required?: boolean;
   disabled?: boolean;
+  emptyLabel?: string;
+  showEmptyOption?: boolean;
+  error?: string;
 }
 
 const DropdownField: React.FC<DropdownFieldProps> = ({
-  label, value, onChange, options, required = false, disabled = false,
+  label, value, onChange, options, required = false, disabled = false, emptyLabel, showEmptyOption = true, error,
 }) => {
   return (
     <div className="inputWrapper">
-      <label className="formLabel">
+      <label className="formLabel flex items-center gap-1.5" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
         {label}
         {required && <span className="text-red-500 ml-[2px]">*</span>}
+        {error && (
+          <span className="inline-flex h-1.5 w-1.5 relative" style={{ display: 'inline-flex' }}>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+          </span>
+        )}
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="formInput formSelect"
+        className={`formInput formSelect${error ? ' border-red-400' : ''}`}
       >
-        <option value="">All</option>
+        {showEmptyOption && <option value="">{emptyLabel || 'All'}</option>}
         {options.map((item) => (
           <option key={item.value} value={item.value}>{item.label}</option>
         ))}

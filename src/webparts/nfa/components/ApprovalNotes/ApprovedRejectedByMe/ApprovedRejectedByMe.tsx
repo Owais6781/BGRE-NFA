@@ -1,17 +1,15 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { CommonTable } from '../../../../../Share/Components/CommonTable';
 import { Pagination }  from '../../../../../Share/Components/Pagination';
 import TableToolbar    from '../../../../../Share/Components/TableToolbar';
 import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
+import { useNavigate } from 'react-router-dom';
+import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { SPFI } from "@pnp/sp";
+import { CommonService, ApprovedRejectedRecord } from '../../../../../Share/Services/CommonService';
 import "../../../../../Share/styles/global.scss";
-
-interface ApprovedRejectedRecord {
-  requestNo: string; function: string; project: string;
-  createdBy: string; createdOn: string; status: string;
-  level: number; approvedRejectedBy: string; approvedRejectedDate: string;
-}
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -27,18 +25,53 @@ const exportColumns = [
   { key: 'approvedRejectedDate', label: 'Approved/Rejected Datetime' },
 ];
 
-const ApprovedRejectedByMe: React.FC = () => {
+interface IApprovedRejectedProps {
+  context: WebPartContext;
+  sp: SPFI;
+}
+
+const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp }) => {
   const [data,        setData]        = useState<ApprovedRejectedRecord[]>([]);
-  const [loading,     setLoading]     = useState(false);
+  const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState('');
   const [pageSize,    setPageSize]    = useState(10);
   const [search,      setSearch]      = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadRecords = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const service = new CommonService(context, sp);
+        const records = await service.getApprovedRejectedByMe();
+        setData(records);
+      } catch (err) {
+        console.error("ApprovedRejectedByMe: Failed to load records:", err);
+        setError("Failed to retrieve approved/rejected requests. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRecords();
+  }, []);
 
   const columns = [
     { key: 'requestNo', label: 'Request No.',
-      render: (val: string) => <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); console.log(val); }}>{val}</button> },
+      render: (val: string, row: ApprovedRejectedRecord) => (
+        <button 
+          className="tableLinkBtn" 
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            navigate(`/view-nfa/${row.id}`); 
+          }}
+        >
+          {val}
+        </button>
+      ) 
+    },
     { key: 'function',  label: 'Function'   },
     { key: 'project',   label: 'Project'    },
     { key: 'createdBy', label: 'Created By' },

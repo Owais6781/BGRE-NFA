@@ -15,6 +15,7 @@ interface MultiSelectDropdownProps {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
+  error?: string;
 }
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -25,6 +26,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   placeholder = 'All',
   disabled = false,
   required = false,
+  error,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -88,14 +90,20 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     <div className="multiSelect" ref={dropdownRef}>
 
       {/* Label */}
-      <label className="multiSelect__label">
+      <label className="multiSelect__label flex items-center gap-1.5" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
         {label}
         {required && <span className="multiSelect__required"> *</span>}
+        {error && (
+          <span className="inline-flex h-1.5 w-1.5 relative" style={{ display: 'inline-flex' }}>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+          </span>
+        )}
       </label>
 
       {/* Trigger Box */}
       <div
-        className={`multiSelect__trigger ${disabled ? 'multiSelect__trigger--disabled' : ''} ${isOpen ? 'multiSelect__trigger--active' : ''}`}
+        className={`multiSelect__trigger ${disabled ? 'multiSelect__trigger--disabled' : ''} ${isOpen ? 'multiSelect__trigger--active' : ''} ${error ? 'border-red-400' : ''}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <div className="multiSelect__tags">

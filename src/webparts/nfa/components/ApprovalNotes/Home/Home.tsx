@@ -311,7 +311,7 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
            if (status === 'draft') {
              navigate(`/new-nfa/${record.id}`);
            } else if (status === 'pending') {
-             navigate(`/approver-page/${record.id}`);
+             navigate(`/view-nfa/${record.id}`);
            } else {
              navigate(`/view-nfa/${record.id}`);
            }

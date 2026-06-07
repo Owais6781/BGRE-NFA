@@ -20,9 +20,15 @@ export const NumberInput: React.FC<NumberInputProps> = ({
 }) => {
   return (
     <div className="inputWrapper">
-      <label className="formLabel">
+      <label className="formLabel flex items-center gap-1.5" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
         {label}
         {required && <span className="text-red-500 ml-[2px]">*</span>}
+        {error && (
+          <span className="inline-flex h-1.5 w-1.5 relative" style={{ display: 'inline-flex' }}>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+          </span>
+        )}
       </label>
       <input
         type="text"
@@ -39,9 +45,6 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         }}
         className={`formInput${error ? ' border-red-400' : ''}`}
       />
-      {error && (
-        <span className="text-[11px] text-red-500 mt-0.5">{error}</span>
-      )}
     </div>
   );
 };

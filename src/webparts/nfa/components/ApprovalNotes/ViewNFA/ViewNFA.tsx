@@ -57,6 +57,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   const [savedDocuments, setSavedDocuments] = useState<ISavedDocument[]>([]);
   const [users, setUsers] = useState<{label: string, value: string, email?: string}[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
 
   const currentStepRef = useRef<HTMLDivElement>(null);
   const stepperContainerRef = useRef<HTMLDivElement>(null);
@@ -83,9 +84,106 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             nfaService.getHistory(parseInt(id))
           ]);
 
-          setSavedDocuments(docs);
+           setSavedDocuments(docs);
           setUsers(siteUsers);
-          setHistory(historyData);
+          
+          const parseCommentHistory = (commentHistoryText: string): any[] => {
+            if (!commentHistoryText) return [];
+            const lines = commentHistoryText.split("\n");
+            const parsed: any[] = [];
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              const match = line.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+              if (match) {
+                parsed.push({
+                  id: Math.random(),
+                  date: match[1],
+                  user: match[2],
+                  action: match[3],
+                  remarks: match[4]
+                });
+              } else {
+                parsed.push({
+                  id: Math.random(),
+                  date: "",
+                  user: "System",
+                  action: "Log",
+                  remarks: line
+                });
+              }
+            }
+            return parsed;
+          };
+
+          const parseWorkflowHistory = (workflowHistoryText: string): any[] => {
+            if (!workflowHistoryText) return [];
+            const lines = workflowHistoryText.split("\n");
+            const parsed: any[] = [];
+            for (const line of lines) {
+              const cleanLine = line
+                .replace(/<[^>]*>/g, "")
+                .replace(/&#58;/g, ":")
+                .replace(/&nbsp;/g, " ")
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .trim();
+              if (!cleanLine) continue;
+
+              const appMatch = cleanLine.match(/^NFA Request (.*?) by (.*?) at Level\s+(.*?)\.\s+on\s+(.*)$/);
+              if (appMatch) {
+                parsed.push({
+                  id: Math.random(),
+                  date: appMatch[4].trim(),
+                  user: appMatch[2].trim(),
+                  action: appMatch[1].trim(),
+                  rawText: cleanLine,
+                  remarks: ""
+                });
+                continue;
+              }
+
+              const initMatch = cleanLine.match(/^NFA Request Initiated by (.*?) on (.*)$/);
+              if (initMatch) {
+                parsed.push({
+                  id: Math.random(),
+                  date: initMatch[2].trim(),
+                  user: initMatch[1].trim(),
+                  action: "Initiated",
+                  rawText: cleanLine,
+                  remarks: ""
+                });
+                continue;
+              }
+
+              parsed.push({
+                id: Math.random(),
+                date: "",
+                user: "System",
+                action: "Log",
+                rawText: cleanLine,
+                remarks: cleanLine
+              });
+            }
+            return parsed;
+          };
+
+          let finalHistory = historyData;
+          if (!finalHistory || finalHistory.length === 0) {
+            if (nfaData.workflowHistory) {
+              finalHistory = parseWorkflowHistory(nfaData.workflowHistory);
+            } else if (nfaData.commentHistory) {
+              finalHistory = parseCommentHistory(nfaData.commentHistory);
+            }
+          }
+          setHistory(finalHistory);
+
+          let finalComments: any[] = [];
+          if (nfaData.commentHistory) {
+            finalComments = parseCommentHistory(nfaData.commentHistory);
+          }
+          setComments(finalComments);
+
           setForm(nfaData);
           console.log("ViewNFA: State binding complete.");
         } else {
@@ -481,13 +579,9 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                     )}
                     <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
                     <div className="flex flex-col min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-bold text-slate-700 truncate">{item.user}</span>
-                        <span className="text-[9px] text-slate-400 shrink-0">{item.date.split(',')[0]}</span>
-                      </div>
-                      <span className={`text-[9px] font-extrabold uppercase mt-1 border px-1.5 py-0.5 rounded-md w-fit ${badgeClass}`}>
-                        {item.action}
-                      </span>
+                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                        {item.rawText || `${item.user} (${item.action})${item.remarks ? `: ${item.remarks}` : ""}`}
+                      </p>
                     </div>
                   </div>
                 );
@@ -507,8 +601,8 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             </div>
             
             <div className="space-y-4">
-              {history.filter(item => item.remarks).length > 0 ? (
-                history.filter(item => item.remarks).map((item, idx) => (
+              {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
+                comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
                   <div key={item.id || idx} className="flex flex-col gap-1.5 p-3 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-extrabold text-slate-600">{item.user}</span>
