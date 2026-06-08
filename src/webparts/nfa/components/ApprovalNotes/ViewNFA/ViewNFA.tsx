@@ -92,8 +92,16 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             const lines = commentHistoryText.split("\n");
             const parsed: any[] = [];
             for (const line of lines) {
-              if (!line.trim()) continue;
-              const match = line.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+              const cleanLine = line
+                .replace(/<[^>]*>/g, "")
+                .replace(/&#58;/g, ":")
+                .replace(/&nbsp;/g, " ")
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .trim();
+              if (!cleanLine) continue;
+              const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
               if (match) {
                 parsed.push({
                   id: Math.random(),
@@ -108,7 +116,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                   date: "",
                   user: "System",
                   action: "Log",
-                  remarks: line
+                  remarks: cleanLine
                 });
               }
             }
@@ -176,7 +184,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
               finalHistory = parseCommentHistory(nfaData.commentHistory);
             }
           }
-          setHistory(finalHistory);
+          setHistory(finalHistory.reverse());
 
           let finalComments: any[] = [];
           if (nfaData.commentHistory) {
@@ -545,6 +553,54 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         {/* ── Right Column (30% Width) ── */}
         <div className="w-full lg:w-[30%] space-y-6">
           
+          {/* Attachments */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Paperclip size={15} className="text-emerald-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Attachments</span>
+              </div>
+              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
+                {savedDocuments.length}
+              </span>
+            </div>
+            {savedDocuments.length > 0 ? (
+              <div className="space-y-2.5">
+                {savedDocuments.map(doc => {
+                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                  
+                  return (
+                    <div key={doc.id} className="group flex items-center justify-between p-2.5 bg-slate-50/50 hover:bg-emerald-50/10 rounded-xl border border-slate-100 transition-all">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`p-1.5 rounded-lg border transition-colors ${iconColor}`}>
+                          <FileText size={14} />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-700 truncate" title={doc.fileName}>{doc.fileName}</span>
+                      </div>
+                      <a 
+                        href={doc.serverRelativeUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-[10px] text-emerald-600 font-extrabold px-2.5 py-1 bg-white hover:bg-emerald-600 hover:text-white rounded-lg border border-slate-150 hover:border-emerald-600 shadow-sm transition-all"
+                      >
+                        View
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
+                <Paperclip size={20} className="text-slate-300 mb-1.5" />
+                <span className="text-[10px] text-slate-400 font-bold italic">No attachments found</span>
+              </div>
+            )}
+          </div>
+
           {/* Workflow History */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
@@ -622,54 +678,6 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Attachments */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Paperclip size={15} className="text-emerald-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Attachments</span>
-              </div>
-              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
-                {savedDocuments.length}
-              </span>
-            </div>
-            {savedDocuments.length > 0 ? (
-              <div className="space-y-2.5">
-                {savedDocuments.map(doc => {
-                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
-                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
-                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                  
-                  return (
-                    <div key={doc.id} className="group flex items-center justify-between p-2.5 bg-slate-50/50 hover:bg-emerald-50/10 rounded-xl border border-slate-100 transition-all">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`p-1.5 rounded-lg border transition-colors ${iconColor}`}>
-                          <FileText size={14} />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-700 truncate" title={doc.fileName}>{doc.fileName}</span>
-                      </div>
-                      <a 
-                        href={doc.serverRelativeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-[10px] text-emerald-600 font-extrabold px-2.5 py-1 bg-white hover:bg-emerald-600 hover:text-white rounded-lg border border-slate-150 hover:border-emerald-600 shadow-sm transition-all"
-                      >
-                        View
-                      </a>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
-                <Paperclip size={20} className="text-slate-300 mb-1.5" />
-                <span className="text-[10px] text-slate-400 font-bold italic">No attachments found</span>
-              </div>
-            )}
           </div>
 
         </div>

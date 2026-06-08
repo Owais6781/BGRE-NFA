@@ -190,8 +190,16 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             const lines = commentHistoryText.split("\n");
             const parsed: any[] = [];
             for (const line of lines) {
-              if (!line.trim()) continue;
-              const match = line.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+              const cleanLine = line
+                .replace(/<[^>]*>/g, "")
+                .replace(/&#58;/g, ":")
+                .replace(/&nbsp;/g, " ")
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .trim();
+              if (!cleanLine) continue;
+              const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
               if (match) {
                 parsed.push({
                   id: Math.random(),
@@ -206,7 +214,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   date: "",
                   user: "System",
                   action: "Log",
-                  remarks: line
+                  remarks: cleanLine
                 });
               }
             }

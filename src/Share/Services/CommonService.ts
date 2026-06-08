@@ -12,10 +12,12 @@ export interface ApprovedRejectedRecord {
   project: string;
   createdBy: string;
   createdOn: string;
+  createdOnRaw?: string;
   status: string;
   level: number;
   approvedRejectedBy: string;
   approvedRejectedDate: string;
+  approvedRejectedDateRaw?: string;
 }
 
 export class CommonService {
@@ -119,10 +121,12 @@ export class CommonService {
           project: log.Project || "",
           createdBy: noteMeta ? noteMeta.createdBy : "Unknown",
           createdOn: createdOnFormatted,
+          createdOnRaw: noteMeta ? noteMeta.createdOn : "",
           status: log.Status || "",
           level: parseInt(log.WFLevel, 10) || 1,
           approvedRejectedBy: log.PPLPendingAt ? log.PPLPendingAt.Title : (currentUser.Title || ""),
-          approvedRejectedDate: actionDateFormatted
+          approvedRejectedDate: actionDateFormatted,
+          approvedRejectedDateRaw: log.Created || ""
         };
       });
 

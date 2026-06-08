@@ -271,6 +271,60 @@ public async resolveUserId(loginName: string): Promise<number | null> {
       }
 
       await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody2);
+
+      // DashboardList Save Integration
+      try {
+        const getDueDate = (): Date => {
+          const someDate = new Date();
+          const dd = someDate.getDate();
+          const mm = someDate.getMonth() + 1;
+          const yyyy = someDate.getFullYear();
+          const ddStr = dd < 10 ? '0' + dd : String(dd);
+          const mmStr = mm < 10 ? '0' + mm : String(mm);
+          const someFormattedDate = `${mmStr}/${ddStr}/${yyyy}`;
+          const vDueDate = new Date(someFormattedDate);
+          vDueDate.setDate(vDueDate.getDate() + 1);
+          return vDueDate;
+        };
+
+        const now = new Date();
+        const initiatorName = this.context.pageContext.user.displayName || "Initiator";
+
+        // Dashboard Log: Current State (Pending)
+        const dashboardBody: Record<string, any> = {
+          Title: requestNo,
+          Function: functionName,
+          Project: projectName,
+          Amount: form.packageAwardedCost,
+          FunctionID: form.originatorDept,
+          WFID: String(itemId),
+          WFLevel: "1",
+          Status: "Pending",
+          DOA: form.doaMatrix || "",
+          CurrentApproverId: pendingAtId,
+          CurrentApprovalName: pendingAtName,
+          CurrentApprovalID: pendingAtId ? String(pendingAtId) : "",
+          PendingFrom: initiatorName,
+          InitiatedBy: initiatorName,
+          InitiatedOn: form.date || formatHistoryDate(now),
+          PendingFromDate: now,
+          DueDate: getDueDate()
+        };
+
+        // Check if item already exists in DashboardList for this NFA
+        const existingItems = await this.sp.web.lists.getByTitle("DashboardList").items
+          .filter(`WFID eq '${itemId}'`)
+          .select("Id")();
+
+        if (existingItems.length > 0) {
+          await this.sp.web.lists.getByTitle("DashboardList").items.getById(existingItems[0].Id).update(dashboardBody);
+        } else {
+          await this.sp.web.lists.getByTitle("DashboardList").items.add(dashboardBody);
+        }
+      } catch (dashError) {
+        console.error("NFAService: Error writing to DashboardList:", dashError);
+      }
+
     } catch (logError) {
       console.error("NFAService: Error writing to WFLogList:", logError);
     }

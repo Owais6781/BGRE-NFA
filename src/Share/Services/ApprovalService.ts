@@ -22,7 +22,8 @@ export class ApprovalService {
     updateBody: Record<string, any>
   ): Promise<any> {
     const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-      .select("CommentHistory", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "Level")();
+      .select("CommentHistory", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "Level", "Author/Title", "RequestedOn", "DOAClause")
+      .expand("Author")();
 
     let userName = "Unknown User";
     if (currentUserId) {
@@ -63,7 +64,8 @@ export class ApprovalService {
     remarks: string,
     action: string,
     newLevel: number | undefined,
-    newPendingAtId: number | null
+    newPendingAtId: number | null,
+    currentUserId: number
   ): Promise<void> {
     try {
       let pendingAtName = "";
@@ -111,6 +113,81 @@ export class ApprovalService {
 
         await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody2);
       }
+
+      // DashboardList Save Integration
+      try {
+        let actionTakerName = "";
+        if (currentUserId) {
+          try {
+            const user = await this.sp.web.siteUsers.getById(currentUserId)();
+            actionTakerName = user.Title || "";
+          } catch (uErr) {
+            console.error("ApprovalService: Error getting action taker user:", uErr);
+          }
+        }
+
+        const initiatorName = item.Author ? item.Author.Title : "";
+        const initiatedOn = item.RequestedOn || "";
+        const doaClause = item.DOAClause || "";
+
+        const getDueDate = (): Date => {
+          const someDate = new Date();
+          const dd = someDate.getDate();
+          const mm = someDate.getMonth() + 1;
+          const yyyy = someDate.getFullYear();
+          const ddStr = dd < 10 ? '0' + dd : String(dd);
+          const mmStr = mm < 10 ? '0' + mm : String(mm);
+          const someFormattedDate = `${mmStr}/${ddStr}/${yyyy}`;
+          const vDueDate = new Date(someFormattedDate);
+          vDueDate.setDate(vDueDate.getDate() + 1);
+          return vDueDate;
+        };
+
+        const now = new Date();
+
+        let newStatus = action;
+        if (action === "Approved") {
+          newStatus = newPendingAtId ? "Pending" : "Approved";
+        } else if (action === "Delegate") {
+          newStatus = "Pending";
+        }
+
+        const isTerminal = (newStatus === "Approved" || newStatus === "Rejected");
+
+        const dashboardBody: Record<string, any> = {
+          Title: item.Title || "NFA",
+          Function: item.Dept || "",
+          Project: item.Project || "",
+          Amount: String(item.ApprovalAmount || "0.00"),
+          FunctionID: item.Dept || "",
+          WFID: String(itemId),
+          WFLevel: String(newLevel !== undefined ? newLevel : (item.Level || 1)),
+          Status: newStatus,
+          DOA: doaClause,
+          CurrentApproverId: isTerminal ? null : newPendingAtId,
+          CurrentApprovalName: isTerminal ? "" : pendingAtName,
+          CurrentApprovalID: (isTerminal || !newPendingAtId) ? "" : String(newPendingAtId),
+          PendingFrom: actionTakerName,
+          InitiatedBy: initiatorName,
+          InitiatedOn: initiatedOn,
+          PendingFromDate: now,
+          DueDate: getDueDate()
+        };
+
+        // Check if item already exists in DashboardList for this NFA
+        const existingItems = await this.sp.web.lists.getByTitle("DashboardList").items
+          .filter(`WFID eq '${itemId}'`)
+          .select("Id")();
+
+        if (existingItems.length > 0) {
+          await this.sp.web.lists.getByTitle("DashboardList").items.getById(existingItems[0].Id).update(dashboardBody);
+        } else {
+          await this.sp.web.lists.getByTitle("DashboardList").items.add(dashboardBody);
+        }
+      } catch (dashErr) {
+        console.warn("ApprovalService: Failed to write to DashboardList:", dashErr);
+      }
+
     } catch (logErr) {
       console.warn("ApprovalService: Failed to write to WFLogList:", logErr);
     }
@@ -151,7 +228,7 @@ export class ApprovalService {
       
       const item = await this.getAndUpdateCommentHistory(itemId, "Approved", remarks, currentUserId, updateBody);
       
-      await this.writeWFLog(item, itemId, remarks, "Approved", updateBody.Level, updateBody.PendingAtId);
+      await this.writeWFLog(item, itemId, remarks, "Approved", updateBody.Level, updateBody.PendingAtId, currentUserId);
       
       return { success: true, message: nextApproverId ? "NFA approved and forwarded to next level." : "NFA fully approved!" };
     } catch (error) {
@@ -174,7 +251,7 @@ export class ApprovalService {
       
       const item = await this.getAndUpdateCommentHistory(itemId, "Rejected", remarks, currentUserId, updateBody);
 
-      await this.writeWFLog(item, itemId, remarks, "Rejected", undefined, null);
+      await this.writeWFLog(item, itemId, remarks, "Rejected", undefined, null, currentUserId);
       
       return { success: true, message: "NFA has been rejected." };
     } catch (error) {
@@ -198,7 +275,7 @@ export class ApprovalService {
       
       const item = await this.getAndUpdateCommentHistory(itemId, "Query", remarks, currentUserId, updateBody);
 
-      await this.writeWFLog(item, itemId, remarks, "Query", undefined, queryUserId);
+      await this.writeWFLog(item, itemId, remarks, "Query", undefined, queryUserId, currentUserId);
       
       return { success: true, message: "Query sent successfully." };
     } catch (error) {
@@ -226,7 +303,7 @@ export class ApprovalService {
       
       const item = await this.getAndUpdateCommentHistory(itemId, "Delegate", remarks, currentUserId, updateBody);
 
-      await this.writeWFLog(item, itemId, remarks, "Delegate", currentLevel, delegateUserId);
+      await this.writeWFLog(item, itemId, remarks, "Delegate", currentLevel, delegateUserId, currentUserId);
       
       return { success: true, message: "NFA delegated successfully." };
     } catch (error) {
@@ -251,7 +328,7 @@ export class ApprovalService {
       
       const item = await this.getAndUpdateCommentHistory(itemId, "Returned", remarks, currentUserId, updateBody);
 
-      await this.writeWFLog(item, itemId, remarks, "Returned", 0, initiatorId);
+      await this.writeWFLog(item, itemId, remarks, "Returned", 0, initiatorId, currentUserId);
       
       return { success: true, message: "NFA returned to initiator." };
     } catch (error) {

@@ -244,8 +244,16 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               const lines = commentHistoryText.split("\n");
               const parsed: any[] = [];
               for (const line of lines) {
-                if (!line.trim()) continue;
-                const match = line.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+                const cleanLine = line
+                  .replace(/<[^>]*>/g, "")
+                  .replace(/&#58;/g, ":")
+                  .replace(/&nbsp;/g, " ")
+                  .replace(/&amp;/g, "&")
+                  .replace(/&lt;/g, "<")
+                  .replace(/&gt;/g, ">")
+                  .trim();
+                if (!cleanLine) continue;
+                const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
                 if (match) {
                   parsed.push({
                     id: Math.random(),
@@ -260,7 +268,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                     date: "",
                     user: "System",
                     action: "Log",
-                    remarks: line
+                    remarks: cleanLine
                   });
                 }
               }
@@ -321,9 +329,9 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             };
 
             if (nfaData.workflowHistory) {
-              setHistory(parseWorkflowHistory(nfaData.workflowHistory));
+              setHistory(parseWorkflowHistory(nfaData.workflowHistory).reverse());
             } else if (nfaData.commentHistory) {
-              setHistory(parseCommentHistory(nfaData.commentHistory));
+              setHistory(parseCommentHistory(nfaData.commentHistory).reverse());
             }
 
             if (nfaData.commentHistory) {
@@ -398,11 +406,10 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       const response = await context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
       if (!response.ok) return;
       const data = await response.json();
-
       if (data.value && data.value.length > 0) {
         const options = data.value.map((item: any) => ({
           label: item.Title,
-          value: String(item.Id)
+          value: item.Title
         }));
         setDoaMatrixOptions(options);
         if (options.length === 1 && form.doaMatrix !== options[0].value) {
@@ -441,11 +448,13 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         const levels = Array.from({ length: 12 }, (_, i) => `Approver${i + 1}`);
         const select = levels.map(l => `${l}/Id,${l}/Title`).join(',');
         const expand = levels.join(',');
-        const endpoint = `${siteUrl}/_api/web/lists/getbytitle('DOAMatrix')/items(${form.doaMatrix})?$select=${select}&$expand=${expand}`;
+        const filter = `Title eq '${form.doaMatrix}'`;
+        const endpoint = `${siteUrl}/_api/web/lists/getbytitle('DOAMatrix')/items?$filter=${filter}&$select=${select}&$expand=${expand}`;
         const response = await context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
         if (!response.ok) return;
-        const item = await response.json();
-        if (item) {
+        const data = await response.json();
+        if (data.value && data.value.length > 0) {
+          const item = data.value[0];
           const matrixApprovers = Array(12).fill(null);
           const approverOptionsList: IDropdownOption[] = [];
           for (let i = 1; i <= 12; i++) {
@@ -827,6 +836,52 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       )}
 
       <AttachmentPopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} onSave={(entries) => { setPendingAttachments(prev => [...prev, ...entries]); setIsPopupOpen(false); }} />
+      
+      {isSaving && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <style>{`
+            @keyframes indeterminate-progress {
+              0% { left: -35%; right: 100%; }
+              60% { left: 100%; right: -90%; }
+              100% { left: 100%; right: -90%; }
+            }
+            @keyframes indeterminate-progress-short {
+              0% { left: -200%; right: 100%; }
+              60% { left: 107%; right: -8%; }
+              100% { left: 107%; right: -8%; }
+            }
+            .animate-progress-1 {
+              animation: indeterminate-progress 2s infinite ease-out;
+            }
+            .animate-progress-2 {
+              animation: indeterminate-progress-short 2s infinite ease-out;
+              animation-delay: 1.15s;
+            }
+          `}</style>
+          
+          <div className="bg-white/95 rounded-3xl p-8 max-w-sm w-full border border-slate-200/80 shadow-2xl flex flex-col items-center justify-center gap-5 text-center transform scale-100 transition-all duration-300">
+            <div className="relative flex items-center justify-center h-16 w-16">
+              <span className="animate-ping absolute inline-flex h-12 w-12 rounded-full bg-blue-400 opacity-20"></span>
+              <div className="h-14 w-14 rounded-full border-4 border-slate-100 border-t-blue-600 animate-spin flex items-center justify-center">
+                <FileText size={20} className="text-blue-600" />
+              </div>
+            </div>
+            
+            <div className="space-y-1.5">
+              <h3 className="font-black text-slate-800 text-base">Saving NFA</h3>
+              <p className="text-[11px] text-slate-450 font-bold uppercase tracking-wider">
+                Please wait while we upload your attachments and save the request
+              </p>
+            </div>
+            
+            <div className="relative w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-progress-1"></div>
+              <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-progress-2"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <MessagePopup isOpen={doaAlert.show} type={doaAlert.type} title={doaAlert.title} messages={doaAlert.messages} onClose={handlePopupClose} />
       {errors.length > 0 && <ValidationErrors errors={errors} onClose={() => setErrors([])} />}
 

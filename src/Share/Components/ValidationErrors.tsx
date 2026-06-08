@@ -20,8 +20,7 @@ const ValidationErrors: React.FC<IValidationErrorsProps> = ({
         <div className="validationBanner__title">
           <AlertCircle size={16} />
           <span>
-            Please fix the following {errors.length} error
-            {errors.length > 1 ? "s" : ""}:
+            Please fill the following {errors.length} field{errors.length > 1 ? "s" : ""} value:
           </span>
         </div>
         {onClose && (
