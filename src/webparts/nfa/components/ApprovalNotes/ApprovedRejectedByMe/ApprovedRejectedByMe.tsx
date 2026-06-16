@@ -1,11 +1,13 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronUp, ChevronDown, Clock, CheckCircle2, XCircle, FileText, Building2, Wrench } from 'lucide-react';
+import { ChevronUp, ChevronDown, CheckCircle2, XCircle, FileText, Building2, Wrench } from 'lucide-react';
 import { CommonTable } from '../../../../../Share/Components/CommonTable';
 import { Pagination }  from '../../../../../Share/Components/Pagination';
 import TableToolbar    from '../../../../../Share/Components/TableToolbar';
 import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
+import { SearchInput } from '../../../../../Share/Components/SearchInput';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton }    from 'primereact/skeleton';
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { CommonService, ApprovedRejectedRecord } from '../../../../../Share/Services/CommonService';
@@ -368,16 +370,6 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
                 onClick={() => handleCardClick('Rejected')}
               />
               <SummaryCard 
-                icon={Clock}      
-                label="Avg Action Time"       
-                count={stats.avgTimeStr} 
-                iconBgClass="bg-amber-500 bg-opacity-10"    
-                iconColorClass="text-amber-500" 
-                isActive={false}
-                activeGlowClass="shadow-amber-100"
-                onClick={null}
-              />
-              <SummaryCard 
                 icon={Building2}     
                 label="Projects"          
                 count={stats.projects}    
@@ -434,22 +426,46 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
               />
             </div>
 
-            <div className="flex justify-end mb-3">
-              <ExportToExcel data={displayData} columns={exportColumns} fileName="Approved_Rejected_By_Me" sheetName="Approved Rejected" />
-            </div>
-
             <TableToolbar
               pageSize={pageSize} pageSizeOptions={PAGE_SIZE_OPTIONS} onPageSizeChange={handlePageSizeChange}
               search={search} onSearch={handleTableSearch}
+              right={
+                <div className="flex items-center gap-3">
+                  <ExportToExcel data={displayData} columns={exportColumns} fileName="Approved_Rejected_By_Me" sheetName="Approved Rejected" />
+                  <SearchInput value={search} onChange={handleTableSearch} />
+                </div>
+              }
             />
 
-            <CommonTable
-              columns={columns}
-              data={paginated}
-              loading={loading}
-              emptyMessage="No approved/rejected records found"
-              stickyFirstColumn={true}
-            />
+            {loading ? (
+              <div className="w-full mt-3 border border-slate-200 rounded-xl overflow-hidden">
+                {/* Header Skeleton */}
+                <div className="flex bg-slate-50 border-b border-slate-200 p-4">
+                  {columns.map((col) => (
+                    <div key={col.key} className="flex-1">
+                      <Skeleton width="60%" height="1.2rem" />
+                    </div>
+                  ))}
+                </div>
+                {/* Rows Skeleton */}
+                {Array.from({ length: pageSize || 5 }).map((_, i) => (
+                  <div key={i} className="flex border-b border-slate-100 p-4 items-center">
+                    {columns.map((col) => (
+                      <div key={col.key} className="flex-1">
+                        <Skeleton width="80%" height="1rem" />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <CommonTable
+                columns={columns}
+                data={paginated}
+                emptyMessage="No approved/rejected records found"
+                stickyFirstColumn={true}
+              />
+            )}
 
             <Pagination
               page={currentPage} total={totalPages} pageSize={pageSize}

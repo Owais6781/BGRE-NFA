@@ -134,9 +134,13 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
   ];
 
   const handleRecordClick = (row: any) => {
-    console.log("Inbox: Navigating to Approver Page for ID:", row.id);
+    console.log("Inbox: Navigating for ID:", row.id);
     if (row.id) {
-      navigate(`/approver-page/${row.id}`);
+      if ((row.status || "").toLowerCase() === 'query') {
+        navigate(`/query-respond/${row.id}`);
+      } else {
+        navigate(`/approver-page/${row.id}`);
+      }
     } else {
       console.warn("Inbox: Row ID is missing", row);
     }

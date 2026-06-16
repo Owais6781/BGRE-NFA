@@ -12,6 +12,7 @@ import NewNFA from "./ApprovalNotes/NewNFA/NewNFA";
 import ViewNFA from "./ApprovalNotes/ViewNFA/ViewNFA";
 import Inbox from "./ApprovalNotes/Inbox/Inbox";
 import ApproverPage from "./ApprovalNotes/ApproverPage/ApproverPage";
+import QueryRespond from "./ApprovalNotes/QueryRespond/QueryRespond";
 import ApprovalDetailsView from "./ApprovalNotes/ApprovalDetailsView/ApprovalDetailsView";
 import ApprovedRejectedByMe from "./ApprovalNotes/ApprovedRejectedByMe/ApprovedRejectedByMe";
 import DetailView from "./AdminSection/DetailView/DetailView";
@@ -38,14 +39,15 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
                 <Route path="/new-nfa/:id"         element={<NewNFA context={context} sp={sp}/>} />
                 <Route path="/view-nfa/:id"        element={<ViewNFA context={context} sp={sp}/>} />
                 <Route path="/approver-page/:id"   element={<ApproverPage context={context} sp={sp}/>} />
+                <Route path="/query-respond/:id"   element={<QueryRespond context={context} sp={sp}/>} />
                 <Route path="/inbox"               element={<Inbox context={context} sp={sp}/>} />
-                <Route path="/approver-detail"     element={<ApprovalDetailsView />} />
+                <Route path="/approver-detail"     element={<ApprovalDetailsView context={context} sp={sp}/>} />
                 <Route path="/approved-rejected"   element={<ApprovedRejectedByMe context={context} sp={sp}/>} />
                 <Route path="/detail-view"         element={<DetailView />} />
                 <Route path="/masters"             element={<Masters />} />
-                <Route path="/function-wise-status"    element={<FunctionWiseStatus />} />
+                <Route path="/function-wise-status"    element={<FunctionWiseStatus context={context} sp={sp}/>} />
                 <Route path="/approver-wise-pendency"  element={<ApproverWisePendency />} />
-                <Route path="/ageing-report"       element={<AgeingReport />} />
+                <Route path="/ageing-report"       element={<AgeingReport context={context} sp={sp}/>} />
                 <Route path="/day-wise-ageing"     element={<DayWiseAgeing />} />
                 <Route path="/generic-report"      element={<GenericReport />} />
                 {/* Fallback to Home */}

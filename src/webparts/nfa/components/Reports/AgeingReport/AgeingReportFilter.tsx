@@ -27,17 +27,17 @@ const AgeingReportFilter: React.FC<AgeingReportFilterProps> = ({ onSearch, onRes
         Ageing Report — Filters
       </div>
       <div className="filterCardBody">
-        <div className="flex flex-wrap gap-x-6 gap-y-4">
-          <div className="flex-1 min-w-[200px]">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <div className="flex-1 min-w-[150px] max-w-[220px]">
             <DatePickerField label="From Date" value={fromDate} onChange={setFromDate} required />
           </div>
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-[150px] max-w-[220px]">
             <DatePickerField label="To Date"   value={toDate}   onChange={setToDate}   required />
           </div>
-        </div>
-        <div className="flex items-center gap-3 mt-4">
-          <CommonButton text="Search" variant="primary" onClick={() => onSearch({ fromDate, toDate })} />
-          <CommonButton text="Reset"  variant="danger"  onClick={handleReset} />
+          <div className="flex items-center gap-2 pb-0.5">
+            <CommonButton text="Search" variant="primary" onClick={() => onSearch({ fromDate, toDate })} />
+            <CommonButton text="Reset"  variant="danger"  onClick={handleReset} />
+          </div>
         </div>
       </div>
     </div>

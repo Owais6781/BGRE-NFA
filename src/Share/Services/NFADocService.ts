@@ -94,11 +94,18 @@ export class NFADocService {
   // ── Save All Entries ──
   public async saveDocuments(
     entries: IAttachmentEntry[],
-    uniqId: string
+    uniqId: string,
+    onProgress?: (current: number, total: number, fileName: string) => void
   ): Promise<ISavedDocument[]> {
     const savedDocs: ISavedDocument[] = [];
+    const total = entries.length;
+    let current = 0;
 
     for (const entry of entries) {
+      if (onProgress) {
+        onProgress(current, total, entry.file.name);
+      }
+      
       // 1. Create list item
       const itemId = await this.createListItem(entry.documentType, uniqId);
 
@@ -113,6 +120,11 @@ export class NFADocService {
         fileSize: entry.file.size,
         uniqId,
       });
+
+      current++;
+      if (onProgress) {
+        onProgress(current, total, entry.file.name);
+      }
     }
 
     return savedDocs;

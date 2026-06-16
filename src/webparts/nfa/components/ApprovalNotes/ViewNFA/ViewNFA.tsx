@@ -13,6 +13,7 @@ import "@pnp/sp/site-users";
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import { NFADocService, ISavedDocument } from '../../../../../Share/Services/NFADocService';
 import { NFAService, INFAFormData } from '../../../../../Share/Services/NFAService';
+import { CommonService } from '../../../../../Share/Services/CommonService';
 import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
 
@@ -58,6 +59,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   const [users, setUsers] = useState<{label: string, value: string, email?: string}[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
+  const [queryHistory, setQueryHistory] = useState<any[]>([]);
 
   const currentStepRef = useRef<HTMLDivElement>(null);
   const stepperContainerRef = useRef<HTMLDivElement>(null);
@@ -77,11 +79,13 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         console.log("ViewNFA: NFA Data found:", !!nfaData);
 
         if (nfaData) {
-          const [docs, siteUsers, historyData] = await Promise.all([
+          const commonService = new CommonService(context, sp);
+          const [docs, siteUsers, historyData, qHistory] = await Promise.all([
             docService.getDocumentsByUniqId(nfaData.uniqId),
             sp.web.siteUsers.filter("PrincipalType eq 1").select("Id", "Title", "Email")()
               .then(res => res.map(u => ({ label: u.Title, value: String(u.Id), email: u.Email }))),
-            nfaService.getHistory(parseInt(id))
+            nfaService.getHistory(parseInt(id)),
+            commonService.getQueryHistory(id)
           ]);
 
            setSavedDocuments(docs);
@@ -101,14 +105,15 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                 .replace(/&gt;/g, ">")
                 .trim();
               if (!cleanLine) continue;
-              const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+              const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\)(?:\s+\[Level\s+(.*?)\])?:\s+(.*)$/);
               if (match) {
                 parsed.push({
                   id: Math.random(),
                   date: match[1],
                   user: match[2],
                   action: match[3],
-                  remarks: match[4]
+                  level: match[4] || "1",
+                  remarks: match[5]
                 });
               } else {
                 parsed.push({
@@ -190,7 +195,8 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
           if (nfaData.commentHistory) {
             finalComments = parseCommentHistory(nfaData.commentHistory);
           }
-          setComments(finalComments);
+           setComments(finalComments);
+           setQueryHistory(qHistory);
 
           setForm(nfaData);
           console.log("ViewNFA: State binding complete.");
@@ -242,6 +248,22 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
     });
     return steps;
   }, [form]);
+
+  const queryDocuments = useMemo(() => {
+    const docsList: any[] = [];
+    queryHistory.forEach(item => {
+      if (item.AttachmentFiles && item.AttachmentFiles.length > 0) {
+        item.AttachmentFiles.forEach((file: any) => {
+          docsList.push({
+            fileName: file.FileName,
+            serverRelativeUrl: file.ServerRelativeUrl,
+            queryBy: item.QueryBy ? item.QueryBy.Title : "Unknown"
+          });
+        });
+      }
+    });
+    return docsList;
+  }, [queryHistory]);
 
   if (isLoading || !form) {
     return (
@@ -349,44 +371,47 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         <div className="w-full lg:w-[70%] space-y-6">
 
           {/* Basic Information */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
               <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Basic Information</span>
+              <span className="font-bold text-slate-800 text-[10.5px] uppercase tracking-wider">
+                Request No: {form.requestNo || '-'} (Level {form.level || '1'})
+              </span>
             </div>
             
-            <div className="flex flex-col md:flex-row md:flex-wrap gap-4">
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{form.project || '-'}</span>
+            <div className="flex flex-col gap-2">
+              {/* Row 1: Project (35%) | Sub-Entity (30%) | Date (25%) */}
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="w-full md:w-[35%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Project</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.project || '-'}</span>
+                </div>
+                <div className="w-full md:w-[30%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Sub-Entity</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">
+                    {form.projectSubEntity && form.projectSubEntity.length > 0 ? form.projectSubEntity.join(', ') : '-'}
+                  </span>
+                </div>
+                <div className="w-full md:w-[25%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Date</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.date || '-'}</span>
+                </div>
               </div>
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">
-                  {form.projectSubEntity && form.projectSubEntity.length > 0 ? form.projectSubEntity.join(', ') : '-'}
-                </span>
-              </div>
-              
-              <div className="w-full md:hidden" />
-              
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Function</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{form.originatorDept || '-'}</span>
-              </div>
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{form.date || '-'}</span>
-              </div>
-              
-              <div className="w-full md:hidden" />
-              
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workflow</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 uppercase">{form.workflow || '-'}</span>
-              </div>
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DOA Matrix</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{form.doaMatrix || '-'}</span>
+
+              {/* Row 2: Function (35%) | DOA Matrix (30%) | Workflow (25%) */}
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="w-full md:w-[35%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Function</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.originatorDept || '-'}</span>
+                </div>
+                <div className="w-full md:w-[30%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">DOA Matrix</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.doaMatrix || '-'}</span>
+                </div>
+                <div className="w-full md:w-[25%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Workflow</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100 uppercase">{form.workflow || '-'}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -406,28 +431,28 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
               
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: form.introduction || '-' }} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: form.chronology || '-' }} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: form.commercialProposal || '-' }} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: form.paymentTerms || '-' }} />
                 </div>
               </div>
@@ -474,7 +499,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Justification</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: form.recommendation || '-' }} />
                 </div>
               </div>
@@ -554,18 +579,18 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         <div className="w-full lg:w-[30%] space-y-6">
           
           {/* Attachments */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2.5">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
-                <Paperclip size={15} className="text-emerald-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Attachments</span>
+                <Paperclip size={14} className="text-emerald-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Attachments</span>
               </div>
-              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
+              <span className="bg-emerald-50 text-emerald-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-100">
                 {savedDocuments.length}
               </span>
             </div>
             {savedDocuments.length > 0 ? (
-              <div className="space-y-2.5">
+              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
                 {savedDocuments.map(doc => {
                   const ext = doc.fileName.split('.').pop()?.toLowerCase();
                   let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
@@ -574,32 +599,71 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                   else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
                   
                   return (
-                    <div key={doc.id} className="group flex items-center justify-between p-2.5 bg-slate-50/50 hover:bg-emerald-50/10 rounded-xl border border-slate-100 transition-all">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`p-1.5 rounded-lg border transition-colors ${iconColor}`}>
-                          <FileText size={14} />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-700 truncate" title={doc.fileName}>{doc.fileName}</span>
+                    <a 
+                      key={doc.id}
+                      href={doc.serverRelativeUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
+                    >
+                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                        <FileText size={12} />
                       </div>
-                      <a 
-                        href={doc.serverRelativeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-[10px] text-emerald-600 font-extrabold px-2.5 py-1 bg-white hover:bg-emerald-600 hover:text-white rounded-lg border border-slate-150 hover:border-emerald-600 shadow-sm transition-all"
-                      >
-                        View
-                      </a>
-                    </div>
+                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
+                        {doc.fileName}
+                      </span>
+                    </a>
                   );
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
-                <Paperclip size={20} className="text-slate-300 mb-1.5" />
-                <span className="text-[10px] text-slate-400 font-bold italic">No attachments found</span>
+              <div className="flex flex-col items-center justify-center py-4 border border-dashed border-slate-200 rounded-xl">
+                <Paperclip size={18} className="text-slate-300 mb-1" />
+                <span className="text-[9.5px] text-slate-400 font-bold italic">No attachments found</span>
               </div>
             )}
           </div>
+
+          {/* Query Documents (Show only if available) */}
+          {queryDocuments.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <Paperclip size={14} className="text-amber-500 shrink-0"/> 
+                  <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Documents</span>
+                </div>
+                <span className="bg-amber-50 text-amber-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-amber-100">
+                  {queryDocuments.length}
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                {queryDocuments.map((doc, idx) => {
+                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                  
+                  return (
+                    <a 
+                      key={idx}
+                      href={doc.serverRelativeUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
+                    >
+                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                        <FileText size={12} />
+                      </div>
+                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
+                        {doc.fileName}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Workflow History */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
@@ -650,35 +714,74 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
           </div>
 
           {/* Comments History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
-              <MessageSquare size={15} className="text-indigo-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Comments History</span>
-            </div>
-            
-            <div className="space-y-4">
-              {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
-                comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col gap-1.5 p-3 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+          {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Comments History</span>
+              </div>
+              
+              <div className="space-y-3">
+                {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
+                  <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-extrabold text-slate-600">{item.user}</span>
-                      <span className="text-[9px] text-slate-400">{item.date.split(',')[0]}</span>
+                      <span className="text-[10px] font-medium text-slate-600 text-left">Comment: {item.remarks || ""}</span>
                     </div>
                     <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
                       <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
-                      <p className="text-[10.5px] text-slate-500 leading-normal italic relative z-10">
-                        "{item.remarks}"
+                      <p className="text-[10px] text-slate-500 leading-normal relative z-10">
+                        Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
                       </p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-400 italic text-[11px]">
-                  No comments or remarks recorded.
-                </div>
-              )}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Query Remarks History */}
+          {queryHistory.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                <MessageSquare size={14} className="text-amber-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Remarks History</span>
+              </div>
+              
+              <div className="space-y-3">
+                {queryHistory.map((item, idx) => (
+                  <div key={item.id || idx} className="flex flex-col gap-2 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+                    {/* The Query Part */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-medium text-slate-600 text-left">Query: {item.Query || ""}</span>
+                      </div>
+                      <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                        <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                        <p className="text-[10px] text-slate-500 leading-normal relative z-10">
+                          Remarks Added by {item.QueryBy ? item.QueryBy.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.QueriedOn || ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* The Response Part */}
+                    {item.Response && item.Response.trim() !== "" && (
+                      <div className="flex flex-col gap-1 mt-1.5 border-t border-slate-100 pt-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-medium text-slate-600 text-left">Query Response: {item.Response}</span>
+                        </div>
+                        <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                          <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                          <p className="text-[10px] text-slate-500 leading-normal relative z-10">
+                            Query Responded by {item.QueryTo ? item.QueryTo.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.RespondedOn || ""}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
 

@@ -16,6 +16,7 @@ import "@pnp/sp/site-users";
 import { NFAService, INFAFormData } from '../../../../../Share/Services/NFAService';
 import { NFADocService, ISavedDocument } from '../../../../../Share/Services/NFADocService';
 import { ApprovalService } from '../../../../../Share/Services/ApprovalService';
+import { CommonService } from '../../../../../Share/Services/CommonService';
 import MessagePopup from '../../../../../Share/Components/MessagePopup';
 import { InputField } from '../../../../../Share/Components/InputField';
 import { TextAreaField } from '../../../../../Share/Components/TextAreaField';
@@ -67,6 +68,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const [users, setUsers] = useState<{label: string, value: string, email?: string}[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
+  const [queryHistory, setQueryHistory] = useState<any[]>([]);
   
   // Action State
   const [remarks, setRemarks] = useState('');
@@ -146,6 +148,57 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         result = await service.returnNFA(itemId, remarks, initiatorId, currentUserId, subject);
       }
       
+      if (result.success && (actionType === 'Approve' || actionType === 'Reject')) {
+        try {
+          const itemObj = await sp.web.lists.getByTitle("DigitalApprovalNotes").items.getById(itemId).select("WorkflowHistoryHTML")();
+          const currentHTML = itemObj.WorkflowHistoryHTML || "";
+
+          const approverName = context.pageContext.user.displayName || "Approver";
+          const actionName = actionType === 'Approve' ? 'Approved' : 'Rejected';
+          
+          const pad = (num: number) => num < 10 ? '0' + num : String(num);
+          const now = new Date();
+          const day = pad(now.getDate());
+          const month = pad(now.getMonth() + 1);
+          const year = now.getFullYear();
+          let hours = now.getHours();
+          const minutes = pad(now.getMinutes());
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12;
+          hours = hours ? hours : 12;
+          const dateTimeVal = `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
+
+          const newRowHTML = `<tr><td>(${nfa.level} Approver)</td><td></td><td>${approverName}</td><td>${remarks || ""}</td><td>${actionName}</td><td>${dateTimeVal}</td></tr>`;
+          
+          let updatedHTML = "";
+          const cleanedCurrent = currentHTML.trim();
+          if (!cleanedCurrent) {
+            updatedHTML = `<table><tbody>${newRowHTML}</tbody></table>`;
+          } else if (!cleanedCurrent.toLowerCase().includes("<table")) {
+            updatedHTML = `<table><tbody>${cleanedCurrent}${newRowHTML}</tbody></table>`;
+          } else {
+            const lowerHTML = cleanedCurrent.toLowerCase();
+            const lastTbodyIndex = lowerHTML.lastIndexOf("</tbody>");
+            if (lastTbodyIndex !== -1) {
+              updatedHTML = cleanedCurrent.substring(0, lastTbodyIndex) + newRowHTML + cleanedCurrent.substring(lastTbodyIndex);
+            } else {
+              const lastTableIndex = lowerHTML.lastIndexOf("</table>");
+              if (lastTableIndex !== -1) {
+                updatedHTML = cleanedCurrent.substring(0, lastTableIndex) + `<tbody>${newRowHTML}</tbody>` + cleanedCurrent.substring(lastTableIndex);
+              } else {
+                updatedHTML = cleanedCurrent + `<table><tbody>${newRowHTML}</tbody></table>`;
+              }
+            }
+          }
+
+          await sp.web.lists.getByTitle("DigitalApprovalNotes").items.getById(itemId).update({
+            WorkflowHistoryHTML: updatedHTML
+          });
+        } catch (htmlErr) {
+          console.error("ApproverPage: Error updating WorkflowHistoryHTML:", htmlErr);
+        }
+      }
+
       setPopupConfig({
         show: true,
         type: result.success ? 'success' : 'error',
@@ -174,14 +227,21 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
       const docService = new NFADocService(context);
       
       try {
-        const [nfaData, siteUsers, historyData] = await Promise.all([
+        const commonService = new CommonService(context, sp);
+        const [nfaData, siteUsers, historyData, qHistory] = await Promise.all([
           nfaService.getNFA(parseInt(id)),
           sp.web.siteUsers.filter("PrincipalType eq 1").select("Id", "Title", "Email")()
             .then(users => users.map(u => ({ label: u.Title, value: String(u.Id), email: u.Email }))),
-          nfaService.getHistory(parseInt(id))
+          nfaService.getHistory(parseInt(id)),
+          commonService.getQueryHistory(id)
         ]);
 
         if (nfaData) {
+          // If status is Query and pending user is current user, redirect to query response page
+          if ((nfaData.status || "").toLowerCase() === 'query' && nfaData.pendingAtId === currentUserId) {
+            navigate(`/query-respond/${id}`, { replace: true });
+            return;
+          }
           setNfa(nfaData);
           setUsers(siteUsers);
           
@@ -199,14 +259,15 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 .replace(/&gt;/g, ">")
                 .trim();
               if (!cleanLine) continue;
-              const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+              const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\)(?:\s+\[Level\s+(.*?)\])?:\s+(.*)$/);
               if (match) {
                 parsed.push({
                   id: Math.random(),
                   date: match[1],
                   user: match[2],
                   action: match[3],
-                  remarks: match[4]
+                  level: match[4] || "1",
+                  remarks: match[5]
                 });
               } else {
                 parsed.push({
@@ -292,6 +353,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
           const attachedDocs = await docService.getDocumentsByUniqId(nfaData.uniqId);
           setDocs(attachedDocs);
+          setQueryHistory(qHistory);
         }
       } catch (err) {
         console.error("ApproverPage: Data loading error:", err);
@@ -346,6 +408,22 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
     });
     return steps;
   }, [nfa]);
+
+  const queryDocuments = useMemo(() => {
+    const docsList: any[] = [];
+    queryHistory.forEach(item => {
+      if (item.AttachmentFiles && item.AttachmentFiles.length > 0) {
+        item.AttachmentFiles.forEach((file: any) => {
+          docsList.push({
+            fileName: file.FileName,
+            serverRelativeUrl: file.ServerRelativeUrl,
+            queryBy: item.QueryBy ? item.QueryBy.Title : "Unknown"
+          });
+        });
+      }
+    });
+    return docsList;
+  }, [queryHistory]);
 
   const selectedUserObj = useMemo(() => {
     return users.find(u => u.value === selectedUser);
@@ -471,44 +549,47 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         <div className="w-full lg:w-[70%] space-y-6">
 
           {/* Basic Information */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
               <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Basic Information</span>
+              <span className="font-bold text-slate-800 text-[10.5px] uppercase tracking-wider">
+                Request No: {nfa.requestNo || '-'} (Level {nfa.level || '1'})
+              </span>
             </div>
             
-            <div className="flex flex-col md:flex-row md:flex-wrap gap-4">
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{nfa.project || '-'}</span>
+            <div className="flex flex-col gap-2">
+              {/* Row 1: Project (35%) | Sub-Entity (30%) | Date (25%) */}
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="w-full md:w-[35%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Project</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.project || '-'}</span>
+                </div>
+                <div className="w-full md:w-[30%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Sub-Entity</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">
+                    {nfa.projectSubEntity && nfa.projectSubEntity.length > 0 ? nfa.projectSubEntity.join(', ') : '-'}
+                  </span>
+                </div>
+                <div className="w-full md:w-[25%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Date</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.date || '-'}</span>
+                </div>
               </div>
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">
-                  {nfa.projectSubEntity && nfa.projectSubEntity.length > 0 ? nfa.projectSubEntity.join(', ') : '-'}
-                </span>
-              </div>
-              
-              <div className="w-full md:hidden" />
-              
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Function</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{nfa.originatorDept || '-'}</span>
-              </div>
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{nfa.date || '-'}</span>
-              </div>
-              
-              <div className="w-full md:hidden" />
-              
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workflow</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 uppercase">{nfa.workflow || '-'}</span>
-              </div>
-              <div className="flex-1 min-w-[220px] flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DOA Matrix</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">{nfa.doaMatrix || '-'}</span>
+
+              {/* Row 2: Function (35%) | DOA Matrix (30%) | Workflow (25%) */}
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="w-full md:w-[35%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Function</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.originatorDept || '-'}</span>
+                </div>
+                <div className="w-full md:w-[30%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">DOA Matrix</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.doaMatrix || '-'}</span>
+                </div>
+                <div className="w-full md:w-[25%] flex flex-col gap-1">
+                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Workflow</span>
+                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100 uppercase">{nfa.workflow || '-'}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -528,28 +609,28 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: nfa.introduction || '-' }} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: nfa.chronology || '-' }} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: nfa.commercialProposal || '-' }} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: nfa.paymentTerms || '-' }} />
                 </div>
               </div>
@@ -596,7 +677,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Justification</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 prose prose-sm max-w-none">
+                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
                   <div dangerouslySetInnerHTML={{ __html: nfa.recommendation || '-' }} />
                 </div>
               </div>
@@ -676,18 +757,18 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         <div className="w-full lg:w-[30%] space-y-6">
           
           {/* Attachments */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2.5">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
-                <Paperclip size={15} className="text-emerald-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Attachments</span>
+                <Paperclip size={14} className="text-emerald-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Attachments</span>
               </div>
-              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
+              <span className="bg-emerald-50 text-emerald-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-100">
                 {docs.length}
               </span>
             </div>
             {docs.length > 0 ? (
-              <div className="space-y-2.5">
+              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
                 {docs.map(doc => {
                   const ext = doc.fileName.split('.').pop()?.toLowerCase();
                   let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
@@ -696,32 +777,71 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
                   
                   return (
-                    <div key={doc.id} className="group flex items-center justify-between p-2.5 bg-slate-50/50 hover:bg-emerald-50/10 rounded-xl border border-slate-100 transition-all">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`p-1.5 rounded-lg border transition-colors ${iconColor}`}>
-                          <FileText size={14} />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-700 truncate" title={doc.fileName}>{doc.fileName}</span>
+                    <a 
+                      key={doc.id}
+                      href={doc.serverRelativeUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
+                    >
+                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                        <FileText size={12} />
                       </div>
-                      <a 
-                        href={doc.serverRelativeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-[10px] text-emerald-600 font-extrabold px-2.5 py-1 bg-white hover:bg-emerald-600 hover:text-white rounded-lg border border-slate-150 hover:border-emerald-600 shadow-sm transition-all"
-                      >
-                        View
-                      </a>
-                    </div>
+                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
+                        {doc.fileName}
+                      </span>
+                    </a>
                   );
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
-                <Paperclip size={20} className="text-slate-300 mb-1.5" />
-                <span className="text-[10px] text-slate-400 font-bold italic">No attachments found</span>
+              <div className="flex flex-col items-center justify-center py-4 border border-dashed border-slate-200 rounded-xl">
+                <Paperclip size={18} className="text-slate-300 mb-1" />
+                <span className="text-[9.5px] text-slate-400 font-bold italic">No attachments found</span>
               </div>
             )}
           </div>
+
+          {/* Query Documents (Show only if available) */}
+          {queryDocuments.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <Paperclip size={14} className="text-amber-500 shrink-0"/> 
+                  <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Documents</span>
+                </div>
+                <span className="bg-amber-50 text-amber-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-amber-100">
+                  {queryDocuments.length}
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                {queryDocuments.map((doc, idx) => {
+                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                  
+                  return (
+                    <a 
+                      key={idx}
+                      href={doc.serverRelativeUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
+                    >
+                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                        <FileText size={12} />
+                      </div>
+                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
+                        {doc.fileName}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Workflow History */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
@@ -772,35 +892,74 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           </div>
 
           {/* Comments History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
-              <MessageSquare size={15} className="text-indigo-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Comments History</span>
-            </div>
-            
-            <div className="space-y-4">
-              {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
-                comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col gap-1.5 p-3 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+          {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Comments History</span>
+              </div>
+              
+              <div className="space-y-3">
+                {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
+                  <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-extrabold text-slate-600">{item.user}</span>
-                      <span className="text-[9px] text-slate-400">{item.date.split(',')[0]}</span>
+                      <span className="text-[10px] font-medium text-slate-600 text-left">Comment: {item.remarks || ""}</span>
                     </div>
                     <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
                       <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
-                      <p className="text-[10.5px] text-slate-500 leading-normal italic relative z-10">
-                        "{item.remarks}"
+                      <p className="text-[10px] text-slate-500 leading-normal relative z-10">
+                        Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
                       </p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-400 italic text-[11px]">
-                  No comments or remarks recorded.
-                </div>
-              )}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Query Remarks History */}
+          {queryHistory.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                <MessageSquare size={14} className="text-amber-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Remarks History</span>
+              </div>
+              
+              <div className="space-y-3">
+                {queryHistory.map((item, idx) => (
+                  <div key={item.id || idx} className="flex flex-col gap-2 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+                    {/* The Query Part */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-medium text-slate-600 text-left">Query: {item.Query || ""}</span>
+                      </div>
+                      <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                        <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                        <p className="text-[10px] text-slate-500 leading-normal relative z-10">
+                          Remarks Added by {item.QueryBy ? item.QueryBy.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.QueriedOn || ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* The Response Part */}
+                    {item.Response && item.Response.trim() !== "" && (
+                      <div className="flex flex-col gap-1 mt-1.5 border-t border-slate-100 pt-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-medium text-slate-600 text-left">Query Response: {item.Response}</span>
+                        </div>
+                        <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                          <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                          <p className="text-[10px] text-slate-500 leading-normal relative z-10">
+                            Query Responded by {item.QueryTo ? item.QueryTo.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.RespondedOn || ""}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
 
@@ -858,7 +1017,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         setSelectedUser('');
                         setUserSearch('');
                       }}
-                      className="text-slate-400 hover:text-slate-650 font-bold text-xs p-1"
+                      className="text-slate-400 hover:text-slate-600 font-bold text-xs p-1"
                     >
                       ✕
                     </button>

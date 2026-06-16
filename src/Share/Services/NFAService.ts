@@ -28,6 +28,7 @@ export interface INFAFormData {
   originatorDept: string;
   date: string;
   referenceSubject: string;
+  requestNo?: string;
   introduction: string;
   chronology: string;
   commercialProposal: string;
@@ -57,6 +58,7 @@ export interface INFAFormData {
   initiatorId?: number;
   commentHistory?: string;
   workflowHistory?: string;
+  status?: string;
 }
 
 export interface INFASaveResponse {
@@ -366,14 +368,11 @@ public async resolveUserId(loginName: string): Promise<number | null> {
       if (status === "Pending") {
         requestNo = this.generateRequestNo(projectName, form.date, "Pending", itemId);
         const initiatorName = this.context.pageContext.user.displayName || "Initiator";
-        const nowStr = new Date().toLocaleString("en-IN");
         const dateStr = formatHistoryDate(new Date());
-        const initCommentHistory = `[${nowStr}] ${initiatorName} (Submitted): Note initiated.`;
         const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
 
         await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
           Title: requestNo,
-          CommentHistory: initCommentHistory,
           WorkflowHistory: initWorkflowHistory
         });
         await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions);
@@ -417,24 +416,17 @@ public async resolveUserId(loginName: string): Promise<number | null> {
 
       if (status === "Pending") {
         try {
-          const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).select("CommentHistory", "WorkflowHistory")();
-          const currentCommentHistory = item.CommentHistory || "";
+          const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).select("WorkflowHistory")();
           const currentWorkflowHistory = item.WorkflowHistory || "";
           const initiatorName = this.context.pageContext.user.displayName || "Initiator";
-          const nowStr = new Date().toLocaleString("en-IN");
           const dateStr = formatHistoryDate(new Date());
-          const initCommentHistory = `[${nowStr}] ${initiatorName} (Submitted): Note initiated.`;
           const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
           
-          body.CommentHistory = currentCommentHistory 
-            ? `${currentCommentHistory}\n${initCommentHistory}`
-            : initCommentHistory;
-
           body.WorkflowHistory = currentWorkflowHistory
             ? `${currentWorkflowHistory}\n${initWorkflowHistory}`
             : initWorkflowHistory;
         } catch (hErr) {
-          console.warn("NFAService: Error reading CommentHistory/WorkflowHistory in updateNFA:", hErr);
+          console.warn("NFAService: Error reading WorkflowHistory in updateNFA:", hErr);
         }
       }
 
@@ -464,7 +456,8 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         projectSubEntity: item.ProjectSubEntity ? item.ProjectSubEntity.split("; ") : [],
         originatorDept: item.Dept || "",
         date: item.RequestedOn || "",
-        referenceSubject: item.Title || "",
+        referenceSubject: item.SubjectMatter || item.Title || "",
+        requestNo: item.Title || "",
         introduction: item.BriefDesc || "",
         chronology: item.Chronology || "",
         commercialProposal: item.CommercialProposal || "",
@@ -492,7 +485,8 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         pendingAtId: item.PendingAt ? item.PendingAt.Id : null,
         initiatorId: item.Author ? item.Author.Id : undefined,
         commentHistory: item.CommentHistory || "",
-        workflowHistory: item.WorkflowHistory || ""
+        workflowHistory: item.WorkflowHistory || "",
+        status: item.Status || ""
       };
     } catch (error) {
       console.error("NFAService: Exception in getNFA:", error);

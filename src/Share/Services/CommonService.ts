@@ -36,11 +36,11 @@ export class CommonService {
       const currentUser = await this.sp.web.currentUser();
       const currentUserId = currentUser.Id;
 
-      // Query WFLogList where AuthorId equals current user's ID and Status is 'Approved' or 'Rejected'
+      // Query WFLogList where Author/Id equals current user's ID and Status is 'Approved' or 'Rejected'
       const logItems = await this.sp.web.lists.getByTitle(this.logListName).items
-        .filter(`AuthorId eq ${currentUserId} and (Status eq 'Approved' or Status eq 'Rejected')`)
-        .select("Title", "WFID", "FunctionName", "Project", "Status", "WFLevel", "Created", "PPLPendingAt/Title")
-        .expand("PPLPendingAt")();
+        .filter(`Author/Id eq ${currentUserId} and (Status eq 'Approved' or Status eq 'Rejected')`)
+        .select("Title", "WFID", "FunctionName", "Project", "Status", "WFLevel", "Created", "PPLPendingAt/Title", "Author/Id", "Author/Title")
+        .expand("PPLPendingAt", "Author")();
 
       if (!logItems || logItems.length === 0) {
         return [];
@@ -134,6 +134,18 @@ export class CommonService {
     } catch (error) {
       console.error("CommonService: Error in getApprovedRejectedByMe:", error);
       throw error;
+    }
+  }
+
+  public async getQueryHistory(wfid: string): Promise<any[]> {
+    try {
+      return await this.sp.web.lists.getByTitle("QueryMgt").items
+        .filter(`WFID eq '${wfid}'`)
+        .select("Id", "Title", "WFID", "Query", "Response", "RespondedOn", "WFLevel", "QueriedOn", "QueryBy/Title", "QueryTo/Title", "AttachmentFiles")
+        .expand("QueryBy", "QueryTo", "AttachmentFiles")();
+    } catch (error) {
+      console.error("CommonService: Error in getQueryHistory:", error);
+      return [];
     }
   }
 }

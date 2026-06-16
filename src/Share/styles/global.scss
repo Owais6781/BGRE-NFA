@@ -1887,3 +1887,49 @@
     transform: scale(1) translateY(0);
   }
 }
+
+/* ── Rich Text Formatting ── */
+.richTextContent {
+  width: 100%;
+  
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+    margin-top: 10px;
+    margin-bottom: 15px;
+    
+    th, td {
+      border: 1px solid #cbd5e1; // border-slate-300
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 13px;
+    }
+    
+    th {
+      background-color: #f8fafc; // bg-slate-50
+      font-weight: 600;
+      color: #334155; // text-slate-700
+    }
+    
+    td {
+      color: #475569; // text-slate-600
+    }
+  }
+  
+  ul {
+    list-style-type: disc !important;
+    padding-left: 20px !important;
+    margin: 8px 0 !important;
+  }
+  
+  ol {
+    list-style-type: decimal !important;
+    padding-left: 20px !important;
+    margin: 8px 0 !important;
+  }
+  
+  p {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+}

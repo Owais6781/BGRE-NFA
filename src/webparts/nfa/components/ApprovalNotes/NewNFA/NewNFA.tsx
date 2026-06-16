@@ -110,6 +110,13 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const hasInitialized = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [savingProgress, setSavingProgress] = useState<{
+    step: 'attachments' | 'form' | 'complete';
+    currentFileIndex: number;
+    totalFiles: number;
+    currentFileName: string;
+    percent: number;
+  } | null>(null);
 
   // Data States
   const [projectOptions, setProjectOptions] = useState<IDropdownOption[]>([]);
@@ -253,14 +260,15 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                   .replace(/&gt;/g, ">")
                   .trim();
                 if (!cleanLine) continue;
-                const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\):\s+(.*)$/);
+                const match = cleanLine.match(/^\[(.*?)\]\s+(.*?)\s+\((.*?)\)(?:\s+\[Level\s+(.*?)\])?:\s+(.*)$/);
                 if (match) {
                   parsed.push({
                     id: Math.random(),
                     date: match[1],
                     user: match[2],
                     action: match[3],
-                    remarks: match[4]
+                    level: match[4] || "1",
+                    remarks: match[5]
                   });
                 } else {
                   parsed.push({
@@ -818,15 +826,14 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         <CollapsibleSection icon={<MessageSquare size={13} />} title="Comments History" defaultOpen={false}>
           <div className="space-y-4 max-w-2xl px-2 py-1">
             {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
-              <div key={item.id || idx} className="flex flex-col gap-1.5 p-3 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+              <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-extrabold text-slate-600">{item.user}</span>
-                  <span className="text-[9px] text-slate-400">{item.date}</span>
+                  <span className="text-[10px] font-medium text-slate-600 text-left">Comment: {item.remarks || ""}</span>
                 </div>
                 <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
                   <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
-                  <p className="text-[10.5px] text-slate-500 leading-normal italic relative z-10">
-                    "{item.remarks}"
+                  <p className="text-[10px] text-slate-500 leading-normal relative z-10">
+                    Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
                   </p>
                 </div>
               </div>
@@ -839,46 +846,89 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       
       {isSaving && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <style>{`
-            @keyframes indeterminate-progress {
-              0% { left: -35%; right: 100%; }
-              60% { left: 100%; right: -90%; }
-              100% { left: 100%; right: -90%; }
-            }
-            @keyframes indeterminate-progress-short {
-              0% { left: -200%; right: 100%; }
-              60% { left: 107%; right: -8%; }
-              100% { left: 107%; right: -8%; }
-            }
-            .animate-progress-1 {
-              animation: indeterminate-progress 2s infinite ease-out;
-            }
-            .animate-progress-2 {
-              animation: indeterminate-progress-short 2s infinite ease-out;
-              animation-delay: 1.15s;
-            }
-          `}</style>
-          
-          <div className="bg-white/95 rounded-3xl p-8 max-w-sm w-full border border-slate-200/80 shadow-2xl flex flex-col items-center justify-center gap-5 text-center transform scale-100 transition-all duration-300">
-            <div className="relative flex items-center justify-center h-16 w-16">
-              <span className="animate-ping absolute inline-flex h-12 w-12 rounded-full bg-blue-400 opacity-20"></span>
-              <div className="h-14 w-14 rounded-full border-4 border-slate-100 border-t-blue-600 animate-spin flex items-center justify-center">
-                <FileText size={20} className="text-blue-600" />
+          {!savingProgress ? (
+            <>
+              <style>{`
+                @keyframes indeterminate-progress {
+                  0% { left: -35%; right: 100%; }
+                  60% { left: 100%; right: -90%; }
+                  100% { left: 100%; right: -90%; }
+                }
+                @keyframes indeterminate-progress-short {
+                  0% { left: -200%; right: 100%; }
+                  60% { left: 107%; right: -8%; }
+                  100% { left: 107%; right: -8%; }
+                }
+                .animate-progress-1 {
+                  animation: indeterminate-progress 2s infinite ease-out;
+                }
+                .animate-progress-2 {
+                  animation: indeterminate-progress-short 2s infinite ease-out;
+                  animation-delay: 1.15s;
+                }
+              `}</style>
+              
+              <div className="bg-white/95 rounded-3xl p-8 max-w-sm w-full border border-slate-200/80 shadow-2xl flex flex-col items-center justify-center gap-5 text-center transform scale-100 transition-all duration-300">
+                <div className="relative flex items-center justify-center h-16 w-16">
+                  <span className="animate-ping absolute inline-flex h-12 w-12 rounded-full bg-blue-400 opacity-20"></span>
+                  <div className="h-14 w-14 rounded-full border-4 border-slate-100 border-t-blue-600 animate-spin flex items-center justify-center">
+                    <FileText size={20} className="text-blue-600" />
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <h3 className="font-black text-slate-800 text-base">Saving NFA</h3>
+                  <p className="text-[11px] text-slate-450 font-bold uppercase tracking-wider">
+                    Please wait while we upload your attachments and save the request
+                  </p>
+                </div>
+                
+                <div className="relative w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-progress-1"></div>
+                  <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-progress-2"></div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="bg-white/95 rounded-3xl p-8 max-w-md w-full border border-slate-200/80 shadow-2xl flex flex-col items-center justify-center gap-5 text-center transform scale-100 transition-all duration-300">
+              <div className="relative flex items-center justify-center h-16 w-16">
+                <span className="animate-ping absolute inline-flex h-12 w-12 rounded-full bg-blue-400 opacity-20"></span>
+                <div className="h-14 w-14 rounded-full border-4 border-slate-100 border-t-blue-600 animate-spin flex items-center justify-center">
+                  <FileText size={20} className="text-blue-600" />
+                </div>
+              </div>
+              
+              <div className="space-y-1.5 w-full">
+                <h3 className="font-black text-slate-800 text-base">
+                  {savingProgress.step === 'attachments' ? "Uploading Attachments" : "Saving Form Data"}
+                </h3>
+                <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                  {savingProgress.step === 'attachments' ? (
+                    <div className="space-y-1">
+                      <div>Uploading file {savingProgress.currentFileIndex} of {savingProgress.totalFiles}</div>
+                      <div className="text-slate-600 font-semibold truncate max-w-xs mx-auto normal-case text-xs">
+                        "{savingProgress.currentFileName}"
+                      </div>
+                    </div>
+                  ) : (
+                    <div>Writing records to DigitalApprovalNotes & DashboardList...</div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="w-full space-y-1">
+                <div className="relative w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300"
+                    style={{ width: `${savingProgress.percent}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-end text-[10px] font-black text-slate-500">
+                  {savingProgress.percent}%
+                </div>
               </div>
             </div>
-            
-            <div className="space-y-1.5">
-              <h3 className="font-black text-slate-800 text-base">Saving NFA</h3>
-              <p className="text-[11px] text-slate-450 font-bold uppercase tracking-wider">
-                Please wait while we upload your attachments and save the request
-              </p>
-            </div>
-            
-            <div className="relative w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-progress-1"></div>
-              <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-progress-2"></div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -889,11 +939,44 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         <CommonButton text={id ? "Update NFA" : "Submit NFA"} variant="primary" disabled={isSaving} onClick={async () => {
           if (!validate('Pending')) return;
           setIsSaving(true);
+          setSavingProgress({
+            step: 'attachments',
+            currentFileIndex: 1,
+            totalFiles: pendingAttachments.length,
+            currentFileName: pendingAttachments[0]?.file.name || '',
+            percent: 0
+          });
           try {
             const docService = new NFADocService(context);
-            if (pendingAttachments.length > 0) await docService.saveDocuments(pendingAttachments, form.uniqId);
+            if (pendingAttachments.length > 0) {
+              await docService.saveDocuments(pendingAttachments, form.uniqId, (current, total, fileName) => {
+                const percent = Math.round((current / total) * 100);
+                setSavingProgress({
+                  step: 'attachments',
+                  currentFileIndex: Math.min(current + 1, total),
+                  totalFiles: total,
+                  currentFileName: fileName,
+                  percent
+                });
+              });
+            }
+            setSavingProgress({
+              step: 'form',
+              currentFileIndex: 0,
+              totalFiles: 0,
+              currentFileName: '',
+              percent: 90
+            });
             const service = new NFAService(context);
             const res = id ? await service.updateNFA(parseInt(id), form, 'Pending', projectOptions, subEntityOptions, functionOptions) : await service.saveNFA(form, 'Pending', projectOptions, subEntityOptions, functionOptions);
+            
+            setSavingProgress({
+              step: 'complete',
+              currentFileIndex: 0,
+              totalFiles: 0,
+              currentFileName: '',
+              percent: 100
+            });
             setDoaAlert({
               show: true,
               type: res.success ? 'success' : 'error',
@@ -911,16 +994,52 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               messages: ["Error saving NFA or Uploading Documents.", errMsg],
               onSuccessRedirect: false
             });
-          } finally { setIsSaving(false); }
+          } finally {
+            setIsSaving(false);
+            setSavingProgress(null);
+          }
         }} />
         <CommonButton text="Save Draft" variant="secondary" disabled={isSaving} onClick={async () => {
           if (!validate('Draft')) return;
           setIsSaving(true);
+          setSavingProgress({
+            step: 'attachments',
+            currentFileIndex: 1,
+            totalFiles: pendingAttachments.length,
+            currentFileName: pendingAttachments[0]?.file.name || '',
+            percent: 0
+          });
           try {
             const docService = new NFADocService(context);
-            if (pendingAttachments.length > 0) await docService.saveDocuments(pendingAttachments, form.uniqId);
+            if (pendingAttachments.length > 0) {
+              await docService.saveDocuments(pendingAttachments, form.uniqId, (current, total, fileName) => {
+                const percent = Math.round((current / total) * 100);
+                setSavingProgress({
+                  step: 'attachments',
+                  currentFileIndex: Math.min(current + 1, total),
+                  totalFiles: total,
+                  currentFileName: fileName,
+                  percent
+                });
+              });
+            }
+            setSavingProgress({
+              step: 'form',
+              currentFileIndex: 0,
+              totalFiles: 0,
+              currentFileName: '',
+              percent: 90
+            });
             const service = new NFAService(context);
             const res = id ? await service.updateNFA(parseInt(id), form, 'Draft', projectOptions, subEntityOptions, functionOptions) : await service.saveNFA(form, 'Draft', projectOptions, subEntityOptions, functionOptions);
+            
+            setSavingProgress({
+              step: 'complete',
+              currentFileIndex: 0,
+              totalFiles: 0,
+              currentFileName: '',
+              percent: 100
+            });
             setDoaAlert({
               show: true,
               type: res.success ? 'success' : 'error',
@@ -938,7 +1057,10 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               messages: ["Error saving Draft or Uploading Documents.", errMsg],
               onSuccessRedirect: false
             });
-          } finally { setIsSaving(false); }
+          } finally {
+            setIsSaving(false);
+            setSavingProgress(null);
+          }
         }} />
         <CommonButton text="Cancel" variant="danger" onClick={() => navigate('/')} />
       </div>
