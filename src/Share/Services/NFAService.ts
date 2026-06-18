@@ -58,6 +58,7 @@ export interface INFAFormData {
   initiatorId?: number;
   commentHistory?: string;
   workflowHistory?: string;
+  workflowHistoryHTML?: string;
   status?: string;
 }
 
@@ -486,6 +487,7 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         initiatorId: item.Author ? item.Author.Id : undefined,
         commentHistory: item.CommentHistory || "",
         workflowHistory: item.WorkflowHistory || "",
+        workflowHistoryHTML: item.WorkflowHistoryHTML || "",
         status: item.Status || ""
       };
     } catch (error) {

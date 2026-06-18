@@ -5,7 +5,7 @@ import {
   Building2, FileText, Wrench, DollarSign, Paperclip, 
   Settings, Star, ChevronDown, ArrowLeft, History, 
   MessageSquare, User, CheckCircle2, Clock, Circle,
-  ChevronRight
+  ChevronRight, Check, X, HelpCircle, UserCheck, CornerUpLeft, Download
 } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton';
 import 'primereact/resources/primereact.min.css';
@@ -29,6 +29,40 @@ interface IApproverPageProps {
   context: WebPartContext;
   sp: SPFI;
 }
+
+const formatFileSize = (bytes?: number) => {
+  if (!bytes) return '0 KB';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
+const splitHistoryTextAndDate = (item: any) => {
+  const raw = item.rawText || "";
+  const date = item.date || "";
+  
+  let cleanText = raw.replace(/<[^>]*>/g, "").trim();
+  
+  if (date) {
+    const dateIndex = cleanText.lastIndexOf(date);
+    if (dateIndex !== -1) {
+      const textBeforeDate = cleanText.substring(0, dateIndex).trim();
+      if (textBeforeDate.endsWith("on")) {
+        cleanText = textBeforeDate.substring(0, textBeforeDate.length - 2).trim();
+      } else {
+        cleanText = textBeforeDate;
+      }
+    }
+  }
+  
+  cleanText = cleanText.replace(/\.$/, "").trim();
+  
+  return {
+    text: cleanText,
+    date: date || "System Log"
+  };
+};
 
 const getInitials = (name: string) => {
   if (!name || name === 'Pending') return 'UN';
@@ -56,6 +90,30 @@ const UserAvatar: React.FC<{ email?: string; initials: string; className: string
   );
 };
 
+const renderHistoryText = (text: string) => {
+  const statusRegex = /(Pending|Approved?|Rejected?|Initiated|Queried|Query|Returned?|Delegated?|Resolved|Submitted)/i;
+  const parts = text.split(statusRegex);
+  
+  return (
+    <span className="leading-relaxed">
+      {parts.map((part, idx) => {
+        if (statusRegex.test(part)) {
+          return (
+            <span key={idx} className="text-[13px] font-bold text-slate-800">
+              {part}
+            </span>
+          );
+        }
+        return (
+          <span key={idx} className="text-[11px] font-medium text-slate-500">
+            {part}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
+
 const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -78,6 +136,15 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const currentStepRef = useRef<HTMLDivElement>(null);
   const stepperContainerRef = useRef<HTMLDivElement>(null);
+
+  // Tab states
+  const [activeTab, setActiveTab] = useState<'details' | 'financial' | 'recommendation' | 'terms' | 'notes'>('details');
+  const [activeDocTab, setActiveDocTab] = useState<'attachments' | 'query'>('attachments');
+  const [activeCommentTab, setActiveCommentTab] = useState<'comments' | 'query'>('comments');
+  const [isIntroExpanded, setIsIntroExpanded] = useState(false);
+  const [isChronologyExpanded, setIsChronologyExpanded] = useState(false);
+  const [isCommercialExpanded, setIsCommercialExpanded] = useState(false);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   // Popup state
   const [popupConfig, setPopupConfig] = useState<{
@@ -478,7 +545,6 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             const userLabel = user?.label || 'Pending';
             const initials = getInitials(userLabel);
             
-            // Color configuration mapping the user's reference image
             let borderClass = 'border-slate-200 bg-white';
             let avatarClass = 'bg-slate-100 text-slate-400';
             let dotClass = 'bg-slate-300';
@@ -507,32 +573,26 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   ref={isCurrent ? currentStepRef : undefined}
                   className="flex flex-col items-center shrink-0"
                 >
-                  {/* Above Card Label */}
                   <span className={`text-[9px] font-extrabold uppercase tracking-wider mb-1 ${labelColor}`}>
                     {step.label}
                   </span>
                   
-                  {/* Card Box - Compact Horizontal Layout */}
                   <div className={`w-[145px] h-[40px] rounded-xl border flex flex-row items-center gap-2 px-2 py-0.5 transition-all duration-350 ${borderClass}`}>
-                    {/* Avatar circle */}
                     <UserAvatar 
                       email={user?.email} 
                       initials={initials} 
                       className={`w-6 h-6 rounded-full shadow-inner shrink-0 ${avatarClass}`} 
                     />
-                    {/* Name */}
                     <span className="text-[10px] font-extrabold text-slate-700 text-left leading-tight line-clamp-2 flex-1">
                       {userLabel}
                     </span>
                   </div>
                   
-                  {/* Below Card Dot */}
                   <div className={`w-2 h-2 rounded-full mt-1.5 ${dotClass}`} />
                 </div>
                 
-                {/* Chevron Connector */}
                 {idx < workflowSteps.length - 1 && (
-                  <div className="flex items-center justify-center text-slate-500 shrink-0 mt-4">
+                  <div className="flex items-center justify-center text-slate-500 shrink-0 mt-4 mx-0.5">
                     <ChevronRight size={16} strokeWidth={3} />
                   </div>
                 )}
@@ -548,468 +608,657 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         {/* ── Left Column (70% Width) ── */}
         <div className="w-full lg:w-[70%] space-y-6">
 
-          {/* Basic Information */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-[10.5px] uppercase tracking-wider">
-                Request No: {nfa.requestNo || '-'} (Level {nfa.level || '1'})
+          {/* Request Details Card */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
+                <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Request Details</span>
+                <span className="bg-emerald-50 text-emerald-600 text-[9px] font-extrabold px-2 py-0.5 rounded-md border border-emerald-100 uppercase ml-2">
+                  Level {nfa.level || '1'}
+                </span>
+              </div>
+              <span className="text-blue-600 font-bold text-[13px]">
+                Request No. {nfa.requestNo || '-'}
               </span>
             </div>
             
-            <div className="flex flex-col gap-2">
-              {/* Row 1: Project (35%) | Sub-Entity (30%) | Date (25%) */}
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="w-full md:w-[35%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Project</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.project || '-'}</span>
-                </div>
-                <div className="w-full md:w-[30%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Sub-Entity</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">
-                    {nfa.projectSubEntity && nfa.projectSubEntity.length > 0 ? nfa.projectSubEntity.join(', ') : '-'}
-                  </span>
-                </div>
-                <div className="w-full md:w-[25%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Date</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.date || '-'}</span>
-                </div>
-              </div>
-
-              {/* Row 2: Function (35%) | DOA Matrix (30%) | Workflow (25%) */}
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="w-full md:w-[35%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Function</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.originatorDept || '-'}</span>
-                </div>
-                <div className="w-full md:w-[30%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">DOA Matrix</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{nfa.doaMatrix || '-'}</span>
-                </div>
-                <div className="w-full md:w-[25%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Workflow</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100 uppercase">{nfa.workflow || '-'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* NFA Details */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">NFA Details</span>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.referenceSubject || '-'}</span>
+            {/* 2-Column Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px' }}>
+              {/* Row 1: Project (Full Width) */}
+              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-2" style={{ gridColumn: 'span 2 / span 2' }}>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
+                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.project || '-'}</span>
               </div>
               
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: nfa.introduction || '-' }} />
-                </div>
+              {/* Row 2: Sub-Entity | Date */}
+              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
+                <span className="text-[14px] text-slate-700 font-semibold mt-1">
+                  {nfa.projectSubEntity && nfa.projectSubEntity.length > 0 ? nfa.projectSubEntity.join(', ') : '-'}
+                </span>
+              </div>
+              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
+                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.date || '-'}</span>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: nfa.chronology || '-' }} />
-                </div>
+              {/* Row 3: Function (Full Width) */}
+              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-2" style={{ gridColumn: 'span 2 / span 2' }}>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Function</span>
+                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.originatorDept || '-'}</span>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: nfa.commercialProposal || '-' }} />
-                </div>
+              {/* Row 4: Data Matrix | Workflow */}
+              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Data Matrix</span>
+                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.doaMatrix || '-'}</span>
               </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: nfa.paymentTerms || '-' }} />
-                </div>
+              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Workflow</span>
+                <span className="text-[14px] text-slate-700 font-semibold mt-1 uppercase">{nfa.workflow || '-'}</span>
               </div>
             </div>
           </div>
 
-          {/* Financial Details */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+          {/* Financial Summary Card */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Financial Details</span>
+              <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Financial Summary</span>
             </div>
             
-            <div className="space-y-5">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1 p-3.5 bg-emerald-50/30 rounded-xl border border-emerald-100/50">
-                  <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider mb-0.5">Awarded Cost</span>
-                  <span className="text-base font-black text-emerald-700">₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex-1 flex flex-col gap-1 p-3.5 bg-blue-50/30 rounded-xl border border-blue-100/50">
-                  <span className="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider mb-0.5">Budget</span>
-                  <span className="text-base font-black text-blue-700">₹ {Number(nfa.budget || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex-1 flex flex-col gap-1 p-3.5 bg-purple-50/30 rounded-xl border border-purple-100/50">
-                  <span className="text-[9px] font-extrabold text-purple-600 uppercase tracking-wider mb-0.5">Capex No</span>
-                  <span className="text-sm font-extrabold text-purple-700 truncate">{nfa.capexSerialNo || '-'}</span>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', width: '100%', alignItems: 'stretch' }}>
+              <div className="p-2 bg-blue-50/20 border border-blue-100/50 rounded-xl" style={{ flex: '1 1 0%', minWidth: '0px' }}>
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', lineHeight: '1.2' }}>Budget</span>
+                <div style={{ fontSize: '13px', fontWeight: 900, color: '#1d4ed8', marginTop: '2px', lineHeight: '1.2' }}>₹ {Number(nfa.budget || 0).toLocaleString('en-IN')}</div>
               </div>
-              
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.budgetRemarks || '-'}</div>
+              <div className="p-2 bg-emerald-50/20 border border-emerald-100/50 rounded-xl" style={{ flex: '1 1 0%', minWidth: '0px' }}>
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', lineHeight: '1.2' }}>Awarded Cost</span>
+                <div style={{ fontSize: '13px', fontWeight: 900, color: '#047857', marginTop: '2px', lineHeight: '1.2' }}>₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div className="p-2 bg-purple-50/20 border border-purple-100/50 rounded-xl" style={{ flex: '1 1 0%', minWidth: '0px' }}>
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#7e22ce', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', lineHeight: '1.2' }}>Capex Serial No</span>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#6b21a8', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: '1.2' }} title={nfa.capexSerialNo}>{nfa.capexSerialNo || '-'}</div>
               </div>
             </div>
+            {nfa.budgetRemarks && nfa.budgetRemarks.trim() !== "" && (
+              <div className="p-2.5 bg-slate-50/50 border border-slate-100 rounded-xl">
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Remarks</span>
+                <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-0.5 whitespace-pre-wrap">{nfa.budgetRemarks}</div>
+              </div>
+            )}
           </div>
 
-          {/* Recommendation */}
+          {/* Details Card with Tabs */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Recommendation</span>
-            </div>
             
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Justification</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: nfa.recommendation || '-' }} />
-                </div>
-              </div>
+            {/* Horizontal Tabs Header */}
+            <div className="flex flex-wrap border-b border-slate-200 gap-x-6 mb-5 overflow-x-hidden" style={{ marginBottom: '20px' }}>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('details')}
+                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                  activeTab === 'details' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <FileText size={18} className={activeTab === 'details' ? 'text-teal-800' : 'text-slate-400'} />
+                NFA DETAILS
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('recommendation')}
+                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                  activeTab === 'recommendation' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <Star size={18} className={activeTab === 'recommendation' ? 'text-teal-800' : 'text-slate-400'} />
+                RECOMMENDATION
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('terms')}
+                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                  activeTab === 'terms' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <Wrench size={18} className={activeTab === 'terms' ? 'text-teal-800' : 'text-slate-400'} />
+                CONTRACT TERMS
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('notes')}
+                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                  activeTab === 'notes' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <Paperclip size={18} className={activeTab === 'notes' ? 'text-teal-800' : 'text-slate-400'} />
+                ANNEXURES & NOTES
+              </button>
+            </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contractor Name</span>
-                <span className="text-sm font-bold text-slate-800 bg-blue-50/30 p-3.5 rounded-xl border border-blue-100/50">{nfa.contractorName || '-'}</span>
-              </div>
-            </div>
-          </div>
+            {/* Tab Contents */}
+            {activeTab === 'details' && (
+              <div className="space-y-6">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
+                  <h2 className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1">{nfa.referenceSubject || '-'}</h2>
+                </div>
+                
+                <div className="border-t border-slate-100 pt-4">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction / Preamble / Background</span>
+                  <div 
+                    className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent transition-all duration-300"
+                    style={!isIntroExpanded ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                  >
+                    <div dangerouslySetInnerHTML={{ __html: nfa.introduction || '-' }} />
+                  </div>
+                  {nfa.introduction && nfa.introduction.replace(/<[^>]*>/g, "").length > 250 && (
+                    <button 
+                      type="button"
+                      onClick={() => setIsIntroExpanded(!isIntroExpanded)}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
+                    >
+                      {isIntroExpanded ? 'View less' : 'View more'}
+                    </button>
+                  )}
+                </div>
 
-          {/* Contract Terms */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Contract Terms</span>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.liquidatedDamage || '-'}</div>
+                <div className="border-t border-slate-100 pt-4">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
+                  <div 
+                    className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
+                    style={!isChronologyExpanded ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                  >
+                    <div dangerouslySetInnerHTML={{ __html: nfa.chronology || '-' }} />
+                  </div>
+                  {nfa.chronology && nfa.chronology.replace(/<[^>]*>/g, "").length > 250 && (
+                    <button 
+                      type="button"
+                      onClick={() => setIsChronologyExpanded(!isChronologyExpanded)}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
+                    >
+                      {isChronologyExpanded ? 'View less' : 'View more'}
+                    </button>
+                  )}
                 </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.contractPerf || '-'}</div>
-                </div>
-              </div>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.defectLiability || '-'}</div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Work Completion</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.workCompletion || '-'}</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Annexures & Notes */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Annexures & Notes</span>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.annexure || '-'}</div>
+                <div className="border-t border-slate-100 pt-4">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
+                  <div 
+                    className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
+                    style={!isCommercialExpanded ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                  >
+                    <div dangerouslySetInnerHTML={{ __html: nfa.commercialProposal || '-' }} />
+                  </div>
+                  {nfa.commercialProposal && nfa.commercialProposal.replace(/<[^>]*>/g, "").length > 250 && (
+                    <button 
+                      type="button"
+                      onClick={() => setIsCommercialExpanded(!isCommercialExpanded)}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
+                    >
+                      {isCommercialExpanded ? 'View less' : 'View more'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent">
+                    <div dangerouslySetInnerHTML={{ __html: nfa.paymentTerms || '-' }} />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 1</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.note1 || '-'}</div>
+            )}
+
+            {activeTab === 'recommendation' && (
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 p-3.5 bg-blue-50/20 border border-blue-100/50 rounded-xl">
+                    <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Contractor Name</span>
+                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-0.5">{nfa.contractorName || '-'}</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Justification / Recommendation</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent">
+                    <div dangerouslySetInnerHTML={{ __html: nfa.recommendation || '-' }} />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 2</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.note2 || '-'}</div>
+            )}
+
+            {activeTab === 'terms' && (
+              <div className="space-y-4">
+                <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.liquidatedDamage || '-'}</div>
+                </div>
+                <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.contractPerf || '-'}</div>
+                </div>
+                <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.defectLiability || '-'}</div>
+                </div>
+                <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Work Completion</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.workCompletion || '-'}</div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 3</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.note3 || '-'}</div>
+            )}
+
+            {activeTab === 'notes' && (
+              <div className="space-y-4">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.annexure || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 1</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note1 || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 2</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note2 || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 3</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note3 || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 4</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note4 || '-'}</div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 4</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.note4 || '-'}</div>
-              </div>
-            </div>
+            )}
+
           </div>
 
         </div>
 
         {/* ── Right Column (30% Width) ── */}
         <div className="w-full lg:w-[30%] space-y-6">
-          
-          {/* Attachments */}
+
+          {/* Documents Card with Tabs */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-              <div className="flex items-center gap-2">
-                <Paperclip size={14} className="text-emerald-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Attachments</span>
-              </div>
-              <span className="bg-emerald-50 text-emerald-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-100">
-                {docs.length}
-              </span>
+            
+            {/* Documents Tabs */}
+            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-6 overflow-x-hidden">
+              <button 
+                type="button"
+                onClick={() => setActiveDocTab('attachments')}
+                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                  activeDocTab === 'attachments' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <FileText size={16} className={activeDocTab === 'attachments' ? 'text-teal-800' : 'text-slate-400'} />
+                DOCUMENTS ({docs.length})
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveDocTab('query')}
+                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                  activeDocTab === 'query' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <HelpCircle size={16} className={activeDocTab === 'query' ? 'text-teal-800' : 'text-slate-400'} />
+                QUERY DOCUMENTS ({queryDocuments.length})
+              </button>
             </div>
-            {docs.length > 0 ? (
-              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                {docs.map(doc => {
-                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
-                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
-                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                  
-                  return (
-                    <a 
-                      key={doc.id}
-                      href={doc.serverRelativeUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
-                    >
-                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
-                        <FileText size={12} />
+
+            {/* Documents Content */}
+            {activeDocTab === 'attachments' ? (
+              docs.length > 0 ? (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {docs.map(doc => {
+                    const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                    let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                    if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                    else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                    else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                    
+                    return (
+                      <div 
+                        key={doc.id}
+                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 rounded-lg border border-slate-100 transition-all min-w-0"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`p-1.5 rounded border shrink-0 ${iconColor}`}>
+                            <FileText size={12} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-bold text-slate-700 truncate" title={doc.fileName}>
+                              {doc.fileName}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                              {formatFileSize(doc.fileSize)}
+                            </span>
+                          </div>
+                        </div>
+                        <a 
+                          href={doc.serverRelativeUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-slate-400 hover:text-blue-600 p-1 shrink-0 transition-colors"
+                        >
+                          <Download size={13} />
+                        </a>
                       </div>
-                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
-                        {doc.fileName}
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
+                  <Paperclip size={18} className="text-slate-300 mb-1" />
+                  <span className="text-[9.5px] text-slate-400 font-bold italic">No attachments found</span>
+                </div>
+              )
             ) : (
-              <div className="flex flex-col items-center justify-center py-4 border border-dashed border-slate-200 rounded-xl">
-                <Paperclip size={18} className="text-slate-300 mb-1" />
-                <span className="text-[9.5px] text-slate-400 font-bold italic">No attachments found</span>
+              queryDocuments.length > 0 ? (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {queryDocuments.map((doc, idx) => {
+                    const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                    let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                    if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                    else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                    else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                    
+                    return (
+                      <div 
+                        key={idx}
+                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 rounded-lg border border-slate-100 transition-all min-w-0"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`p-1.5 rounded border shrink-0 ${iconColor}`}>
+                            <FileText size={12} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-bold text-slate-700 truncate" title={doc.fileName}>
+                              {doc.fileName}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                              Query File
+                            </span>
+                          </div>
+                        </div>
+                        <a 
+                          href={doc.serverRelativeUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-slate-400 hover:text-blue-600 p-1 shrink-0 transition-colors"
+                        >
+                          <Download size={13} />
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
+                  <Paperclip size={18} className="text-slate-300 mb-1" />
+                  <span className="text-[9.5px] text-slate-400 font-bold italic">No query documents found</span>
+                </div>
+              )
+            )}
+
+            {docs.length > 0 && (
+              <div className="mt-3 pt-2 border-t border-slate-50 text-center">
+                <span className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer">
+                  View all documents
+                </span>
               </div>
             )}
           </div>
 
-          {/* Query Documents (Show only if available) */}
-          {queryDocuments.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-                <div className="flex items-center gap-2">
-                  <Paperclip size={14} className="text-amber-500 shrink-0"/> 
-                  <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Documents</span>
-                </div>
-                <span className="bg-amber-50 text-amber-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-amber-100">
-                  {queryDocuments.length}
-                </span>
-              </div>
-              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                {queryDocuments.map((doc, idx) => {
-                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
-                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
-                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                  
-                  return (
-                    <a 
-                      key={idx}
-                      href={doc.serverRelativeUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
-                    >
-                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
-                        <FileText size={12} />
-                      </div>
-                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
-                        {doc.fileName}
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Workflow History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
-              <History size={15} className="text-blue-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
+          {/* Workflow History Card */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+              <History size={16} className="text-blue-600 shrink-0"/> 
+              <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Workflow History</span>
             </div>
             
-            <div className="space-y-4">
-              {history.length > 0 ? history.map((item, idx) => {
-                const isApproved = item.action === 'Approved';
-                const isRejected = item.action === 'Rejected';
-                const isQuery = item.action === 'Query';
-                
-                let badgeClass = 'bg-blue-50 text-blue-700 border-blue-100';
-                let dotClass = 'bg-blue-500';
-                
-                if (isApproved) {
-                  badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                  dotClass = 'bg-emerald-500';
-                } else if (isRejected) {
-                  badgeClass = 'bg-rose-50 text-rose-700 border-rose-100';
-                  dotClass = 'bg-rose-500';
-                } else if (isQuery) {
-                  badgeClass = 'bg-amber-50 text-amber-700 border-amber-100';
-                  dotClass = 'bg-amber-500';
-                }
-                
-                return (
-                  <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
-                    {idx < history.length - 1 && (
-                      <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
-                    )}
-                    <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
-                    <div className="flex flex-col min-w-0">
-                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                        {item.rawText || `${item.user} (${item.action})${item.remarks ? `: ${item.remarks}` : ""}`}
-                      </p>
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="text-center py-4 text-slate-400 italic text-[11px]">
-                  No audit history found.
+            <div className="space-y-0.5">
+              {history.length > 0 ? (
+                (() => {
+                  const displayedHistory = isHistoryExpanded ? history : history.slice(0, 3);
+                  return (
+                    <>
+                      {displayedHistory.map((item, idx) => {
+                        const rawText = item.rawText || "";
+                        const lower = rawText.toLowerCase();
+                        
+                        let dotColor = "bg-blue-500";
+                        if (lower.includes("approved") || lower.includes("initiated") || lower.includes("resolved") || lower.includes("submitted")) {
+                          dotColor = "bg-emerald-500";
+                        } else if (lower.includes("rejected")) {
+                          dotColor = "bg-rose-500";
+                        } else if (lower.includes("query")) {
+                          dotColor = "bg-amber-500";
+                        }
+                        
+                        return (
+                          <div key={item.id || idx} className="relative pl-7 pb-12 last:pb-2">
+                            {idx < displayedHistory.length - 1 && (
+                              <div className="absolute left-[7px] top-4 bottom-0 w-[1.5px]" style={{ backgroundColor: '#cbd5e1' }} />
+                            )}
+                            <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center z-10 ${dotColor} shadow-sm`} />
+                            
+                            <div className="flex flex-col min-w-0">
+                              <div className="leading-relaxed">
+                                {renderHistoryText(rawText)}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {history.length > 3 && (
+                        <div className="pt-1 text-left">
+                          <button
+                            type="button"
+                            onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider cursor-pointer"
+                          >
+                            {isHistoryExpanded ? "Less...." : "More...."}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
+              ) : (
+                <div className="text-center py-4 text-slate-400 italic text-[10px] font-bold">
+                  No workflow history found.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Comments History */}
-          {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-                <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Comments History</span>
-              </div>
-              
-              <div className="space-y-3">
-                {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-medium text-slate-600 text-left">Comment: {item.remarks || ""}</span>
-                    </div>
-                    <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
-                      <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
-                      <p className="text-[10px] text-slate-500 leading-normal relative z-10">
-                        Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
+          {/* Unified Comments History Card */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+            
+            {/* Tab selection */}
+            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-6 overflow-x-hidden">
+              <button 
+                type="button"
+                onClick={() => setActiveCommentTab('comments')}
+                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                  activeCommentTab === 'comments' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <MessageSquare size={16} className={activeCommentTab === 'comments' ? 'text-teal-800' : 'text-slate-400'} />
+                COMMENTS
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveCommentTab('query')}
+                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                  activeCommentTab === 'query' 
+                    ? 'border-teal-800 text-teal-800 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                }`}
+                style={{ fontSize: '14px' }}
+              >
+                <HelpCircle size={16} className={activeCommentTab === 'query' ? 'text-teal-800' : 'text-slate-400'} />
+                QUERY REMARKS
+              </button>
+            </div>
+
+            {/* Comments content */}
+            {activeCommentTab === 'comments' ? (
+              comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
+                <div className="space-y-3 divide-y divide-slate-100/50 max-h-[200px] overflow-y-auto pr-1">
+                  {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
+                    <div key={item.id || idx} className="flex flex-col gap-1 pt-2.5 first:pt-0 pb-0.5 min-w-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-[12px] font-bold text-slate-700">
+                          {item.user} <span className="text-slate-400 font-medium text-[11px]">(Level {item.level || "1"})</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium shrink-0 whitespace-nowrap">
+                          {item.date}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-slate-700 font-medium leading-relaxed leading-normal">
+                        {item.remarks || ""}
                       </p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Query Remarks History */}
-          {queryHistory.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-                <MessageSquare size={14} className="text-amber-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Remarks History</span>
-              </div>
-              
-              <div className="space-y-3">
-                {queryHistory.map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col gap-2 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
-                    {/* The Query Part */}
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-medium text-slate-600 text-left">Query: {item.Query || ""}</span>
-                      </div>
-                      <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
-                        <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
-                        <p className="text-[10px] text-slate-500 leading-normal relative z-10">
-                          Remarks Added by {item.QueryBy ? item.QueryBy.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.QueriedOn || ""}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-slate-400 italic text-[13px] font-bold">
+                  No comment history found
+                </div>
+              )
+            ) : (
+              queryHistory.length > 0 ? (
+                <div className="space-y-3 divide-y divide-slate-100/50 max-h-[220px] overflow-y-auto pr-1">
+                  {queryHistory.map((item, idx) => (
+                    <div key={item.id || idx} className="flex flex-col gap-2 pt-2.5 first:pt-0 pb-0.5 min-w-0">
+                      
+                      {/* Query section */}
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-[12px] font-bold text-slate-700">
+                            Query: {item.QueryBy ? item.QueryBy.Title : "Unknown"} <span className="text-slate-400 font-medium text-[11px]">(Level {item.WFLevel || "1"})</span>
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-medium shrink-0">
+                            {item.QueriedOn || ""}
+                          </span>
+                        </div>
+                        <p className="text-[13px] text-amber-700 bg-amber-50/40 p-2 rounded-lg border border-amber-100/50 leading-relaxed">
+                          {item.Query || ""}
                         </p>
                       </div>
-                    </div>
 
-                    {/* The Response Part */}
-                    {item.Response && item.Response.trim() !== "" && (
-                      <div className="flex flex-col gap-1 mt-1.5 border-t border-slate-100 pt-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-medium text-slate-600 text-left">Query Response: {item.Response}</span>
-                        </div>
-                        <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
-                          <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
-                          <p className="text-[10px] text-slate-500 leading-normal relative z-10">
-                            Query Responded by {item.QueryTo ? item.QueryTo.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.RespondedOn || ""}
+                      {/* Response section */}
+                      {item.Response && item.Response.trim() !== "" && (
+                        <div className="flex flex-col gap-1 pl-4 border-l border-emerald-200 mt-1 min-w-0">
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-[12px] font-bold text-slate-700">
+                              Response: {item.QueryTo ? item.QueryTo.Title : "Unknown"}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-medium shrink-0">
+                              {item.RespondedOn || ""}
+                            </span>
+                          </div>
+                          <p className="text-[13px] text-emerald-700 bg-emerald-50/20 p-2 rounded-lg border border-emerald-100/50 leading-relaxed">
+                            {item.Response}
                           </p>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-slate-400 italic text-[13px] font-bold">
+                  No query remarks history found
+                </div>
+              )
+            )}
+
+            {(comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 || queryHistory.length > 0) && (
+              <div className="mt-4 pt-2 border-t border-slate-50 text-center">
+                <span className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer">
+                  View all comments
+                </span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
         </div>
 
       </div>
 
-      {/* Remarks & Action Console (Full Page Width below Left and Right columns) */}
+      {/* Remarks & Action Console (Level 4) */}
       {isCurrentApprover && (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5 mt-6">
           <div className="flex items-center gap-2 mb-2 border-b border-slate-100 pb-3">
             <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-            <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Action Console</span>
+            <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+              Action Console (Level {nfa.level || '4'})
+            </span>
           </div>
           
           <div className="flex flex-col md:flex-row gap-6 items-stretch">
             
-            {/* Remarks Multiline Text Area (Left Side - 60% Width) */}
+            {/* Remarks TextArea (Left 60%) */}
             <div className="w-full md:w-[60%] flex flex-col">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block shrink-0">
-                Remarks / Comments
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block shrink-0">
+                Remarks / Comments <span className="text-rose-500">*</span>
               </label>
               <div className="relative flex-1">
                 <textarea 
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all resize-none h-[110px] leading-normal"
-                  placeholder="Type your approval/rejection comments here..."
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all resize-none h-[110px] leading-relaxed shadow-sm"
+                  placeholder="Type your approval / rejection comments here..."
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                 />
-                <MessageSquare size={14} className="absolute right-4 top-4.5 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
               </div>
             </div>
             
-            {/* Delegate/Query User (Right Side - 40% Width) */}
+            {/* Delegate/Query User (Right 40%) */}
             <div className="w-full md:w-[40%] flex flex-col justify-start">
               
-              {/* Custom People Picker Search Input */}
+              {/* Custom People Picker */}
               <div className="relative" ref={suggestionsRef}>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">
                   Delegate / Query User
                 </label>
                 
                 {selectedUserObj ? (
                   /* Selected User Pill */
-                  <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl p-2.5 h-[42px]">
+                  <div className="flex items-center justify-between bg-blue-50/50 border border-blue-200/80 rounded-xl p-2.5 h-[42px] shadow-sm">
                     <div className="flex items-center gap-2 min-w-0">
                       <UserAvatar 
                         email={selectedUserObj.email} 
                         initials={getInitials(selectedUserObj.label)} 
                         className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] shrink-0 shadow-inner" 
                       />
-                      <span className="text-xs font-bold text-slate-700 truncate">{selectedUserObj.label}</span>
+                      <span className="text-[13px] font-bold text-slate-700 truncate">{selectedUserObj.label}</span>
                     </div>
                     <button 
                       type="button" 
@@ -1017,17 +1266,17 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         setSelectedUser('');
                         setUserSearch('');
                       }}
-                      className="text-slate-400 hover:text-slate-600 font-bold text-xs p-1"
+                      className="text-slate-400 hover:text-slate-600 font-bold text-[13px] p-1"
                     >
                       ✕
                     </button>
                   </div>
                 ) : (
-                  /* Search Input */
+                  /* Search input */
                   <div className="relative">
                     <input 
                       type="text"
-                      className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all h-[42px]"
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all h-[42px] shadow-sm"
                       placeholder="Search people by name..."
                       value={userSearch}
                       onChange={(e) => {
@@ -1040,7 +1289,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   </div>
                 )}
 
-                {/* Suggestions Dropdown */}
+                {/* Dropdown Suggestions */}
                 {showSuggestions && !selectedUser && (
                   <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-[180px] overflow-y-auto p-1.5">
                     {filteredUsers.length > 0 ? (
@@ -1059,11 +1308,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                             initials={getInitials(u.label)} 
                             className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-[9px] shrink-0 shadow-inner" 
                           />
-                          <span className="text-xs font-bold text-slate-700">{u.label}</span>
+                          <span className="text-[13px] font-bold text-slate-700">{u.label}</span>
                         </button>
                       ))
                     ) : (
-                      <div className="text-center py-3 text-slate-400 text-xs italic">
+                      <div className="text-center py-3 text-slate-400 text-[13px] italic">
                         No matches found
                       </div>
                     )}
@@ -1071,46 +1320,59 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 )}
               </div>
               
+              <span className="text-[9.5px] text-slate-400 font-semibold mt-2.5 block leading-none pl-0.5">
+                Delegated user will be notified to take action.
+              </span>
             </div>
             
           </div>
 
-          {/* Action Buttons Row */}
-          <div className="flex flex-wrap gap-2.5 items-center justify-center pt-4 border-t border-slate-100">
+          {/* Centered Action Buttons Bar (Using inline background colors to avoid Tailwind purging issues) */}
+          <div className="flex flex-wrap gap-3 items-center justify-center pt-5 border-t border-slate-100">
             <button 
+              type="button"
               onClick={() => handleAction('Approve')} 
               disabled={isActionLoading} 
-              className="px-5 h-[38px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md shadow-emerald-100 hover:shadow-lg hover:shadow-emerald-200 active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: '#00b294', color: '#ffffff' }}
+              className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
-              Approve
+              <Check size={14} strokeWidth={2.5} /> Approve
             </button>
             <button 
+              type="button"
               onClick={() => handleAction('Reject')} 
               disabled={isActionLoading} 
-              className="px-5 h-[38px] bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md shadow-rose-100 hover:shadow-lg hover:shadow-rose-200 active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: '#e81123', color: '#ffffff' }}
+              className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
-              Reject
+              <X size={14} strokeWidth={2.5} /> Reject
             </button>
             <button 
+              type="button"
               onClick={() => handleAction('Query')} 
               disabled={isActionLoading} 
-              className="px-3.5 h-[38px] bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md shadow-amber-100 hover:shadow-lg hover:shadow-amber-200 active:scale-[0.98] disabled:opacity-50 border-0"
+              style={{ backgroundColor: '#ff8c00', color: '#ffffff' }}
+              className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
-              Query
+              <HelpCircle size={14} strokeWidth={2.5} /> Query
             </button>
             <button 
+              type="button"
               onClick={() => handleAction('Delegate')} 
               disabled={isActionLoading} 
-              className="px-3.5 h-[38px] bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md shadow-indigo-100 hover:shadow-lg hover:shadow-indigo-200 active:scale-[0.98] disabled:opacity-50 border-0"
+              style={{ backgroundColor: '#0078d4', color: '#ffffff' }}
+              className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
-              Delegate
+              <UserCheck size={14} strokeWidth={2.5} /> Delegate
             </button>
             <button 
+              type="button"
               onClick={() => handleAction('Return')} 
               disabled={isActionLoading} 
-              className="px-3.5 h-[38px] bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md shadow-slate-100 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 border border-slate-300"
+              style={{ backgroundColor: '#ffffff', color: '#475569', borderColor: '#cbd5e1' }}
+              className="px-5 h-[38px] hover:bg-slate-50 rounded-lg font-bold text-xs uppercase tracking-wider border transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
-              Return
+              <CornerUpLeft size={14} strokeWidth={2.5} /> Return
             </button>
           </div>
         </div>
