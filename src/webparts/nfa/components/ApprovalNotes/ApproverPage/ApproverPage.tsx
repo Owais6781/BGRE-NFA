@@ -705,7 +705,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 }`}
                 style={{ fontSize: '14px' }}
               >
-                <FileText size={18} className={activeTab === 'details' ? 'text-teal-800' : 'text-slate-400'} />
+                <FileText size={18} className="text-blue-500 shrink-0" />
                 NFA DETAILS
               </button>
               <button 
@@ -718,7 +718,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 }`}
                 style={{ fontSize: '14px' }}
               >
-                <Star size={18} className={activeTab === 'recommendation' ? 'text-teal-800' : 'text-slate-400'} />
+                <Star size={18} className="text-amber-500 shrink-0" />
                 RECOMMENDATION
               </button>
               <button 
@@ -731,7 +731,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 }`}
                 style={{ fontSize: '14px' }}
               >
-                <Wrench size={18} className={activeTab === 'terms' ? 'text-teal-800' : 'text-slate-400'} />
+                <Wrench size={18} className="text-purple-500 shrink-0" />
                 CONTRACT TERMS
               </button>
               <button 
@@ -744,7 +744,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 }`}
                 style={{ fontSize: '14px' }}
               >
-                <Paperclip size={18} className={activeTab === 'notes' ? 'text-teal-800' : 'text-slate-400'} />
+                <Paperclip size={18} className="text-rose-500 shrink-0" />
                 ANNEXURES & NOTES
               </button>
             </div>
@@ -898,31 +898,29 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
             
             {/* Documents Tabs */}
-            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-6 overflow-x-hidden">
+            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-4 overflow-x-hidden">
               <button 
                 type="button"
                 onClick={() => setActiveDocTab('attachments')}
-                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
                   activeDocTab === 'attachments' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-teal-800 text-slate-700 font-extrabold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <FileText size={16} className={activeDocTab === 'attachments' ? 'text-teal-800' : 'text-slate-400'} />
+                <FileText size={14} className={activeDocTab === 'attachments' ? 'text-slate-700' : 'text-slate-400'} />
                 DOCUMENTS ({docs.length})
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveDocTab('query')}
-                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
                   activeDocTab === 'query' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-teal-800 text-slate-700 font-extrabold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <HelpCircle size={16} className={activeDocTab === 'query' ? 'text-teal-800' : 'text-slate-400'} />
+                <HelpCircle size={14} className={activeDocTab === 'query' ? 'text-slate-700' : 'text-slate-400'} />
                 QUERY DOCUMENTS ({queryDocuments.length})
               </button>
             </div>
@@ -939,9 +937,12 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
                     
                     return (
-                      <div 
+                      <a 
                         key={doc.id}
-                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 rounded-lg border border-slate-100 transition-all min-w-0"
+                        href={doc.serverRelativeUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 rounded-lg border border-slate-100 transition-all min-w-0 cursor-pointer"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`p-1.5 rounded border shrink-0 ${iconColor}`}>
@@ -956,15 +957,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                             </span>
                           </div>
                         </div>
-                        <a 
-                          href={doc.serverRelativeUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-slate-400 hover:text-blue-600 p-1 shrink-0 transition-colors"
-                        >
-                          <Download size={13} />
-                        </a>
-                      </div>
+                      </a>
                     );
                   })}
                 </div>
@@ -985,9 +978,12 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
                     
                     return (
-                      <div 
-                        key={idx}
-                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 rounded-lg border border-slate-100 transition-all min-w-0"
+                      <a 
+                        key={doc.id || idx}
+                        href={doc.serverRelativeUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 rounded-lg border border-slate-100 transition-all min-w-0 cursor-pointer"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`p-1.5 rounded border shrink-0 ${iconColor}`}>
@@ -1002,15 +998,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                             </span>
                           </div>
                         </div>
-                        <a 
-                          href={doc.serverRelativeUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-slate-400 hover:text-blue-600 p-1 shrink-0 transition-colors"
-                        >
-                          <Download size={13} />
-                        </a>
-                      </div>
+                      </a>
                     );
                   })}
                 </div>
@@ -1033,7 +1021,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
           {/* Workflow History Card */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-2">
               <History size={16} className="text-blue-600 shrink-0"/> 
               <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Workflow History</span>
             </div>
@@ -1058,7 +1046,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         }
                         
                         return (
-                          <div key={item.id || idx} className="relative pl-7 pb-12 last:pb-2">
+                          <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
                             {idx < displayedHistory.length - 1 && (
                               <div className="absolute left-[7px] top-4 bottom-0 w-[1.5px]" style={{ backgroundColor: '#cbd5e1' }} />
                             )}
@@ -1099,31 +1087,29 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
             
             {/* Tab selection */}
-            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-6 overflow-x-hidden">
+            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-4 overflow-x-hidden">
               <button 
                 type="button"
                 onClick={() => setActiveCommentTab('comments')}
-                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
                   activeCommentTab === 'comments' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-teal-800 text-slate-700 font-extrabold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <MessageSquare size={16} className={activeCommentTab === 'comments' ? 'text-teal-800' : 'text-slate-400'} />
-                COMMENTS
+                <MessageSquare size={14} className={activeCommentTab === 'comments' ? 'text-slate-700' : 'text-slate-400'} />
+                COMMENTS HISTORY
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveCommentTab('query')}
-                className={`pb-2.5 font-bold transition-all flex items-center gap-2 border-b-2 -mb-[2px] ${
+                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
                   activeCommentTab === 'query' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-teal-800 text-slate-700 font-extrabold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <HelpCircle size={16} className={activeCommentTab === 'query' ? 'text-teal-800' : 'text-slate-400'} />
+                <HelpCircle size={14} className={activeCommentTab === 'query' ? 'text-slate-700' : 'text-slate-400'} />
                 QUERY REMARKS
               </button>
             </div>
@@ -1131,20 +1117,17 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             {/* Comments content */}
             {activeCommentTab === 'comments' ? (
               comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
-                <div className="space-y-3 divide-y divide-slate-100/50 max-h-[200px] overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                   {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
-                    <div key={item.id || idx} className="flex flex-col gap-1 pt-2.5 first:pt-0 pb-0.5 min-w-0">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[12px] font-bold text-slate-700">
-                          {item.user} <span className="text-slate-400 font-medium text-[11px]">(Level {item.level || "1"})</span>
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-medium shrink-0 whitespace-nowrap">
-                          {item.date}
+                    <div key={item.id || idx} className="bg-slate-50/40 p-3.5 rounded-2xl border border-slate-100/80 flex flex-col gap-2.5 shadow-sm">
+                      <p className="text-[13px] text-slate-700 font-medium leading-relaxed">
+                        <span className="font-semibold text-slate-800">Comment:</span> {item.remarks || ""}
+                      </p>
+                      <div className="p-2.5 bg-white border border-slate-100 rounded-xl shadow-sm">
+                        <span className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                          Remarks Added by <span className="font-semibold text-slate-700">{item.user}</span> at Level <span className="font-semibold text-slate-700">{item.level || "1"}</span> on <span className="font-semibold text-slate-700">{item.date}</span>
                         </span>
                       </div>
-                      <p className="text-[13px] text-slate-700 font-medium leading-relaxed leading-normal">
-                        {item.remarks || ""}
-                      </p>
                     </div>
                   ))}
                 </div>
@@ -1155,39 +1138,33 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               )
             ) : (
               queryHistory.length > 0 ? (
-                <div className="space-y-3 divide-y divide-slate-100/50 max-h-[220px] overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                   {queryHistory.map((item, idx) => (
-                    <div key={item.id || idx} className="flex flex-col gap-2 pt-2.5 first:pt-0 pb-0.5 min-w-0">
+                    <div key={item.id || idx} className="bg-slate-50/40 p-3.5 rounded-2xl border border-slate-100/80 flex flex-col gap-2.5 shadow-sm">
                       
                       {/* Query section */}
                       <div className="flex flex-col gap-1 min-w-0">
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-[12px] font-bold text-slate-700">
-                            Query: {item.QueryBy ? item.QueryBy.Title : "Unknown"} <span className="text-slate-400 font-medium text-[11px]">(Level {item.WFLevel || "1"})</span>
-                          </span>
-                          <span className="text-[11px] text-slate-400 font-medium shrink-0">
-                            {item.QueriedOn || ""}
+                        <p className="text-[13px] text-amber-700 leading-relaxed">
+                          <span className="font-semibold text-amber-800">Query:</span> {item.Query || ""}
+                        </p>
+                        <div className="p-2 bg-white border border-slate-100 rounded-xl shadow-sm mt-1">
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Queried by <span className="font-semibold text-slate-700">{item.QueryBy ? item.QueryBy.Title : "Unknown"}</span> at Level <span className="font-semibold text-slate-700">{item.WFLevel || "1"}</span> on <span className="font-semibold text-slate-700">{item.QueriedOn || ""}</span>
                           </span>
                         </div>
-                        <p className="text-[13px] text-amber-700 bg-amber-50/40 p-2 rounded-lg border border-amber-100/50 leading-relaxed">
-                          {item.Query || ""}
-                        </p>
                       </div>
 
                       {/* Response section */}
                       {item.Response && item.Response.trim() !== "" && (
-                        <div className="flex flex-col gap-1 pl-4 border-l border-emerald-200 mt-1 min-w-0">
-                          <div className="flex items-center justify-between gap-4">
-                            <span className="text-[12px] font-bold text-slate-700">
-                              Response: {item.QueryTo ? item.QueryTo.Title : "Unknown"}
-                            </span>
-                            <span className="text-[11px] text-slate-400 font-medium shrink-0">
-                              {item.RespondedOn || ""}
+                        <div className="flex flex-col gap-1 pl-3 border-l-2 border-emerald-300 mt-1 min-w-0">
+                          <p className="text-[13px] text-emerald-700 leading-relaxed">
+                            <span className="font-semibold text-emerald-800">Response:</span> {item.Response}
+                          </p>
+                          <div className="p-2 bg-white border border-slate-100 rounded-xl shadow-sm mt-1">
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              Responded by <span className="font-semibold text-slate-700">{item.QueryTo ? item.QueryTo.Title : "Unknown"}</span> on <span className="font-semibold text-slate-700">{item.RespondedOn || ""}</span>
                             </span>
                           </div>
-                          <p className="text-[13px] text-emerald-700 bg-emerald-50/20 p-2 rounded-lg border border-emerald-100/50 leading-relaxed">
-                            {item.Response}
-                          </p>
                         </div>
                       )}
                     </div>
