@@ -5,6 +5,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import ApprovalDetailsFilter from './ApprovalDetailsFilter';
 import ApprovalDetailsTable  from './ApprovalDetailsTable';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
@@ -99,6 +100,10 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
     };
     loadData();
   }, [context]);
+
+  useEffect(() => {
+    forceScrollToTop();
+  }, [loading]);
 
   // --- Filtering Logic ---
   const displayData = React.useMemo(() => {

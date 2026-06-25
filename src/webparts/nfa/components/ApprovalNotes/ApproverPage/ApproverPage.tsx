@@ -5,7 +5,9 @@ import {
   Building2, FileText, Wrench, DollarSign, Paperclip, 
   Settings, Star, ChevronDown, ArrowLeft, History, 
   MessageSquare, User, CheckCircle2, Clock, Circle,
-  ChevronRight, Check, X, HelpCircle, UserCheck, CornerUpLeft, Download
+  ChevronRight, Check, X, HelpCircle, UserCheck, CornerUpLeft, Download,
+  MapPin, Calendar, Hourglass, Layers, GitBranch, BadgeDollarSign, Target, Tag,
+  ClipboardList, ExternalLink
 } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton';
 import 'primereact/resources/primereact.min.css';
@@ -24,6 +26,7 @@ import { RichTextEditor } from '../../../../../Share/Components/RichTextEditor';
 import DropdownField from '../../../../../Share/Components/DropdownField';
 import CommonButton from '../../../../../Share/Components/CommonButton';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IApproverPageProps {
   context: WebPartContext;
@@ -95,17 +98,17 @@ const renderHistoryText = (text: string) => {
   const parts = text.split(statusRegex);
   
   return (
-    <span className="leading-relaxed">
+    <span className="leading-relaxed text-[13px] text-slate-600 font-medium">
       {parts.map((part, idx) => {
         if (statusRegex.test(part)) {
           return (
-            <span key={idx} className="text-[13px] font-bold text-slate-800">
+            <span key={idx} className="font-bold text-slate-800">
               {part}
             </span>
           );
         }
         return (
-          <span key={idx} className="text-[11px] font-medium text-slate-500">
+          <span key={idx}>
             {part}
           </span>
         );
@@ -145,6 +148,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const [isChronologyExpanded, setIsChronologyExpanded] = useState(false);
   const [isCommercialExpanded, setIsCommercialExpanded] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [isDocsExpanded, setIsDocsExpanded] = useState(false);
 
   // Popup state
   const [popupConfig, setPopupConfig] = useState<{
@@ -503,6 +507,66 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
   const isCurrentApprover = nfa?.pendingAtId === currentUserId;
 
+  const currentApproverName = useMemo(() => {
+    if (!nfa) return "Unknown";
+    const user = users.find(u => u.value === String(nfa.pendingAtId));
+    return user ? user.label : "Unknown";
+  }, [nfa, users]);
+
+  const receivedOnDate = useMemo(() => {
+    if (!nfa) return "Unknown";
+    if (history && history.length > 0) {
+      const latestAction = history[0];
+      if (latestAction && latestAction.date) {
+        return latestAction.date;
+      }
+    }
+    return nfa.date || "Unknown";
+  }, [history, nfa]);
+
+  const ageingText = useMemo(() => {
+    if (!receivedOnDate || receivedOnDate === "Unknown") return "0 Hours";
+    
+    try {
+      const match = receivedOnDate.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?/i);
+      if (!match) {
+        const parsed = Date.parse(receivedOnDate);
+        if (!isNaN(parsed)) {
+          const diffMs = new Date().getTime() - parsed;
+          if (diffMs <= 0) return "0 Hours";
+          const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+          const days = Math.floor(diffHrs / 24);
+          const remainingHours = diffHrs % 24;
+          return days > 0 ? `${days} Day${days > 1 ? 's' : ''} ${remainingHours} Hour${remainingHours > 1 ? 's' : ''}` : `${remainingHours} Hour${remainingHours > 1 ? 's' : ''}`;
+        }
+        return "0 Hours";
+      }
+
+      const day = parseInt(match[1]);
+      const month = parseInt(match[2]) - 1;
+      const year = parseInt(match[3]);
+      let parsedHours = match[4] ? parseInt(match[4]) : 0;
+      const minutes = match[5] ? parseInt(match[5]) : 0;
+      const ampm = match[6];
+
+      if (ampm) {
+        if (ampm.toUpperCase() === 'PM' && parsedHours < 12) parsedHours += 12;
+        if (ampm.toUpperCase() === 'AM' && parsedHours === 12) parsedHours = 0;
+      }
+
+      const receivedDate = new Date(year, month, day, parsedHours, minutes);
+      const diffMs = new Date().getTime() - receivedDate.getTime();
+      if (diffMs <= 0) return "0 Hours";
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const days = Math.floor(diffHrs / 24);
+      const remainingHours = diffHrs % 24;
+      return days > 0 ? `${days} Day${days > 1 ? 's' : ''} ${remainingHours} Hour${remainingHours > 1 ? 's' : ''}` : `${remainingHours} Hour${remainingHours > 1 ? 's' : ''}`;
+    } catch (err) {
+      console.error("Error calculating ageing:", err);
+      return "0 Hours";
+    }
+  }, [receivedOnDate]);
+
   if (isLoading || !nfa) {
     return (
       <div className="pageContainer animate-pulse">
@@ -530,12 +594,38 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          height: 4px !important;
+        }
+        .no-scrollbar::-webkit-scrollbar-track {
+          background: #f8fafc !important;
+          border-radius: 9999px !important;
+        }
+        .no-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1 !important;
+          border-radius: 9999px !important;
+        }
+        .no-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8 !important;
+        }
+        .no-scrollbar::-webkit-scrollbar-button {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        .no-scrollbar {
+          scrollbar-width: thin !important;
+          scrollbar-color: #cbd5e1 #f8fafc !important;
+          -ms-overflow-style: auto !important;
+        }
+      `}</style>
       
       {/* Approval Chain Card */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-3 px-6 mb-6">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-4 px-6 mb-6">
         <div 
           ref={stepperContainerRef}
-          className="relative flex items-center justify-start gap-1 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar"
+          className="relative flex items-center justify-start gap-1 overflow-x-auto pb-3 pt-0.5 no-scrollbar border-b border-slate-100"
         >
           {workflowSteps.map((step, idx) => {
             const user = users.find(u => u.value === String(step.id));
@@ -549,22 +639,48 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             let avatarClass = 'bg-slate-100 text-slate-400';
             let dotClass = 'bg-slate-300';
             let labelColor = 'text-slate-400';
+            let statusBadge = null;
             
             if (isInitiator) {
               borderClass = 'border-blue-500 bg-blue-50/10 shadow-sm shadow-blue-50';
               avatarClass = 'bg-blue-500 text-white';
               dotClass = 'bg-blue-500';
               labelColor = 'text-blue-600 font-extrabold';
+              statusBadge = (
+                <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-100">
+                  <Check size={10} strokeWidth={4} />
+                </div>
+              );
             } else if (isCompleted) {
               borderClass = 'border-emerald-500 bg-emerald-50/10 shadow-sm shadow-emerald-50';
               avatarClass = 'bg-emerald-500 text-white';
               dotClass = 'bg-emerald-500';
               labelColor = 'text-emerald-600 font-extrabold';
+              statusBadge = (
+                <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-100">
+                  <Check size={10} strokeWidth={4} />
+                </div>
+              );
             } else if (isCurrent) {
               borderClass = 'border-amber-500 bg-amber-50/10 shadow-lg shadow-amber-100';
               avatarClass = 'bg-amber-500 text-white animate-pulse';
               dotClass = 'bg-amber-500';
               labelColor = 'text-amber-600 font-extrabold';
+              statusBadge = (
+                <div className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-100 animate-pulse">
+                  <Clock size={10} strokeWidth={3} />
+                </div>
+              );
+            } else {
+              borderClass = 'border-slate-200 bg-white';
+              avatarClass = 'bg-slate-100 text-slate-400';
+              dotClass = 'bg-slate-300';
+              labelColor = 'text-slate-400';
+              statusBadge = (
+                <div className="w-4 h-4 rounded-full bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center shrink-0">
+                  <Clock size={10} strokeWidth={2.5} />
+                </div>
+              );
             }
             
             return (
@@ -577,7 +693,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     {step.label}
                   </span>
                   
-                  <div className={`w-[145px] h-[40px] rounded-xl border flex flex-row items-center gap-2 px-2 py-0.5 transition-all duration-350 ${borderClass}`}>
+                  <div className={`w-[155px] h-[40px] rounded-xl border flex flex-row items-center gap-2 px-2 py-0.5 transition-all duration-350 ${borderClass}`}>
                     <UserAvatar 
                       email={user?.email} 
                       initials={initials} 
@@ -586,6 +702,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     <span className="text-[10px] font-extrabold text-slate-700 text-left leading-tight line-clamp-2 flex-1">
                       {userLabel}
                     </span>
+                    {statusBadge}
                   </div>
                   
                   <div className={`w-2 h-2 rounded-full mt-1.5 ${dotClass}`} />
@@ -600,6 +717,45 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             );
           })}
         </div>
+
+        {/* Approver Chart Info Bar */}
+        <div className="pt-4 flex flex-row flex-wrap items-center justify-start gap-y-3">
+          <div className="flex items-center gap-3 shrink-0" style={{ marginRight: '112px' }}>
+            <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+              <Calendar className="text-emerald-500" size={16} />
+            </div>
+            <div className="flex flex-row items-center gap-1.5 min-w-0">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-none">Received On:</span>
+              <span className="text-[13px] font-extrabold text-slate-700 truncate leading-tight">
+                {receivedOnDate}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0" style={{ marginRight: '112px' }}>
+            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <Hourglass className="text-blue-500" size={16} />
+            </div>
+            <div className="flex flex-row items-center gap-1.5 min-w-0">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-none">Ageing:</span>
+              <span className="text-[13px] font-extrabold text-slate-700 truncate leading-tight">
+                {ageingText}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+              <FileText className="text-indigo-500" size={16} />
+            </div>
+            <div className="flex flex-row items-center gap-1.5 min-w-0">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-none">Total Approver:</span>
+              <span className="text-[13px] font-extrabold text-slate-700 truncate leading-tight">
+                {nfa.approvers.filter(Boolean).length}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── 70% / 30% Columns Wrapper ── */}
@@ -610,82 +766,148 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
           {/* Request Details Card */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            {/* Card Header — blue icon box like reference image */}
             <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-                <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Request Details</span>
-                <span className="bg-emerald-50 text-emerald-600 text-[9px] font-extrabold px-2 py-0.5 rounded-md border border-emerald-100 uppercase ml-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                  <ClipboardList size={15} className="text-blue-600" />
+                </div>
+                <span className="font-bold text-slate-800 text-[13px]">Request Overview</span>
+                <span className="bg-blue-50 text-blue-600 text-[9px] font-extrabold px-2 py-0.5 rounded-md border border-blue-100 uppercase ml-1">
                   Level {nfa.level || '1'}
                 </span>
               </div>
-              <span className="text-blue-600 font-bold text-[13px]">
-                Request No. {nfa.requestNo || '-'}
+              <span className="text-[11px] font-bold text-slate-500">
+                {nfa.requestNo || '-'}
               </span>
             </div>
             
-            {/* 2-Column Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px' }}>
-              {/* Row 1: Project (Full Width) */}
-              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-2" style={{ gridColumn: 'span 2 / span 2' }}>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
-                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.project || '-'}</span>
-              </div>
-              
-              {/* Row 2: Sub-Entity | Date */}
-              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
-                <span className="text-[14px] text-slate-700 font-semibold mt-1">
-                  {nfa.projectSubEntity && nfa.projectSubEntity.length > 0 ? nfa.projectSubEntity.join(', ') : '-'}
-                </span>
-              </div>
-              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
-                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.date || '-'}</span>
+            {/* Strict 2-Column Details Grid — all fields in pairs, matching reference */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px' }}>
+
+              {/* Col 1: Project */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 bg-blue-50 rounded-md flex items-center justify-center shrink-0 mt-0.5">
+                  <Building2 size={13} className="text-blue-500" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
+                  <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.project || '-'}</span>
+                </div>
               </div>
 
-              {/* Row 3: Function (Full Width) */}
-              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-2" style={{ gridColumn: 'span 2 / span 2' }}>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Function</span>
-                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.originatorDept || '-'}</span>
+              {/* Col 2: Sub-Entity */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 bg-teal-50 rounded-md flex items-center justify-center shrink-0 mt-0.5">
+                  <MapPin size={13} className="text-teal-500" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
+                  <span className="text-[13px] text-slate-700 font-semibold mt-0.5">
+                    {nfa.projectSubEntity && nfa.projectSubEntity.length > 0 ? nfa.projectSubEntity.join(', ') : '-'}
+                  </span>
+                </div>
               </div>
 
-              {/* Row 4: Data Matrix | Workflow */}
-              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Data Matrix</span>
-                <span className="text-[14px] text-slate-700 font-semibold mt-1">{nfa.doaMatrix || '-'}</span>
+              {/* Col 1: Function */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 bg-purple-50 rounded-md flex items-center justify-center shrink-0 mt-0.5">
+                  <Layers size={13} className="text-purple-500" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Function</span>
+                  <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.originatorDept || '-'}</span>
+                </div>
               </div>
-              <div className="flex flex-col pb-2.5 border-b border-slate-100 col-span-1">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Workflow</span>
-                <span className="text-[14px] text-slate-700 font-semibold mt-1 uppercase">{nfa.workflow || '-'}</span>
+
+              {/* Col 2: Date */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 bg-indigo-50 rounded-md flex items-center justify-center shrink-0 mt-0.5">
+                  <Calendar size={13} className="text-indigo-500" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
+                  <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.date || '-'}</span>
+                </div>
               </div>
+
+              {/* Col 1: Data Matrix */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 bg-amber-50 rounded-md flex items-center justify-center shrink-0 mt-0.5">
+                  <Layers size={13} className="text-amber-500" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Data Matrix</span>
+                  <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.doaMatrix || '-'}</span>
+                </div>
+              </div>
+
+              {/* Col 2: Workflow */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 bg-emerald-50 rounded-md flex items-center justify-center shrink-0 mt-0.5">
+                  <GitBranch size={13} className="text-emerald-500" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workflow</span>
+                  <span className="text-[13px] text-slate-700 font-semibold mt-0.5 uppercase">{nfa.workflow || '-'}</span>
+                </div>
+              </div>
+
             </div>
           </div>
 
           {/* Financial Summary Card */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Financial Summary</span>
+            <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+              <div className="w-7 h-7 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center shrink-0">
+                <DollarSign size={15} className="text-emerald-600" />
+              </div>
+              <span className="font-bold text-slate-800 text-[13px]">Financial Summary</span>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', width: '100%', alignItems: 'stretch' }}>
-              <div className="p-2 bg-blue-50/20 border border-blue-100/50 rounded-xl" style={{ flex: '1 1 0%', minWidth: '0px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', lineHeight: '1.2' }}>Budget</span>
-                <div style={{ fontSize: '13px', fontWeight: 900, color: '#1d4ed8', marginTop: '2px', lineHeight: '1.2' }}>₹ {Number(nfa.budget || 0).toLocaleString('en-IN')}</div>
+            {/* Budget, Awarded, Capex — forced single row */}
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', width: '100%' }}>
+              {/* Budget */}
+              <div style={{ flex: '1 1 0%', minWidth: 0, padding: '10px', background: 'rgba(239,246,255,0.6)', border: '1px solid #bfdbfe', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '18px', height: '18px', background: '#dbeafe', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <BadgeDollarSign size={10} className="text-blue-600" />
+                  </div>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget</span>
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8' }}>₹ {Number(nfa.budget || 0).toLocaleString('en-IN')}</div>
               </div>
-              <div className="p-2 bg-emerald-50/20 border border-emerald-100/50 rounded-xl" style={{ flex: '1 1 0%', minWidth: '0px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', lineHeight: '1.2' }}>Awarded Cost</span>
-                <div style={{ fontSize: '13px', fontWeight: 900, color: '#047857', marginTop: '2px', lineHeight: '1.2' }}>₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</div>
+
+              {/* Awarded Cost */}
+              <div style={{ flex: '1 1 0%', minWidth: 0, padding: '10px', background: 'rgba(236,253,245,0.6)', border: '1px solid #a7f3d0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '18px', height: '18px', background: '#d1fae5', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Target size={10} className="text-emerald-600" />
+                  </div>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Awarded</span>
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 800, color: '#047857' }}>₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</div>
               </div>
-              <div className="p-2 bg-purple-50/20 border border-purple-100/50 rounded-xl" style={{ flex: '1 1 0%', minWidth: '0px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#7e22ce', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', lineHeight: '1.2' }}>Capex Serial No</span>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#6b21a8', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: '1.2' }} title={nfa.capexSerialNo}>{nfa.capexSerialNo || '-'}</div>
+
+              {/* Capex Serial No */}
+              <div style={{ flex: '1 1 0%', minWidth: 0, padding: '10px', background: 'rgba(245,243,255,0.6)', border: '1px solid #ddd6fe', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '18px', height: '18px', background: '#ede9fe', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Tag size={10} className="text-purple-600" />
+                  </div>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capex No</span>
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#6d28d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nfa.capexSerialNo || ''}>{nfa.capexSerialNo || '-'}</div>
               </div>
             </div>
+
             {nfa.budgetRemarks && nfa.budgetRemarks.trim() !== "" && (
-              <div className="p-2.5 bg-slate-50/50 border border-slate-100 rounded-xl">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Remarks</span>
-                <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-0.5 whitespace-pre-wrap">{nfa.budgetRemarks}</div>
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <MessageSquare size={11} className="text-slate-400" />
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
+                </div>
+                <div className="text-[12px] text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">{nfa.budgetRemarks}</div>
               </div>
             )}
           </div>
@@ -693,59 +915,55 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           {/* Details Card with Tabs */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
             
-            {/* Horizontal Tabs Header */}
-            <div className="flex flex-wrap border-b border-slate-200 gap-x-6 mb-5 overflow-x-hidden" style={{ marginBottom: '20px' }}>
+            {/* Horizontal Tabs Header — matching reference image style */}
+            <div className="flex flex-wrap border-b border-slate-200 gap-x-6 gap-y-2.5 mb-5">
               <button 
                 type="button"
                 onClick={() => setActiveTab('details')}
-                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
                   activeTab === 'details' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-blue-600 text-blue-700 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <FileText size={18} className="text-blue-500 shrink-0" />
-                NFA DETAILS
+                <Paperclip size={15} className={activeTab === 'details' ? 'text-blue-600' : 'text-slate-400'} />
+                NFA Details
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTab('recommendation')}
-                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
                   activeTab === 'recommendation' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-blue-600 text-blue-700 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <Star size={18} className="text-amber-500 shrink-0" />
-                RECOMMENDATION
+                <Star size={15} className={activeTab === 'recommendation' ? 'text-blue-600' : 'text-slate-400'} />
+                Recommendation
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTab('terms')}
-                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
                   activeTab === 'terms' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-blue-600 text-blue-700 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <Wrench size={18} className="text-purple-500 shrink-0" />
-                CONTRACT TERMS
+                <Settings size={15} className={activeTab === 'terms' ? 'text-blue-600' : 'text-slate-400'} />
+                Contract Terms
               </button>
               <button 
                 type="button"
                 onClick={() => setActiveTab('notes')}
-                className={`font-bold transition-all flex items-center gap-2 pb-2.5 border-b-2 -mb-[2px] ${
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
                   activeTab === 'notes' 
-                    ? 'border-teal-800 text-teal-800 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-b-slate-300/50'
+                    ? 'border-blue-600 text-blue-700 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
-                style={{ fontSize: '14px' }}
               >
-                <Paperclip size={18} className="text-rose-500 shrink-0" />
-                ANNEXURES & NOTES
+                <Paperclip size={15} className={activeTab === 'notes' ? 'text-blue-600' : 'text-slate-400'} />
+                Annexures & Notes
               </button>
             </div>
 
@@ -761,11 +979,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction / Preamble / Background</span>
                   <div 
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent transition-all duration-300"
-                    style={!isIntroExpanded ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                    style={!isIntroExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
                   >
                     <div dangerouslySetInnerHTML={{ __html: nfa.introduction || '-' }} />
                   </div>
-                  {nfa.introduction && nfa.introduction.replace(/<[^>]*>/g, "").length > 250 && (
+                  {nfa.introduction && nfa.introduction.replace(/<[^>]*>/g, "").length > 450 && (
                     <button 
                       type="button"
                       onClick={() => setIsIntroExpanded(!isIntroExpanded)}
@@ -780,11 +998,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
                   <div 
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
-                    style={!isChronologyExpanded ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                    style={!isChronologyExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
                   >
                     <div dangerouslySetInnerHTML={{ __html: nfa.chronology || '-' }} />
                   </div>
-                  {nfa.chronology && nfa.chronology.replace(/<[^>]*>/g, "").length > 250 && (
+                  {nfa.chronology && nfa.chronology.replace(/<[^>]*>/g, "").length > 450 && (
                     <button 
                       type="button"
                       onClick={() => setIsChronologyExpanded(!isChronologyExpanded)}
@@ -799,11 +1017,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
                   <div 
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
-                    style={!isCommercialExpanded ? { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                    style={!isCommercialExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
                   >
                     <div dangerouslySetInnerHTML={{ __html: nfa.commercialProposal || '-' }} />
                   </div>
-                  {nfa.commercialProposal && nfa.commercialProposal.replace(/<[^>]*>/g, "").length > 250 && (
+                  {nfa.commercialProposal && nfa.commercialProposal.replace(/<[^>]*>/g, "").length > 450 && (
                     <button 
                       type="button"
                       onClick={() => setIsCommercialExpanded(!isCommercialExpanded)}
@@ -894,181 +1112,215 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         {/* ── Right Column (30% Width) ── */}
         <div className="w-full lg:w-[30%] space-y-6">
 
-          {/* Documents Card with Tabs */}
+          {/* Documents Card — reference style */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            
-            {/* Documents Tabs */}
-            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-4 overflow-x-hidden">
-              <button 
+
+            {/* Header / Tabs in one row */}
+            <div className="flex items-center gap-4 pb-2 border-b border-slate-100 mb-3">
+              <button
                 type="button"
+                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[11px] uppercase tracking-wider ${
+                  activeDocTab === 'attachments'
+                    ? 'border-blue-600 text-blue-700 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
+                }`}
                 onClick={() => setActiveDocTab('attachments')}
-                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
-                  activeDocTab === 'attachments' 
-                    ? 'border-teal-800 text-slate-700 font-extrabold' 
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
               >
-                <FileText size={14} className={activeDocTab === 'attachments' ? 'text-slate-700' : 'text-slate-400'} />
-                DOCUMENTS ({docs.length})
+                <div className="w-5 h-5 bg-blue-50 border border-blue-100 rounded flex items-center justify-center shrink-0">
+                  <FileText size={11} className={activeDocTab === 'attachments' ? 'text-blue-600' : 'text-slate-400'} />
+                </div>
+                <span className="text-[11px]">Documents ({docs.length})</span>
               </button>
-              <button 
+
+              <button
                 type="button"
-                onClick={() => setActiveDocTab('query')}
-                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
-                  activeDocTab === 'query' 
-                    ? 'border-teal-800 text-slate-700 font-extrabold' 
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[11px] uppercase tracking-wider ${
+                  activeDocTab === 'query'
+                    ? 'border-blue-600 text-blue-700 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
                 }`}
+                onClick={() => setActiveDocTab('query')}
               >
-                <HelpCircle size={14} className={activeDocTab === 'query' ? 'text-slate-700' : 'text-slate-400'} />
-                QUERY DOCUMENTS ({queryDocuments.length})
+                <div className="w-5 h-5 bg-slate-50 border border-slate-150 rounded flex items-center justify-center shrink-0">
+                  <HelpCircle size={11} className={activeDocTab === 'query' ? 'text-blue-600' : 'text-slate-400'} />
+                </div>
+                <span className="text-[11px]">Query Docs ({queryDocuments.length})</span>
               </button>
             </div>
 
-            {/* Documents Content */}
-            {activeDocTab === 'attachments' ? (
-              docs.length > 0 ? (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                  {docs.map(doc => {
-                    const ext = doc.fileName.split('.').pop()?.toLowerCase();
-                    let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
-                    if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                    else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                    else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                    
-                    return (
-                      <a 
-                        key={doc.id}
-                        href={doc.serverRelativeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 rounded-lg border border-slate-100 transition-all min-w-0 cursor-pointer"
+            {/* Content area */}
+            <div className="pt-3">
+              {activeDocTab === 'attachments' ? (
+                docs.length > 0 ? (
+                  <>
+                    <div className="relative">
+                      <div className={`space-y-2 overflow-y-auto pr-1 transition-all ${
+                        isDocsExpanded ? 'max-h-[500px]' : 'max-h-[210px]'
+                      }`}>
+                        {docs.map(doc => {
+                          const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                          let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                          if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                          else if (['xlsx','xls','csv'].indexOf(ext||'') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                          else if (['docx','doc'].indexOf(ext||'') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                          return (
+                            <a 
+                              key={doc.id} 
+                              href={doc.serverRelativeUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
+                            >
+                              <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                                <FileText size={12} />
+                              </div>
+                              <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
+                                {doc.fileName}
+                              </span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                      {!isDocsExpanded && docs.length > 3 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                      )}
+                    </div>
+                    <div className="mt-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setIsDocsExpanded(!isDocsExpanded)}
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors"
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`p-1.5 rounded border shrink-0 ${iconColor}`}>
+                        {isDocsExpanded ? 'Show Less ↑' : `View All (${docs.length}) ↓`}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/20 border border-dashed border-slate-100 rounded-xl">
+                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mb-2">
+                      <Paperclip size={18} className="text-slate-300" />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-semibold">No attachments found</span>
+                    <span className="text-[10px] text-slate-300 mt-0.5">Files will appear here once uploaded</span>
+                  </div>
+                )
+              ) : (
+                queryDocuments.length > 0 ? (
+                  <div className="space-y-2 max-h-[210px] overflow-y-auto pr-1">
+                    {queryDocuments.map((doc, idx) => {
+                      const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                      let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                      if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                      else if (['xlsx','xls','csv'].indexOf(ext||'') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                      else if (['docx','doc'].indexOf(ext||'') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                      return (
+                        <a 
+                          key={doc.id||idx} 
+                          href={doc.serverRelativeUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
+                        >
+                          <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
                             <FileText size={12} />
                           </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] font-bold text-slate-700 truncate" title={doc.fileName}>
-                              {doc.fileName}
-                            </span>
-                            <span className="text-[9px] text-slate-400 font-semibold mt-0.5">
-                              {formatFileSize(doc.fileSize)}
-                            </span>
-                          </div>
-                        </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
-                  <Paperclip size={18} className="text-slate-300 mb-1" />
-                  <span className="text-[9.5px] text-slate-400 font-bold italic">No attachments found</span>
-                </div>
-              )
-            ) : (
-              queryDocuments.length > 0 ? (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                  {queryDocuments.map((doc, idx) => {
-                    const ext = doc.fileName.split('.').pop()?.toLowerCase();
-                    let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
-                    if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                    else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                    else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                    
-                    return (
-                      <a 
-                        key={doc.id || idx}
-                        href={doc.serverRelativeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="group flex items-center justify-between p-2 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 rounded-lg border border-slate-100 transition-all min-w-0 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`p-1.5 rounded border shrink-0 ${iconColor}`}>
-                            <FileText size={12} />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] font-bold text-slate-700 truncate" title={doc.fileName}>
-                              {doc.fileName}
-                            </span>
-                            <span className="text-[9px] text-slate-400 font-semibold mt-0.5">
-                              Query File
-                            </span>
-                          </div>
-                        </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-xl">
-                  <Paperclip size={18} className="text-slate-300 mb-1" />
-                  <span className="text-[9.5px] text-slate-400 font-bold italic">No query documents found</span>
-                </div>
-              )
-            )}
-
-            {docs.length > 0 && (
-              <div className="mt-3 pt-2 border-t border-slate-50 text-center">
-                <span className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer">
-                  View all documents
-                </span>
-              </div>
-            )}
+                          <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
+                            {doc.fileName}
+                          </span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/20 border border-dashed border-slate-100 rounded-xl">
+                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mb-2">
+                      <HelpCircle size={18} className="text-slate-300" />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-semibold">No query documents found</span>
+                  </div>
+                )
+              )}
+            </div>
           </div>
 
-          {/* Workflow History Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-2">
-              <History size={16} className="text-blue-600 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Workflow History</span>
+          {/* Workflow History Card — matching reference image */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
+              <History size={15} className="text-blue-500 shrink-0"/> 
+              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
             </div>
             
-            <div className="space-y-0.5">
+            <div className="space-y-4">
               {history.length > 0 ? (
                 (() => {
-                  const displayedHistory = isHistoryExpanded ? history : history.slice(0, 3);
+                  const displayedHistory = isHistoryExpanded ? history : history.slice(0, 4);
                   return (
                     <>
                       {displayedHistory.map((item, idx) => {
                         const rawText = item.rawText || "";
                         const lower = rawText.toLowerCase();
                         
-                        let dotColor = "bg-blue-500";
-                        if (lower.includes("approved") || lower.includes("initiated") || lower.includes("resolved") || lower.includes("submitted")) {
-                          dotColor = "bg-emerald-500";
+                        let dotClass = 'bg-blue-500';
+                        if (lower.includes("approved") || lower.includes("resolved") || lower.includes("submitted")) {
+                          dotClass = 'bg-emerald-500';
                         } else if (lower.includes("rejected")) {
-                          dotColor = "bg-rose-500";
+                          dotClass = 'bg-rose-500';
                         } else if (lower.includes("query")) {
-                          dotColor = "bg-amber-500";
+                          dotClass = 'bg-amber-500';
                         }
                         
+                        let descText = rawText;
+                        let dateText = item.date || "";
+
+                        if (dateText) {
+                          const dateStr = dateText.trim();
+                          const lastOnIndex = rawText.lastIndexOf(" on " + dateStr);
+                          if (lastOnIndex !== -1) {
+                            descText = rawText.substring(0, lastOnIndex).trim();
+                          } else {
+                            const dateIndex = rawText.lastIndexOf(dateStr);
+                            if (dateIndex !== -1) {
+                              descText = rawText.substring(0, dateIndex).replace(/\s+on\s*$/, "").trim();
+                            }
+                          }
+                        } else {
+                          const dateRegex = /\s+on\s+(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)$/i;
+                          const match = rawText.match(dateRegex);
+                          if (match) {
+                            descText = rawText.substring(0, match.index).trim();
+                            dateText = match[1].trim();
+                          }
+                        }
+
                         return (
                           <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
                             {idx < displayedHistory.length - 1 && (
-                              <div className="absolute left-[7px] top-4 bottom-0 w-[1.5px]" style={{ backgroundColor: '#cbd5e1' }} />
+                              <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
                             )}
-                            <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center z-10 ${dotColor} shadow-sm`} />
+                            <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
                             
                             <div className="flex flex-col min-w-0">
-                              <div className="leading-relaxed">
-                                {renderHistoryText(rawText)}
-                              </div>
+                              <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                                {renderHistoryText(descText)}
+                              </p>
+                              {dateText && (
+                                <span className="text-[9.5px] text-slate-400 mt-0.5 font-normal">
+                                  {dateText}
+                                </span>
+                              )}
                             </div>
                           </div>
                         );
                       })}
                       
-                      {history.length > 3 && (
-                        <div className="pt-1 text-left">
+                      {history.length > 4 && (
+                        <div className="pt-3 text-center">
                           <button
                             type="button"
                             onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-                            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-[10px] font-bold text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-all uppercase tracking-wider"
                           >
-                            {isHistoryExpanded ? "Less...." : "More...."}
+                            {isHistoryExpanded ? 'SHOW LESS' : `VIEW MORE (${history.length - 4})`}
                           </button>
                         </div>
                       )}
@@ -1076,118 +1328,116 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   );
                 })()
               ) : (
-                <div className="text-center py-4 text-slate-400 italic text-[10px] font-bold">
-                  No workflow history found.
+                <div className="text-center py-4 text-slate-400 italic text-[11px]">
+                  No audit history found.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Unified Comments History Card */}
+          {/* Comments & Query History Card — matching reference image */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            
-            {/* Tab selection */}
-            <div className="flex flex-wrap border-b border-slate-200 mb-3 gap-4 overflow-x-hidden">
-              <button 
+            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+              <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
+              <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Comments History</span>
+            </div>
+
+            {/* Subtle Pill-style tabs below the main card line header */}
+            <div className="flex items-center gap-3 mb-4 pt-1">
+              <button
                 type="button"
+                className={`px-3 py-1 rounded-full text-[10.5px] font-bold transition-all border ${
+                  activeCommentTab === 'comments'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                    : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
+                }`}
                 onClick={() => setActiveCommentTab('comments')}
-                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
-                  activeCommentTab === 'comments' 
-                    ? 'border-teal-800 text-slate-700 font-extrabold' 
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
               >
-                <MessageSquare size={14} className={activeCommentTab === 'comments' ? 'text-slate-700' : 'text-slate-400'} />
-                COMMENTS HISTORY
+                Comments ({comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length})
               </button>
-              <button 
+
+              <button
                 type="button"
-                onClick={() => setActiveCommentTab('query')}
-                className={`pb-2 font-bold transition-all flex items-center gap-1.5 border-b-2 -mb-[2px] uppercase tracking-wider text-[10.5px] ${
-                  activeCommentTab === 'query' 
-                    ? 'border-teal-800 text-slate-700 font-extrabold' 
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                className={`px-3 py-1 rounded-full text-[10.5px] font-bold transition-all border ${
+                  activeCommentTab === 'query'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                    : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
                 }`}
+                onClick={() => setActiveCommentTab('query')}
               >
-                <HelpCircle size={14} className={activeCommentTab === 'query' ? 'text-slate-700' : 'text-slate-400'} />
-                QUERY REMARKS
+                Query Remarks ({queryHistory.length})
               </button>
             </div>
 
-            {/* Comments content */}
-            {activeCommentTab === 'comments' ? (
-              comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                  {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
-                    <div key={item.id || idx} className="bg-slate-50/40 p-3.5 rounded-2xl border border-slate-100/80 flex flex-col gap-2.5 shadow-sm">
-                      <p className="text-[13px] text-slate-700 font-medium leading-relaxed">
-                        <span className="font-semibold text-slate-800">Comment:</span> {item.remarks || ""}
-                      </p>
-                      <div className="p-2.5 bg-white border border-slate-100 rounded-xl shadow-sm">
-                        <span className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                          Remarks Added by <span className="font-semibold text-slate-700">{item.user}</span> at Level <span className="font-semibold text-slate-700">{item.level || "1"}</span> on <span className="font-semibold text-slate-700">{item.date}</span>
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-slate-400 italic text-[13px] font-bold">
-                  No comment history found
-                </div>
-              )
-            ) : (
-              queryHistory.length > 0 ? (
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                  {queryHistory.map((item, idx) => (
-                    <div key={item.id || idx} className="bg-slate-50/40 p-3.5 rounded-2xl border border-slate-100/80 flex flex-col gap-2.5 shadow-sm">
-                      
-                      {/* Query section */}
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <p className="text-[13px] text-amber-700 leading-relaxed">
-                          <span className="font-semibold text-amber-800">Query:</span> {item.Query || ""}
-                        </p>
-                        <div className="p-2 bg-white border border-slate-100 rounded-xl shadow-sm mt-1">
-                          <span className="text-[11px] text-slate-500 font-medium">
-                            Queried by <span className="font-semibold text-slate-700">{item.QueryBy ? item.QueryBy.Title : "Unknown"}</span> at Level <span className="font-semibold text-slate-700">{item.WFLevel || "1"}</span> on <span className="font-semibold text-slate-700">{item.QueriedOn || ""}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Response section */}
-                      {item.Response && item.Response.trim() !== "" && (
-                        <div className="flex flex-col gap-1 pl-3 border-l-2 border-emerald-300 mt-1 min-w-0">
-                          <p className="text-[13px] text-emerald-700 leading-relaxed">
-                            <span className="font-semibold text-emerald-800">Response:</span> {item.Response}
-                          </p>
-                          <div className="p-2 bg-white border border-slate-100 rounded-xl shadow-sm mt-1">
-                            <span className="text-[11px] text-slate-500 font-medium">
-                              Responded by <span className="font-semibold text-slate-700">{item.QueryTo ? item.QueryTo.Title : "Unknown"}</span> on <span className="font-semibold text-slate-700">{item.RespondedOn || ""}</span>
-                            </span>
+            {/* Content area */}
+            <div className="pt-1">
+              {activeCommentTab === 'comments' ? (
+                comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 ? (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 animate-fade-in">
+                    {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => {
+                      return (
+                        <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[13px] font-medium text-slate-600 text-left">Comment: {item.remarks || ""}</span>
+                          </div>
+                          <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                            <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
+                            <p className="text-[11px] text-slate-500 leading-normal relative z-10">
+                              Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
+                            </p>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-slate-400 italic text-[11px]">
+                    No comments found.
+                  </div>
+                )
               ) : (
-                <div className="text-center py-6 text-slate-400 italic text-[13px] font-bold">
-                  No query remarks history found
-                </div>
-              )
-            )}
-
-            {(comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 || queryHistory.length > 0) && (
-              <div className="mt-4 pt-2 border-t border-slate-50 text-center">
-                <span className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer">
-                  View all comments
-                </span>
-              </div>
-            )}
+                queryHistory.length > 0 ? (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 animate-fade-in">
+                    {queryHistory.map((item, idx) => (
+                      <div key={item.id || idx} className="flex flex-col gap-2 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+                        {/* Query Part */}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[13px] font-medium text-slate-600 text-left">Query: {item.Query || ""}</span>
+                          </div>
+                          <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                            <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                            <p className="text-[11px] text-slate-500 leading-normal relative z-10">
+                              Remarks Added by {item.QueryBy ? item.QueryBy.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.QueriedOn || ""}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Response Part */}
+                        {item.Response && item.Response.trim() !== "" && (
+                          <div className="flex flex-col gap-1 mt-1.5 border-t border-slate-100 pt-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[13px] font-medium text-slate-600 text-left">Query Response: {item.Response}</span>
+                            </div>
+                            <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
+                              <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                              <p className="text-[11px] text-slate-500 leading-normal relative z-10">
+                                Query Responded by {item.QueryTo ? item.QueryTo.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.RespondedOn || ""}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-slate-400 italic text-[11px]">
+                    No query remarks found.
+                  </div>
+                )
+              )}
+            </div>
           </div>
-
         </div>
-
       </div>
 
       {/* Remarks & Action Console (Level 4) */}
@@ -1344,12 +1594,14 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             </button>
             <button 
               type="button"
-              onClick={() => handleAction('Return')} 
-              disabled={isActionLoading} 
+              onClick={() => {
+                forceScrollToTop();
+                navigate('/inbox');
+              }} 
               style={{ backgroundColor: '#ffffff', color: '#475569', borderColor: '#cbd5e1' }}
-              className="px-5 h-[38px] hover:bg-slate-50 rounded-lg font-bold text-xs uppercase tracking-wider border transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
+              className="px-5 h-[38px] hover:bg-slate-50 rounded-lg font-bold text-xs uppercase tracking-wider border transition-all flex items-center gap-2 shadow-sm active:scale-[0.98]"
             >
-              <CornerUpLeft size={14} strokeWidth={2.5} /> Return
+              <ArrowLeft size={14} strokeWidth={2.5} /> Cancel
             </button>
           </div>
         </div>

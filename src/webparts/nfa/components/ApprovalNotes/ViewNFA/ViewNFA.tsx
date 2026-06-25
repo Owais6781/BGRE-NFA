@@ -16,6 +16,7 @@ import { NFAService, INFAFormData } from '../../../../../Share/Services/NFAServi
 import { CommonService } from '../../../../../Share/Services/CommonService';
 import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IViewNFAProps {
   context: WebPartContext;
@@ -787,13 +788,16 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
 
       </div>
 
-      {/* Back to Home Button */}
+      {/* Back Button */}
       <div className="flex justify-center gap-4 py-8">
         <button 
-          onClick={() => navigate('/')} 
+          onClick={() => {
+            forceScrollToTop();
+            navigate(-1);
+          }} 
           className="px-6 h-[40px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all border border-slate-300 active:scale-98 shadow-sm"
         >
-          Back to Home
+          Back
         </button>
       </div>
 

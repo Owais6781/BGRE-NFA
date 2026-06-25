@@ -19,6 +19,7 @@ import { ApprovalService } from '../../../../../Share/Services/ApprovalService';
 import { CommonService } from '../../../../../Share/Services/CommonService';
 import MessagePopup from '../../../../../Share/Components/MessagePopup';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IQueryRespondProps {
   context: WebPartContext;
@@ -1008,7 +1009,10 @@ const QueryRespond: React.FC<IQueryRespondProps> = ({ context, sp }) => {
             {isActionLoading ? 'Submitting...' : 'Respond'}
           </button>
           <button 
-            onClick={() => navigate('/inbox')} 
+            onClick={() => {
+              forceScrollToTop();
+              navigate('/inbox');
+            }} 
             disabled={isActionLoading} 
             className="px-6 h-[38px] bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md shadow-slate-100 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 border border-slate-350"
           >

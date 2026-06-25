@@ -21,6 +21,7 @@ import MessagePopup, { MessageType } from '../../../../../Share/Components/Messa
 import { NFAService, NFAStatus, IValidationError, INFAFormData } from '../../../../../Share/Services/NFAService';
 import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 // Options
 const workflowOptions = [{ label: 'MANUAL', value: 'MANUAL' }, { label: 'AUTO', value: 'AUTO' }];
@@ -1062,7 +1063,10 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             setSavingProgress(null);
           }
         }} />
-        <CommonButton text="Cancel" variant="danger" onClick={() => navigate('/')} />
+        <CommonButton text="Cancel" variant="danger" onClick={() => {
+          forceScrollToTop();
+          navigate('/');
+        }} />
       </div>
     </div>
   );

@@ -20,6 +20,10 @@ const ExportToExcel: React.FC<ExportToExcelProps> = ({
   fileName = 'export',
   sheetName = 'Sheet1',
 }) => {
+  if (!data || data.length === 0) {
+    return null;
+  }
+
   const handleExport = () => {
     const exportRows = data.map((row) => {
       const formattedRow: Record<string, any> = {};

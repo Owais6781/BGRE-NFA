@@ -113,16 +113,6 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
   return (
     <div className="contentCard mt-3">
 
-      {/* ── Export ── */}
-      <div className="flex justify-end mb-2">
-        <ExportToExcel
-          data={data}
-          columns={exportColumns}
-          fileName="Detail_View"
-          sheetName="Detail View"
-        />
-      </div>
-
       {/* ── Show entries + Search ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <div className="flex items-center gap-2">
@@ -139,7 +129,15 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
           </select>
           <span className="formLabel" style={{ marginBottom: 0 }}>entries</span>
         </div>
-        <SearchInput value={search} onChange={handleSearch} />
+        <div className="flex items-center gap-3">
+          <ExportToExcel
+            data={data}
+            columns={exportColumns}
+            fileName="Detail_View"
+            sheetName="Detail View"
+          />
+          <SearchInput value={search} onChange={handleSearch} />
+        </div>
       </div>
 
       {/* ── Table ── */}

@@ -127,16 +127,6 @@ const ApprovalDetailsTable: React.FC<ApprovalDetailsTableProps> = ({
   return (
     <div className="contentCard mt-3">
 
-      {/* ── Export ── */}
-      <div className="flex justify-end mb-2">
-        <ExportToExcel
-          data={data}
-          columns={exportColumns}
-          fileName="Approval_Details"
-          sheetName="Approval Details"
-        />
-      </div>
-
       {/* ── Show entries + Search ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <div className="flex items-center gap-2">
@@ -153,7 +143,15 @@ const ApprovalDetailsTable: React.FC<ApprovalDetailsTableProps> = ({
           </select>
           <span className="formLabel" style={{ marginBottom: 0 }}>entries</span>
         </div>
-        <SearchInput value={search} onChange={handleSearch} />
+        <div className="flex items-center gap-3">
+          <ExportToExcel
+            data={data}
+            columns={exportColumns}
+            fileName="Approval_Details"
+            sheetName="Approval Details"
+          />
+          <SearchInput value={search} onChange={handleSearch} />
+        </div>
       </div>
 
       {/* ── Table ── */}

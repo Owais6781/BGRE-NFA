@@ -10,6 +10,7 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { NFAService } from '../../../../../Share/Services/NFAService';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IInboxProps {
   context: WebPartContext;
@@ -90,6 +91,7 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
   const navigate = useNavigate();
   const [inboxData, setInboxData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'approver' | 'query'>('approver');
 
   useEffect(() => {
     const fetchInbox = async () => {
@@ -105,6 +107,10 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
     };
     fetchInbox();
   }, []);
+
+  useEffect(() => {
+    forceScrollToTop();
+  }, [loading]);
 
   const pendingInbox = useMemo(() => inboxData.filter(item => (item.status || "").toLowerCase() === 'pending'), [inboxData]);
   const queryInbox = useMemo(() => inboxData.filter(item => (item.status || "").toLowerCase() === 'query'), [inboxData]);
@@ -148,33 +154,121 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
-      <div className="sectionTitleBar flex items-center justify-between">
+      <div className="sectionTitleBar flex items-center justify-between mb-4">
         <span className="sectionTitle">My Inbox</span>
       </div>
 
-      <InboxTable
-        title="Approver Inbox"
-        icon={<InboxIcon size={16} />}
-        accentColor="#3b82f6"
-        data={pendingInbox}
-        loading={loading}
-        columns={approverColumns}
-        exportColumns={approverColumns.map(c => ({ key: c.key, label: c.label }))}
-        fileName="Approver_Inbox"
-        onRowClick={handleRecordClick}
-      />
+      {/* Tabs Header matching reference image */}
+      <div className="flex items-center gap-1.5 mb-5">
+        <button
+          type="button"
+          onClick={() => setActiveTab('approver')}
+          className="focus:outline-none cursor-pointer"
+          style={
+            activeTab === 'approver'
+              ? {
+                  backgroundColor: '#1E3A5F',
+                  color: '#ffffff',
+                  border: '1px solid #1E3A5F',
+                  height: '38px',
+                  minWidth: '150px',
+                  borderTopLeftRadius: '8px',
+                  borderTopRightRadius: '8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '13.5px',
+                  transition: 'all 0.15s ease'
+                }
+              : {
+                  backgroundColor: '#F3F4F6',
+                  color: '#1E3A5F',
+                  border: '1px solid #e2e8f0',
+                  borderBottom: 'none',
+                  height: '38px',
+                  minWidth: '150px',
+                  borderTopLeftRadius: '8px',
+                  borderTopRightRadius: '8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '13.5px',
+                  transition: 'all 0.15s ease'
+                }
+          }
+        >
+          Approver Inbox ({pendingInbox.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('query')}
+          className="focus:outline-none cursor-pointer"
+          style={
+            activeTab === 'query'
+              ? {
+                  backgroundColor: '#1E3A5F',
+                  color: '#ffffff',
+                  border: '1px solid #1E3A5F',
+                  height: '38px',
+                  minWidth: '150px',
+                  borderTopLeftRadius: '8px',
+                  borderTopRightRadius: '8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '13.5px',
+                  transition: 'all 0.15s ease'
+                }
+              : {
+                  backgroundColor: '#F3F4F6',
+                  color: '#1E3A5F',
+                  border: '1px solid #e2e8f0',
+                  borderBottom: 'none',
+                  height: '38px',
+                  minWidth: '150px',
+                  borderTopLeftRadius: '8px',
+                  borderTopRightRadius: '8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '13.5px',
+                  transition: 'all 0.15s ease'
+                }
+          }
+        >
+          Query Inbox ({queryInbox.length})
+        </button>
+      </div>
 
-      <InboxTable
-        title="Query Inbox"
-        icon={<MessageSquare size={16} />}
-        accentColor="#0891b2"
-        data={queryInbox}
-        loading={loading}
-        columns={queryColumns}
-        exportColumns={queryColumns.map(c => ({ key: c.key, label: c.label }))}
-        fileName="Query_Inbox"
-        onRowClick={handleRecordClick}
-      />
+      {activeTab === 'approver' ? (
+        <InboxTable
+          title="Approver Inbox"
+          icon={<InboxIcon size={16} />}
+          accentColor="#3b82f6"
+          data={pendingInbox}
+          loading={loading}
+          columns={approverColumns}
+          exportColumns={approverColumns.map(c => ({ key: c.key, label: c.label }))}
+          fileName="Approver_Inbox"
+          onRowClick={handleRecordClick}
+        />
+      ) : (
+        <InboxTable
+          title="Query Inbox"
+          icon={<MessageSquare size={16} />}
+          accentColor="#0891b2"
+          data={queryInbox}
+          loading={loading}
+          columns={queryColumns}
+          exportColumns={queryColumns.map(c => ({ key: c.key, label: c.label }))}
+          fileName="Query_Inbox"
+          onRowClick={handleRecordClick}
+        />
+      )}
     </div>
   );
 };

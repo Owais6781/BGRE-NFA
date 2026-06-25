@@ -14,6 +14,7 @@ import { CommonService, ApprovedRejectedRecord } from '../../../../../Share/Serv
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import ApprovedRejectedFilter from './ApprovedRejectedFilter';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -76,6 +77,10 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
     };
     loadData();
   }, []);
+
+  useEffect(() => {
+    forceScrollToTop();
+  }, [loading]);
 
   // --- Filtering Logic ---
   const displayData = useMemo(() => {

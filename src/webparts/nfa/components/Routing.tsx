@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Routes, Route, HashRouter, Navigate } from "react-router-dom";
+import { Routes, Route, HashRouter, Navigate, useLocation } from "react-router-dom";
 import { INfaProps } from "./INfaProps";
 import "../../../Share/styles/global.scss";
 import "primereact/resources/themes/lara-light-blue/theme.css";
@@ -23,9 +23,37 @@ import AgeingReport from "./Reports/AgeingReport/AgeingReport";
 import DayWiseAgeing from "./Reports/DayWiseAgeing/DayWiseAgeing";
 import GenericReport from "./Reports/GenericReport/GenericReport";
 
+import { forceScrollToTop } from "../../../Share/utils";
+
+const ScrollToTop: React.FC = () => {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    // Run immediately
+    forceScrollToTop();
+
+    // Periodically run for 1.5s after a path change to battle layout updates and browser scroll preservation
+    let count = 0;
+    const interval = setInterval(() => {
+      forceScrollToTop();
+      count++;
+      if (count >= 15) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [pathname]);
+
+  return null;
+};
+
 const Routing: React.FC<INfaProps> = ({ context, sp }) => {
   return (
     <HashRouter>
+      <ScrollToTop />
       <div className="w-full flex" style={{ background: '#f1f5f9', padding: '10px', minHeight: 'calc(100vh - 140px)' }}>
         <Sidebar context={context} sp={sp} />
 

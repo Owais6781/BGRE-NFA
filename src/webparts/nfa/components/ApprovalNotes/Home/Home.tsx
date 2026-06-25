@@ -9,6 +9,7 @@ import { NFAService } from '../../../../../Share/Services/NFAService';
 import { useNavigate } from 'react-router-dom';
 import { Clock, CheckCircle2, XCircle, FileEdit, FileText } from 'lucide-react';
 import "../../../../../Share/styles/global.scss";
+import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IHomeProps {
   context: WebPartContext;
@@ -49,6 +50,10 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
     };
     loadData();
   }, []);
+
+  useEffect(() => {
+    forceScrollToTop();
+  }, [loading]);
 
   // --- Filtering Logic ---
   const displayData = useMemo(() => {
