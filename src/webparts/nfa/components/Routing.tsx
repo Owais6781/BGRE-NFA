@@ -51,6 +51,13 @@ const ScrollToTop: React.FC = () => {
 };
 
 const Routing: React.FC<INfaProps> = ({ context, sp }) => {
+  React.useEffect(() => {
+    document.body.classList.add("nfa-portal-active");
+    return () => {
+      document.body.classList.remove("nfa-portal-active");
+    };
+  }, []);
+
   return (
     <HashRouter>
       <ScrollToTop />

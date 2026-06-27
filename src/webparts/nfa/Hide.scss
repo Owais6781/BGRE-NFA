@@ -1,119 +1,71 @@
-/* Hide Left Navigation */
-.ms-Nav {
-  display: none !important;
-}
- 
-/* Hide Site Header */
-#spCommandBar {
-  display: none !important;
-}
- 
-#s4-ribbonrow {
-  display: none !important;
-}
- 
-#CommentsWrapper {
-  display: none !important;
-}
- 
-#spLeftNav {
-  display: none !important;
-}
- 
-#ribbonBox {
-  display: none !important;
-}
- 
-#titleAreaBox {
-  display: none !important;
-}
- 
-#sideNavBox {
-  display: none !important;
-}
- 
-#WebPartTitleWPQ5 {
-  display: none !important;
-}
- 
-#WebPartCaptionWPQ5 {
-  display: none !important;
-}
- 
-#RecommendedItems {
-  display: none !important;
-}
- 
-#SuiteNavWrapper {
-  display: none !important;
-}
- 
-/* Classes */
-.mainHeader-109 {
-  display: none !important;
-}
- 
-.sp-appBar {
-  display: none !important;
-}
- 
-.ms-core-sideNavBox-removeLeftMargin {
-  display: none !important;
-}
- 
-.ms-webpart-chrome-title {
-  display: none !important;
-}
- 
-.siteFooter_ {
-  display: none !important;
-}
-.headerRow-50{
+/* Scoped overrides when NFA Portal is active */
+
+body.nfa-portal-active {
+  /* Hide Suite Navigation, Site Header, Page Header, and other SharePoint elements */
+  header:not(.appHeader),
+  #SuiteNavWrapper,
+  [data-automationid="SiteHeader"],
+  [data-automationid="pageHeader"],
+  .ms-Nav,
+  #spCommandBar,
+  #s4-ribbonrow,
+  #CommentsWrapper,
+  #spLeftNav,
+  #ribbonBox,
+  #titleAreaBox,
+  #sideNavBox,
+  #RecommendedItems,
+  div[class*="mainHeader"],
+  div[class*="headerRow"],
+  div[class*="shyHeader"],
+  div[class*="stickyHeader"],
+  div[class*="ms-header"],
+  div[class*="searchBox"],
+  div[class*="pageHeader"],
+  div[class*="siteHeader"],
+  div[class*="hubHeader"],
+  div[class*="ms-HubHeader"],
+  div[class*="sp-appBar"],
+  .sp-appBar,
+  .ms-core-sideNavBox-removeLeftMargin,
+  .ms-webpart-chrome-title,
+  .siteFooter_,
+  #workbenchCommandBar {
     display: none !important;
-}
-.headerRow-107{
-    display: none !important;
-}
-/* Expand Web Part */
-#spPageCanvasContent,
-.CanvasZone,
-.ControlZone,
-.canvas_ {
-  max-width: 100vw !important;
+  }
+
+  /* Expand Web Part container to full-screen */
+  #spPageCanvasContent,
+  .CanvasZone,
+  .ControlZone,
+  .canvas_ {
+    max-width: 100vw !important;
     width: 100vw !important;
- 
-}
- 
-.ControlZone--position{
-  margin-right:9rem !important;
-}
-/* Layout adjustments */
-.CanvasZoneSectionContainer {
-  margin-left: -41px !important;
-}
- 
-.navbarContainer_b020bc3 {
-  margin-top: -27px !important;
-}
- 
-.ControlZone--control {
-  margin-top: -27px !important;
-}
- 
- 
-#workbenchPageContent{
-    max-width: 100lvw !important;
+  }
+
+  .ControlZone--position {
+    margin-right: 9rem !important;
+  }
+
+  /* Layout adjustments */
+  .CanvasZoneSectionContainer {
+    margin-left: -41px !important;
+  }
+
+  .navbarContainer_b020bc3 {
+    margin-top: -27px !important;
+  }
+
+  .ControlZone--control {
+    margin-top: -27px !important;
+  }
+
+  #workbenchPageContent {
+    max-width: 100vw !important;
     width: 100vw !important;
- 
-}
-.w_4YHJ__hHQBj{
+  }
+
+  .w_4YHJ__hHQBj {
     margin-left: -70px !important;
+  }
 }
-.sp-appBar{
-    display: none !important;
-}
-#workbenchCommandBar{
-    display: none !important;
-}
- 
- 

@@ -528,7 +528,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
     if (!receivedOnDate || receivedOnDate === "Unknown") return "0 Hours";
     
     try {
-      const match = receivedOnDate.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?/i);
+      const match = receivedOnDate.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?/i);
       if (!match) {
         const parsed = Date.parse(receivedOnDate);
         if (!isNaN(parsed)) {
@@ -625,7 +625,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-4 px-6 mb-6">
         <div 
           ref={stepperContainerRef}
-          className="relative flex items-center justify-start gap-1 overflow-x-auto pb-3 pt-0.5 no-scrollbar border-b border-slate-100"
+          className="relative flex items-center justify-start gap-1 overflow-x-auto pb-2 pt-0.5 no-scrollbar"
         >
           {workflowSteps.map((step, idx) => {
             const user = users.find(u => u.value === String(step.id));
@@ -637,14 +637,21 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             
             let borderClass = 'border-slate-200 bg-white';
             let avatarClass = 'bg-slate-100 text-slate-400';
-            let dotClass = 'bg-slate-300';
             let labelColor = 'text-slate-400';
             let statusBadge = null;
             
-            if (isInitiator) {
-              borderClass = 'border-blue-500 bg-blue-50/10 shadow-sm shadow-blue-50';
+            if (isCurrent) {
+              borderClass = 'border-amber-500 bg-amber-50/10 shadow-lg shadow-amber-100';
+              avatarClass = 'bg-amber-500 text-white animate-pulse';
+              labelColor = 'text-amber-600 font-extrabold';
+              statusBadge = (
+                <div className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-100 animate-pulse">
+                  <Clock size={10} strokeWidth={3} />
+                </div>
+              );
+            } else if (isInitiator) {
+              borderClass = 'border-slate-200 bg-white';
               avatarClass = 'bg-blue-500 text-white';
-              dotClass = 'bg-blue-500';
               labelColor = 'text-blue-600 font-extrabold';
               statusBadge = (
                 <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-100">
@@ -652,29 +659,17 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 </div>
               );
             } else if (isCompleted) {
-              borderClass = 'border-emerald-500 bg-emerald-50/10 shadow-sm shadow-emerald-50';
+              borderClass = 'border-slate-200 bg-white';
               avatarClass = 'bg-emerald-500 text-white';
-              dotClass = 'bg-emerald-500';
               labelColor = 'text-emerald-600 font-extrabold';
               statusBadge = (
                 <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-100">
                   <Check size={10} strokeWidth={4} />
                 </div>
               );
-            } else if (isCurrent) {
-              borderClass = 'border-amber-500 bg-amber-50/10 shadow-lg shadow-amber-100';
-              avatarClass = 'bg-amber-500 text-white animate-pulse';
-              dotClass = 'bg-amber-500';
-              labelColor = 'text-amber-600 font-extrabold';
-              statusBadge = (
-                <div className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-100 animate-pulse">
-                  <Clock size={10} strokeWidth={3} />
-                </div>
-              );
             } else {
               borderClass = 'border-slate-200 bg-white';
               avatarClass = 'bg-slate-100 text-slate-400';
-              dotClass = 'bg-slate-300';
               labelColor = 'text-slate-400';
               statusBadge = (
                 <div className="w-4 h-4 rounded-full bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center shrink-0">
@@ -704,8 +699,6 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     </span>
                     {statusBadge}
                   </div>
-                  
-                  <div className={`w-2 h-2 rounded-full mt-1.5 ${dotClass}`} />
                 </div>
                 
                 {idx < workflowSteps.length - 1 && (
@@ -716,45 +709,6 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               </React.Fragment>
             );
           })}
-        </div>
-
-        {/* Approver Chart Info Bar */}
-        <div className="pt-4 flex flex-row flex-wrap items-center justify-start gap-y-3">
-          <div className="flex items-center gap-3 shrink-0" style={{ marginRight: '112px' }}>
-            <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-              <Calendar className="text-emerald-500" size={16} />
-            </div>
-            <div className="flex flex-row items-center gap-1.5 min-w-0">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-none">Received On:</span>
-              <span className="text-[13px] font-extrabold text-slate-700 truncate leading-tight">
-                {receivedOnDate}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0" style={{ marginRight: '112px' }}>
-            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-              <Hourglass className="text-blue-500" size={16} />
-            </div>
-            <div className="flex flex-row items-center gap-1.5 min-w-0">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-none">Ageing:</span>
-              <span className="text-[13px] font-extrabold text-slate-700 truncate leading-tight">
-                {ageingText}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-              <FileText className="text-indigo-500" size={16} />
-            </div>
-            <div className="flex flex-row items-center gap-1.5 min-w-0">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-none">Total Approver:</span>
-              <span className="text-[13px] font-extrabold text-slate-700 truncate leading-tight">
-                {nfa.approvers.filter(Boolean).length}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -772,12 +726,12 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 <div className="w-7 h-7 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center shrink-0">
                   <ClipboardList size={15} className="text-blue-600" />
                 </div>
-                <span className="font-bold text-slate-800 text-[13px]">Request Overview</span>
-                <span className="bg-blue-50 text-blue-600 text-[9px] font-extrabold px-2 py-0.5 rounded-md border border-blue-100 uppercase ml-1">
+                <span className="font-bold text-slate-800 text-[14px]">Request Overview</span>
+                <span className="bg-blue-50 text-blue-600 text-[11px] font-extrabold px-2 py-0.5 rounded-md border border-blue-100 uppercase ml-1">
                   Level {nfa.level || '1'}
                 </span>
               </div>
-              <span className="text-[11px] font-bold text-slate-500">
+              <span className="text-[12.5px] font-bold text-slate-500">
                 {nfa.requestNo || '-'}
               </span>
             </div>
@@ -791,7 +745,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <Building2 size={13} className="text-blue-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.project || '-'}</span>
                 </div>
               </div>
@@ -802,7 +756,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <MapPin size={13} className="text-teal-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5">
                     {nfa.projectSubEntity && nfa.projectSubEntity.length > 0 ? nfa.projectSubEntity.join(', ') : '-'}
                   </span>
@@ -815,7 +769,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <Layers size={13} className="text-purple-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Function</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Function</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.originatorDept || '-'}</span>
                 </div>
               </div>
@@ -826,7 +780,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <Calendar size={13} className="text-indigo-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.date || '-'}</span>
                 </div>
               </div>
@@ -837,7 +791,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <Layers size={13} className="text-amber-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Data Matrix</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Data Matrix</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.doaMatrix || '-'}</span>
                 </div>
               </div>
@@ -848,7 +802,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <GitBranch size={13} className="text-emerald-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workflow</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Workflow</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5 uppercase">{nfa.workflow || '-'}</span>
                 </div>
               </div>
@@ -862,7 +816,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               <div className="w-7 h-7 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center shrink-0">
                 <DollarSign size={15} className="text-emerald-600" />
               </div>
-              <span className="font-bold text-slate-800 text-[13px]">Financial Summary</span>
+              <span className="font-bold text-slate-800 text-[14px]">Financial Summary</span>
             </div>
             
             {/* Budget, Awarded, Capex — forced single row */}
@@ -873,9 +827,9 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <div style={{ width: '18px', height: '18px', background: '#dbeafe', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <BadgeDollarSign size={10} className="text-blue-600" />
                   </div>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget</span>
                 </div>
-                <div style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8' }}>₹ {Number(nfa.budget || 0).toLocaleString('en-IN')}</div>
+                <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#1d4ed8' }}>₹ {Number(nfa.budget || 0).toLocaleString('en-IN')}</div>
               </div>
 
               {/* Awarded Cost */}
@@ -884,9 +838,9 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <div style={{ width: '18px', height: '18px', background: '#d1fae5', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Target size={10} className="text-emerald-600" />
                   </div>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Awarded</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Awarded</span>
                 </div>
-                <div style={{ fontSize: '14px', fontWeight: 800, color: '#047857' }}>₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</div>
+                <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#047857' }}>₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</div>
               </div>
 
               {/* Capex Serial No */}
@@ -895,9 +849,9 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <div style={{ width: '18px', height: '18px', background: '#ede9fe', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Tag size={10} className="text-purple-600" />
                   </div>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capex No</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capex No</span>
                 </div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#6d28d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nfa.capexSerialNo || ''}>{nfa.capexSerialNo || '-'}</div>
+                <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#6d28d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nfa.capexSerialNo || ''}>{nfa.capexSerialNo || '-'}</div>
               </div>
             </div>
 
@@ -905,15 +859,15 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
                 <div className="flex items-center gap-1.5 mb-1">
                   <MessageSquare size={11} className="text-slate-400" />
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
                 </div>
-                <div className="text-[12px] text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">{nfa.budgetRemarks}</div>
+                <div className="text-[13.5px] text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">{nfa.budgetRemarks}</div>
               </div>
             )}
           </div>
 
           {/* Details Card with Tabs */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             
             {/* Horizontal Tabs Header — matching reference image style */}
             <div className="flex flex-wrap border-b border-slate-200 gap-x-6 gap-y-2.5 mb-5">
@@ -971,12 +925,12 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             {activeTab === 'details' && (
               <div className="space-y-6">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
                   <h2 className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1">{nfa.referenceSubject || '-'}</h2>
                 </div>
                 
                 <div className="border-t border-slate-100 pt-4">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction / Preamble / Background</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Introduction / Preamble / Background</span>
                   <div 
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent transition-all duration-300"
                     style={!isIntroExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
@@ -987,7 +941,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     <button 
                       type="button"
                       onClick={() => setIsIntroExpanded(!isIntroExpanded)}
-                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
+                      className="text-[12px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
                     >
                       {isIntroExpanded ? 'View less' : 'View more'}
                     </button>
@@ -995,7 +949,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 </div>
 
                 <div className="border-t border-slate-100 pt-4">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
                   <div 
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
                     style={!isChronologyExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
@@ -1006,7 +960,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     <button 
                       type="button"
                       onClick={() => setIsChronologyExpanded(!isChronologyExpanded)}
-                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
+                      className="text-[12px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
                     >
                       {isChronologyExpanded ? 'View less' : 'View more'}
                     </button>
@@ -1014,7 +968,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 </div>
 
                 <div className="border-t border-slate-100 pt-4">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
                   <div 
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
                     style={!isCommercialExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
@@ -1025,7 +979,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     <button 
                       type="button"
                       onClick={() => setIsCommercialExpanded(!isCommercialExpanded)}
-                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
+                      className="text-[12px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
                     >
                       {isCommercialExpanded ? 'View less' : 'View more'}
                     </button>
@@ -1033,7 +987,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 </div>
 
                 <div className="border-t border-slate-100 pt-4">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent">
                     <div dangerouslySetInnerHTML={{ __html: nfa.paymentTerms || '-' }} />
                   </div>
@@ -1045,13 +999,13 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               <div className="space-y-4">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 p-3.5 bg-blue-50/20 border border-blue-100/50 rounded-xl">
-                    <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Contractor Name</span>
+                    <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Contractor Name</span>
                     <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-0.5">{nfa.contractorName || '-'}</div>
                   </div>
                 </div>
                 
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Justification / Recommendation</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Justification / Recommendation</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent">
                     <div dangerouslySetInnerHTML={{ __html: nfa.recommendation || '-' }} />
                   </div>
@@ -1062,19 +1016,19 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             {activeTab === 'terms' && (
               <div className="space-y-4">
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.liquidatedDamage || '-'}</div>
                 </div>
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.contractPerf || '-'}</div>
                 </div>
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.defectLiability || '-'}</div>
                 </div>
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Work Completion</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Work Completion</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.workCompletion || '-'}</div>
                 </div>
               </div>
@@ -1083,23 +1037,23 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             {activeTab === 'notes' && (
               <div className="space-y-4">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.annexure || '-'}</div>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 1</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Note 1</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note1 || '-'}</div>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 2</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Note 2</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note2 || '-'}</div>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 3</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Note 3</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note3 || '-'}</div>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 4</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Note 4</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.note4 || '-'}</div>
                 </div>
               </div>
@@ -1113,13 +1067,13 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         <div className="w-full lg:w-[30%] space-y-6">
 
           {/* Documents Card — reference style */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
 
             {/* Header / Tabs in one row */}
             <div className="flex items-center gap-4 pb-2 border-b border-slate-100 mb-3">
               <button
                 type="button"
-                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[11px] uppercase tracking-wider ${
+                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${
                   activeDocTab === 'attachments'
                     ? 'border-blue-600 text-blue-700 font-extrabold'
                     : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
@@ -1127,14 +1081,14 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 onClick={() => setActiveDocTab('attachments')}
               >
                 <div className="w-5 h-5 bg-blue-50 border border-blue-100 rounded flex items-center justify-center shrink-0">
-                  <FileText size={11} className={activeDocTab === 'attachments' ? 'text-blue-600' : 'text-slate-400'} />
+                  <FileText size={12} className={activeDocTab === 'attachments' ? 'text-blue-600' : 'text-slate-400'} />
                 </div>
-                <span className="text-[11px]">Documents ({docs.length})</span>
+                <span className="text-[12px] font-semibold">Documents ({docs.length})</span>
               </button>
 
               <button
                 type="button"
-                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[11px] uppercase tracking-wider ${
+                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${
                   activeDocTab === 'query'
                     ? 'border-blue-600 text-blue-700 font-extrabold'
                     : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
@@ -1142,9 +1096,9 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 onClick={() => setActiveDocTab('query')}
               >
                 <div className="w-5 h-5 bg-slate-50 border border-slate-150 rounded flex items-center justify-center shrink-0">
-                  <HelpCircle size={11} className={activeDocTab === 'query' ? 'text-blue-600' : 'text-slate-400'} />
+                  <HelpCircle size={12} className={activeDocTab === 'query' ? 'text-blue-600' : 'text-slate-400'} />
                 </div>
-                <span className="text-[11px]">Query Docs ({queryDocuments.length})</span>
+                <span className="text-[12px] font-semibold">Query Docs ({queryDocuments.length})</span>
               </button>
             </div>
 
@@ -1169,12 +1123,13 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                               href={doc.serverRelativeUrl} 
                               target="_blank" 
                               rel="noopener noreferrer"
+                              data-interception="off"
                               className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
                             >
                               <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
-                                <FileText size={12} />
+                                <FileText size={13} />
                               </div>
-                              <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
+                              <span className="text-[13px] font-semibold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
                                 {doc.fileName}
                               </span>
                             </a>
@@ -1189,7 +1144,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                       <button
                         type="button"
                         onClick={() => setIsDocsExpanded(!isDocsExpanded)}
-                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                        className="text-[12px] font-bold text-blue-600 hover:text-blue-800 transition-colors"
                       >
                         {isDocsExpanded ? 'Show Less ↑' : `View All (${docs.length}) ↓`}
                       </button>
@@ -1200,8 +1155,8 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mb-2">
                       <Paperclip size={18} className="text-slate-300" />
                     </div>
-                    <span className="text-[11px] text-slate-400 font-semibold">No attachments found</span>
-                    <span className="text-[10px] text-slate-300 mt-0.5">Files will appear here once uploaded</span>
+                    <span className="text-[13px] text-slate-400 font-semibold">No attachments found</span>
+                    <span className="text-[12px] text-slate-300 mt-0.5">Files will appear here once uploaded</span>
                   </div>
                 )
               ) : (
@@ -1219,12 +1174,13 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                           href={doc.serverRelativeUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
+                          data-interception="off"
                           className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
                         >
                           <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
-                            <FileText size={12} />
+                            <FileText size={13} />
                           </div>
-                          <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
+                          <span className="text-[13px] font-semibold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
                             {doc.fileName}
                           </span>
                         </a>
@@ -1236,7 +1192,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mb-2">
                       <HelpCircle size={18} className="text-slate-300" />
                     </div>
-                    <span className="text-[11px] text-slate-400 font-semibold">No query documents found</span>
+                    <span className="text-[13px] text-slate-400 font-semibold">No query documents found</span>
                   </div>
                 )
               )}
@@ -1247,7 +1203,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
               <History size={15} className="text-blue-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
+              <span className="font-bold text-slate-700 text-[14px] uppercase tracking-wider">Workflow History</span>
             </div>
             
             <div className="space-y-4">
@@ -1304,7 +1260,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                                 {renderHistoryText(descText)}
                               </p>
                               {dateText && (
-                                <span className="text-[9.5px] text-slate-400 mt-0.5 font-normal">
+                                <span className="text-[11px] text-slate-400 mt-0.5 font-normal">
                                   {dateText}
                                 </span>
                               )}
@@ -1318,7 +1274,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                           <button
                             type="button"
                             onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-[10px] font-bold text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-all uppercase tracking-wider"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-[12px] font-bold text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-all uppercase tracking-wider"
                           >
                             {isHistoryExpanded ? 'SHOW LESS' : `VIEW MORE (${history.length - 4})`}
                           </button>
@@ -1328,7 +1284,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   );
                 })()
               ) : (
-                <div className="text-center py-4 text-slate-400 italic text-[11px]">
+                <div className="text-center py-4 text-slate-400 italic text-[13px]">
                   No audit history found.
                 </div>
               )}
@@ -1336,17 +1292,17 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           </div>
 
           {/* Comments & Query History Card — matching reference image */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
               <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Comments History</span>
+              <span className="font-bold text-slate-700 text-[14px] uppercase tracking-wider">Comments History</span>
             </div>
 
             {/* Subtle Pill-style tabs below the main card line header */}
             <div className="flex items-center gap-3 mb-4 pt-1">
               <button
                 type="button"
-                className={`px-3 py-1 rounded-full text-[10.5px] font-bold transition-all border ${
+                className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all border ${
                   activeCommentTab === 'comments'
                     ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
                     : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
@@ -1358,7 +1314,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
               <button
                 type="button"
-                className={`px-3 py-1 rounded-full text-[10.5px] font-bold transition-all border ${
+                className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all border ${
                   activeCommentTab === 'query'
                     ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
                     : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
@@ -1378,11 +1334,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                       return (
                         <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[13px] font-medium text-slate-600 text-left">Comment: {item.remarks || ""}</span>
+                            <span className="text-[13px] font-semibold text-slate-600 text-left">Comment: {item.remarks || ""}</span>
                           </div>
                           <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
                             <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
-                            <p className="text-[11px] text-slate-500 leading-normal relative z-10">
+                            <p className="text-[11.5px] text-slate-500 leading-normal relative z-10">
                               Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
                             </p>
                           </div>
@@ -1391,7 +1347,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-slate-400 italic text-[11px]">
+                  <div className="text-center py-4 text-slate-400 italic text-[13px]">
                     No comments found.
                   </div>
                 )
@@ -1403,11 +1359,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         {/* Query Part */}
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[13px] font-medium text-slate-600 text-left">Query: {item.Query || ""}</span>
+                            <span className="text-[13px] font-semibold text-slate-600 text-left">Query: {item.Query || ""}</span>
                           </div>
                           <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
                             <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
-                            <p className="text-[11px] text-slate-500 leading-normal relative z-10">
+                            <p className="text-[11.5px] text-slate-500 leading-normal relative z-10">
                               Remarks Added by {item.QueryBy ? item.QueryBy.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.QueriedOn || ""}
                             </p>
                           </div>
@@ -1416,11 +1372,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         {item.Response && item.Response.trim() !== "" && (
                           <div className="flex flex-col gap-1 mt-1.5 border-t border-slate-100 pt-1.5">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[13px] font-medium text-slate-600 text-left">Query Response: {item.Response}</span>
+                              <span className="text-[13px] font-semibold text-slate-600 text-left">Query Response: {item.Response}</span>
                             </div>
                             <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
                               <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
-                              <p className="text-[11px] text-slate-500 leading-normal relative z-10">
+                              <p className="text-[11.5px] text-slate-500 leading-normal relative z-10">
                                 Query Responded by {item.QueryTo ? item.QueryTo.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.RespondedOn || ""}
                               </p>
                             </div>
@@ -1430,7 +1386,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-slate-400 italic text-[11px]">
+                  <div className="text-center py-4 text-slate-400 italic text-[13px]">
                     No query remarks found.
                   </div>
                 )
@@ -1442,10 +1398,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
       {/* Remarks & Action Console (Level 4) */}
       {isCurrentApprover && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5 mt-6">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-5 mt-6">
           <div className="flex items-center gap-2 mb-2 border-b border-slate-100 pb-3">
             <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-            <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+            <span className="font-bold text-slate-800 text-[14px] uppercase tracking-wider">
               Action Console (Level {nfa.level || '4'})
             </span>
           </div>
@@ -1454,12 +1410,12 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             
             {/* Remarks TextArea (Left 60%) */}
             <div className="w-full md:w-[60%] flex flex-col">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block shrink-0">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block shrink-0">
                 Remarks / Comments <span className="text-rose-500">*</span>
               </label>
               <div className="relative flex-1">
                 <textarea 
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all resize-none h-[110px] leading-relaxed shadow-sm"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all resize-none h-[110px] leading-relaxed shadow-sm"
                   placeholder="Type your approval / rejection comments here..."
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
@@ -1472,7 +1428,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               
               {/* Custom People Picker */}
               <div className="relative" ref={suggestionsRef}>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">
                   Delegate / Query User
                 </label>
                 
@@ -1485,7 +1441,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         initials={getInitials(selectedUserObj.label)} 
                         className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] shrink-0 shadow-inner" 
                       />
-                      <span className="text-[13px] font-bold text-slate-700 truncate">{selectedUserObj.label}</span>
+                      <span className="text-[13px] font-semibold text-slate-700 truncate">{selectedUserObj.label}</span>
                     </div>
                     <button 
                       type="button" 
@@ -1535,7 +1491,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                             initials={getInitials(u.label)} 
                             className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-[9px] shrink-0 shadow-inner" 
                           />
-                          <span className="text-[13px] font-bold text-slate-700">{u.label}</span>
+                          <span className="text-[13px] font-semibold text-slate-700">{u.label}</span>
                         </button>
                       ))
                     ) : (
@@ -1547,7 +1503,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 )}
               </div>
               
-              <span className="text-[9.5px] text-slate-400 font-semibold mt-2.5 block leading-none pl-0.5">
+              <span className="text-[11px] text-slate-400 font-semibold mt-2.5 block leading-none pl-0.5">
                 Delegated user will be notified to take action.
               </span>
             </div>

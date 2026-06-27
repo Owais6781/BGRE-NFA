@@ -1,0 +1,21 @@
+1. npm install
+2. npm run clean   OR  npx heft clean
+3. npm run tw:build
+4. npm run build
+5. npx heft clean
+npx heft test --clean --production
+npx heft package-solution --production
+
+
+
+Make this solution available to all sites in the organization If you clear this setting, 
+users won't be able to add the web part to pages. The web part will continue to work if it was already added to pages.
+Leave it unchecked.
+
+Then:
+Upload .sppkg
+Click Deploy
+Go to your NFA site
+Site Contents → Add an App
+Install morden-ui-nfa
+Add the web part to your page

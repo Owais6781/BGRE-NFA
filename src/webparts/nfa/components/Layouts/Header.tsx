@@ -6,6 +6,8 @@ interface HeaderProps {
   context: WebPartContext;
 }
 
+const logo = require('../../assets/Leelalogo-black.svg');
+
 const Header: React.FC<HeaderProps> = ({ context }) => {
   const [userName, setUserName] = useState<string>("");
   const [userInitials, setUserInitials] = useState<string>("");
@@ -34,9 +36,15 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
 
   return (
     <header className="appHeader flex items-center justify-between !bg-transparent !shadow-none !border-none !h-[50px]" style={{ paddingRight: '32px' }}>
-      {/* Left — Title with specific 50px margin */}
-      <div className="flex items-center" style={{ marginLeft: '38px' }}>
-        <span className="headerTitle uppercase tracking-widest text-[14px] !text-slate-800 opacity-95">Note for Approval (NFA)</span>
+      {/* Left — Title with Leela logo */}
+      <div className="flex items-center gap-3.5" style={{ marginLeft: '38px' }}>
+        <img 
+          src={logo} 
+          alt="Leela Logo" 
+          style={{ height: '32px', display: 'block' }} 
+        />
+        <div className="h-5 w-[1px] bg-slate-300"></div>
+        <span className="headerTitle uppercase tracking-widest text-[14px] !text-slate-800 opacity-95 font-bold">Note for Approval (NFA)</span>
       </div>
 
       {/* Right — user info aligned with form end */}

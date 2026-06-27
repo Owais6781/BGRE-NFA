@@ -605,6 +605,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                       href={doc.serverRelativeUrl} 
                       target="_blank" 
                       rel="noopener noreferrer" 
+                      data-interception="off"
                       className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
                     >
                       <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
@@ -651,6 +652,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                       href={doc.serverRelativeUrl} 
                       target="_blank" 
                       rel="noopener noreferrer" 
+                      data-interception="off"
                       className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
                     >
                       <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>

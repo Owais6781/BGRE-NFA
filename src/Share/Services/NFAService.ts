@@ -498,9 +498,13 @@ public async resolveUserId(loginName: string): Promise<number | null> {
 
   public async getNFAList(): Promise<any[]> {
     try {
+      const currentUser = await this.sp.web.currentUser();
+      const currentUserId = currentUser.Id;
+
       const items = await this.sp.web.lists.getByTitle(this.listName).items
         .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "PendingAt/Title", "Level")
-        .expand("PendingAt")();
+        .expand("PendingAt")
+        .filter(`AuthorId eq ${currentUserId}`)();
 
       return items.map((item: any) => ({
         id: item.Id,
