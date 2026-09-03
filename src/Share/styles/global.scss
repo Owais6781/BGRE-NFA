@@ -2,6 +2,19 @@
 
 @import "./variables.scss";
 
+:root {
+  --primary-burgundy: #{$primary-burgundy};
+  --primary-burgundy-hover: #{$primary-burgundy-hover};
+  --header-background: #{$header-bg};
+  --sidebar-background: #{$sidebar-bg};
+  --page-background: #{$page-bg};
+  --text-primary: #{$text-primary};
+  --text-secondary: #{$text-secondary};
+  --border-color: #{$sidebar-border};
+  --font-family-primary: #{$font-primary};
+  --font-family-heading: #{$font-heading};
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -11,7 +24,7 @@
 
 /* ── Page ── */
 .pageContainer {
-  background: $page-bg;
+  background: transparent;
   min-height: 100%;
   padding: $space-md;
 }
@@ -19,23 +32,21 @@
 /* ── Header ── */
 .appHeader {
   background: $header-bg;
-  color: #ffffff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: $text-primary;
+  border-bottom: 1px solid $header-border;
   width: 100%;
-  height: 80px;
+  height: 64px;
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border-top-right-radius: $radius-xl;
-  border-bottom-right-radius: $radius-xl;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .headerTitle {
-  font-family: $font-heading;
-  font-size: 16px;
-  font-weight: $font-normal;
-  color: rgba(255, 255, 255, 0.95);
+  font-family: $font-primary;
+  font-size: 14px;
+  font-weight: $font-bold;
+  color: $text-primary;
   letter-spacing: 0.8px;
 }
 
@@ -71,9 +82,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-right: 1px solid $sidebar-border;
-  border-top-left-radius: $radius-xl;
-  border-bottom-left-radius: $radius-xl;
+  border: 1px solid $sidebar-border;
+  border-radius: $radius-xl;
 
   &.sidebarCollapsed {
     width: 56px;
@@ -86,7 +96,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 10px 0 14px;
-  height: 80px;
+  height: 50px;
   flex-shrink: 0;
   border-bottom: 1px solid $sidebar-border;
 }
@@ -162,7 +172,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 9px 12px;
+  margin: 2px 8px;
+  border-radius: $radius-md;
   color: $sidebar-text;
   font-family: $font-primary;
   font-size: $font-size-md;
@@ -170,7 +182,6 @@
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
-  border-left: 4px solid transparent;
 
   .sidebarLinkIcon {
     flex-shrink: 0;
@@ -188,28 +199,36 @@
 
   &:hover {
     background: $sidebar-hover-bg;
-    color: $sidebar-active-text;
+    color: $text-primary;
 
     .sidebarLinkIcon {
-      color: $sidebar-active-text;
+      color: $text-primary;
     }
   }
 
   &.active {
     background: $sidebar-active-bg;
-    color: $sidebar-active-text;
-    font-weight: $font-semibold;
-    border-left-color: $sidebar-active-border;
+    color: #ffffff !important;
+    font-weight: $font-medium;
 
     .sidebarLinkIcon {
-      color: $sidebar-active-text;
+      color: #ffffff !important;
+    }
+
+    .sidebarLinkLabel {
+      color: #ffffff !important;
+    }
+
+    .sidebarBadge {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
     }
   }
 }
 
 /* ── Badge ── */
 .sidebarBadge {
-  background: $color-accent;
+  background: $primary-burgundy;
   color: #fff;
   font-size: 10px;
   font-weight: $font-semibold;
@@ -240,9 +259,8 @@
 
   .sidebarLink {
     justify-content: center;
-    padding: 12px 0;
-    border-left: none;
-    border-right: 3px solid transparent;
+    padding: 10px 0;
+    margin: 3px 6px;
     gap: 0;
 
     .sidebarLinkLabel,
@@ -251,16 +269,15 @@
     }
 
     &.active {
-      border-right-color: $color-accent;
-      border-left: none;
+      background: $sidebar-active-bg;
 
       .sidebarLinkIcon {
-        color: $color-accent;
+        color: #ffffff !important;
       }
     }
 
     &:hover .sidebarLinkIcon {
-      color: $color-brand;
+      color: $text-primary;
     }
   }
 }
@@ -380,6 +397,69 @@
   }
 }
 
+/* ── Global Common Page Title ── */
+.nfaTitleSection {
+  display: flex !important;
+  flex-direction: column;
+  margin-bottom: 20px;
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.nfaPageTitle {
+  font-family: $font-heading !important; // Professional serif-style title
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: $primary-burgundy !important; // Exact Dark burgundy / maroon #4A081E
+  letter-spacing: -0.2px;
+  line-height: 1.25;
+  margin: 0 0 4px 0 !important;
+  display: block !important;
+}
+
+.nfaPageSubtitle {
+  font-family: $font-primary !important;
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  color: $text-secondary !important;
+  letter-spacing: 0.1px;
+  line-height: 1.4;
+  margin: 0 !important;
+  display: block !important;
+}
+
+.btnPageAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: $primary-burgundy;
+  color: #ffffff;
+  font-family: $font-primary;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(74, 8, 30, 0.15);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: $primary-burgundy-hover;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(74, 8, 30, 0.25);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
 /* ── Content Card ── */
 .contentCard {
   background: $content-bg;
@@ -392,7 +472,7 @@
 /* ── Section Title Bar ── */
 .sectionTitleBar {
   background: $content-bg;
-  border-left: 4px solid $color-brand;
+  border-left: 4px solid $primary-burgundy;
   padding: 6px 14px;
   margin-bottom: $space-md;
   border-radius: 0 $radius-lg $radius-lg 0;
@@ -403,7 +483,7 @@
   font-family: $font-heading;
   font-size: $font-size-base;
   font-weight: $font-semibold;
-  color: $color-brand;
+  color: $primary-burgundy;
   letter-spacing: 0.1px;
 }
 
@@ -710,7 +790,7 @@
   font-size: $font-size-xl;
   font-weight: $font-bold;
   color: $color-brand;
-  text-align: center;
+  text-align: left;
   margin-bottom: $space-2xl;
   padding-bottom: $space-md;
   border-bottom: 2px solid $color-accent-light;

@@ -28,6 +28,10 @@ $font-bold:     700;
 /* =========================
    BRAND COLORS
 ========================= */
+$primary-burgundy:        #4A081E;  // Exact Corporate Deep Burgundy from reference
+$primary-burgundy-hover:  #3D000F;
+$primary-burgundy-light:  #F7EFEF;
+
 $color-brand:        #262626;  // Softened Charcoal
 $color-brand-dark:   #1a1a1a;
 $color-accent:       #AF8941;  // Signature Leela Gold/Copper
@@ -40,37 +44,38 @@ $color-black: #000000;
 /* =========================
    TEXT COLORS
 ========================= */
-$text-primary:   #262626;
-$text-secondary: #4a4a4a;
+$text-primary:   #1F2937;
+$text-secondary: #71717A;
 $text-muted:     #8e8e8e;
 $text-on-dark:   #ffffff;
 
 /* =========================
    BACKGROUND COLORS
 ========================= */
-$page-bg:       #f9f8f4;  // Elegant Off-white
+$page-bg:       #F9F9F9;  // Clean, very light background matching reference
 $content-bg:    #ffffff;
 $content-border: #e8e6e1;
 
 /* =========================
    SIDEBAR COLORS
 ========================= */
-$sidebar-bg:          #F3F4F6;
-$sidebar-header-bg:   #F3F4F6;
-$sidebar-active-bg:   #F5ECDD;
-$sidebar-active-text: #1E3A5F;
-$sidebar-hover-bg:    #EEF1F5;
-$sidebar-text:        #1E3A5F;
-$sidebar-header-text: #1E3A5F;
-$sidebar-border:      rgba(30, 58, 95, 0.08);
-$sidebar-section-title: #C9A961;
-$sidebar-active-border: #D4A54A;
+$sidebar-bg:          #F4F3F0;  // Clean, light neutral off-white
+$sidebar-header-bg:   #F4F3F0;
+$sidebar-active-bg:   $primary-burgundy;  // Dark burgundy background for active tab
+$sidebar-active-text: #ffffff;            // White text for active tab
+$sidebar-hover-bg:    #EAE8E3;
+$sidebar-text:        #374151;
+$sidebar-header-text: #1F2937;
+$sidebar-border:      #E8E6E1;
+$sidebar-section-title: #78716C;
+$sidebar-active-border: $primary-burgundy;
 
 /* =========================
    HEADER COLORS
 ========================= */
-$header-bg:   #333333;
-$header-text: #ffffff;
+$header-bg:   #FAF9F6;  // Clean, warm/off-white header background
+$header-text: #1F2937;
+$header-border: #E8E6E1;
 
 /* =========================
    TABLE COLORS

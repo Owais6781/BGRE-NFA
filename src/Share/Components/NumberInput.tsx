@@ -5,7 +5,7 @@ interface NumberInputProps {
   label: string;
   value: string | number;
   onChange: (value: string) => void;
-  onBlur?: () => void;
+  onBlur?: (value: string) => void;
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
@@ -35,7 +35,11 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         value={value}
         placeholder={placeholder}
         disabled={disabled}
-        onBlur={onBlur}
+        onBlur={(e) => {
+          if (onBlur) {
+            onBlur(e.target.value);
+          }
+        }}
         onChange={(e) => {
           // Allow only numbers and a single decimal point
           const val = e.target.value.replace(/[^0-9.]/g, '');

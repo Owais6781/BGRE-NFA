@@ -9,6 +9,7 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { ReportService, IAgeingStatusRecord } from '../../../../../Share/Services/ReportService';
 import AgeingReportFilter from './AgeingReportFilter';
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import "../../../../../Share/styles/global.scss";
 
 const COLUMNS = [
@@ -79,9 +80,10 @@ const AgeingReport: React.FC<IAgeingReportProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
-      <div className="sectionTitleBar flex items-center justify-between">
-        <span className="sectionTitle">Ageing Report</span>
-      </div>
+      <PageTitle 
+        title="Ageing Report" 
+        subtitle="Monitor ageing brackets for open approval requests." 
+      />
 
       {/* Filter Card */}
       <div className="mb-4">

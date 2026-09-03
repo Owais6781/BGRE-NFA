@@ -2,6 +2,7 @@ import * as React                 from 'react';
 import { useState }               from 'react';
 import ApproverWisePendencyFilter from './ApproverWisePendencyFilter';
 import ReportTable                from '../../../../../Share/Components/ReportTable';
+import PageTitle                  from '../../../../../Share/Components/PageTitle';
 import "../../../../../Share/styles/global.scss";
 
 const COLUMNS = [
@@ -21,9 +22,10 @@ const ApproverWisePendency: React.FC = () => {
 
   return (
     <div className="pageContainer">
-      <div className="sectionTitleBar flex items-center justify-between">
-        <span className="sectionTitle">Approver Wise Pendency Report</span>
-      </div>
+      <PageTitle 
+        title="Approver Wise Pendency Report" 
+        subtitle="Track pending approvals and turnaround times across approvers." 
+      />
 
       <ApproverWisePendencyFilter onSearch={handleSearch} onReset={() => setData([])} />
 

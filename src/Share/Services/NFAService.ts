@@ -107,6 +107,13 @@ public async resolveUserId(loginName: string): Promise<number | null> {
 
     if (!form.originatorDept.trim()) errors.push({ field: "originatorDept", message: "Dept is required." });
     if (!form.referenceSubject.trim()) errors.push({ field: "referenceSubject", message: "Subject is required." });
+    if (!form.projectSubEntity || form.projectSubEntity.length === 0) errors.push({ field: "projectSubEntity", message: "Sub-Entity is required." });
+
+    const stripHtml = (html: string): string => (html || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    if (!stripHtml(form.introduction)) errors.push({ field: "introduction", message: "Introduction is required." });
+    if (!stripHtml(form.chronology)) errors.push({ field: "chronology", message: "Chronology is required." });
+    if (!stripHtml(form.commercialProposal)) errors.push({ field: "commercialProposal", message: "Commercial Proposals is required." });
+
     if (!form.approvers[0]) errors.push({ field: "approvers", message: "Approver Level-1 is required." });
 
     const cost = parseFloat(String(form.packageAwardedCost || "").replace(/,/g, ''));
@@ -370,11 +377,27 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         requestNo = this.generateRequestNo(projectName, form.date, "Pending", itemId);
         const initiatorName = this.context.pageContext.user.displayName || "Initiator";
         const dateStr = formatHistoryDate(new Date());
+
+        const pendingAtId = resolvedApprovers[0] || null;
+        let pendingAtName = "";
+        if (pendingAtId) {
+          try {
+            const user = await this.sp.web.siteUsers.getById(pendingAtId)();
+            pendingAtName = user.Title || "";
+          } catch (userErr) {
+            console.error("NFAService: Error fetching site user for pendingAtId:", pendingAtId, userErr);
+          }
+        }
+
         const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
+        const pendingWorkflowHistory = pendingAtName
+          ? `\nNFA Pending at ${pendingAtName} at level-1 on ${dateStr}</br>`
+          : "";
+        const fullWorkflowHistory = initWorkflowHistory + pendingWorkflowHistory;
 
         await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
           Title: requestNo,
-          WorkflowHistory: initWorkflowHistory
+          WorkflowHistory: fullWorkflowHistory
         });
         await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions);
       }
@@ -421,11 +444,27 @@ public async resolveUserId(loginName: string): Promise<number | null> {
           const currentWorkflowHistory = item.WorkflowHistory || "";
           const initiatorName = this.context.pageContext.user.displayName || "Initiator";
           const dateStr = formatHistoryDate(new Date());
+
+          const pendingAtId = resolvedApprovers[0] || null;
+          let pendingAtName = "";
+          if (pendingAtId) {
+            try {
+              const user = await this.sp.web.siteUsers.getById(pendingAtId)();
+              pendingAtName = user.Title || "";
+            } catch (userErr) {
+              console.error("NFAService: Error fetching site user for pendingAtId:", pendingAtId, userErr);
+            }
+          }
+
           const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
+          const pendingWorkflowHistory = pendingAtName
+            ? `\nNFA Pending at ${pendingAtName} at level-1 on ${dateStr}</br>`
+            : "";
+          const newWorkflowEntry = initWorkflowHistory + pendingWorkflowHistory;
           
           body.WorkflowHistory = currentWorkflowHistory
-            ? `${currentWorkflowHistory}\n${initWorkflowHistory}`
-            : initWorkflowHistory;
+            ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
+            : newWorkflowEntry;
         } catch (hErr) {
           console.warn("NFAService: Error reading WorkflowHistory in updateNFA:", hErr);
         }

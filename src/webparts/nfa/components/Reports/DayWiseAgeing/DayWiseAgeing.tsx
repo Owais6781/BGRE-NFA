@@ -1,6 +1,7 @@
 import * as React          from 'react';
 import { useState }        from 'react';
 import DayWiseAgeingFilter from './DayWiseAgeingFilter';
+import PageTitle          from '../../../../../Share/Components/PageTitle';
 import "../../../../../Share/styles/global.scss";
 
 const COLUMNS = [
@@ -21,9 +22,10 @@ const DayWiseAgeing: React.FC = () => {
 
   return (
     <div className="pageContainer">
-      <div className="sectionTitleBar flex items-center justify-between">
-        <span className="sectionTitle">Day Wise Ageing Report</span>
-      </div>
+      <PageTitle 
+        title="Day Wise Ageing Report" 
+        subtitle="Daily ageing analytics and duration breakdown for pending notes." 
+      />
 
       <DayWiseAgeingFilter onSearch={handleSearch} onReset={() => setData([])} />
 

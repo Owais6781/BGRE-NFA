@@ -21,7 +21,7 @@ body.nfa-portal-active {
   div[class*="stickyHeader"],
   div[class*="ms-header"],
   div[class*="searchBox"],
-  div[class*="pageHeader"],
+  div[class*="pageHeader"]:not([class*="nfa"]),
   div[class*="siteHeader"],
   div[class*="hubHeader"],
   div[class*="ms-HubHeader"],

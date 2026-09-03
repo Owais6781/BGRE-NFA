@@ -1203,7 +1203,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
               <History size={15} className="text-blue-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[14px] uppercase tracking-wider">Workflow History</span>
+              <span className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Workflow History</span>
             </div>
             
             <div className="space-y-4">
@@ -1295,7 +1295,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
               <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[14px] uppercase tracking-wider">Comments History</span>
+              <span className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Comments History</span>
             </div>
 
             {/* Subtle Pill-style tabs below the main card line header */}

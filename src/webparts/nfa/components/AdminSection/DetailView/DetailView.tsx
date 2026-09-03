@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import DetailViewFilter from './DetailViewFilter';
 import DetailViewTable  from './DetailViewTable';
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import "../../../../../Share/styles/global.scss";
 
 interface DetailViewRecord {
@@ -55,12 +56,15 @@ const DetailView: React.FC = () => {
   return (
     <div className="pageContainer">
 
-      <div className="sectionTitleBar flex items-center justify-between">
-        <span className="sectionTitle">Detailed View</span>
-        <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
-          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-        </button>
-      </div>
+      <PageTitle 
+        title="Detailed View" 
+        subtitle="Detailed administrative overview of all approval records." 
+        action={
+          <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
+            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          </button>
+        }
+      />
 
       {!isCollapsed && (
         <>

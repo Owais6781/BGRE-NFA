@@ -61,37 +61,36 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
   return (
     <HashRouter>
       <ScrollToTop />
-      <div className="w-full flex" style={{ background: '#f1f5f9', padding: '10px', minHeight: 'calc(100vh - 140px)' }}>
-        <Sidebar context={context} sp={sp} />
+      <div className="w-full flex flex-col min-h-screen" style={{ background: 'var(--page-background, #F8F7F4)' }}>
+        <Header context={context} />
 
-        <div className="flex flex-col flex-1 min-w-0">
-          <Header context={context} />
+        <div className="w-full flex flex-1 min-w-0" style={{ padding: '10px' }}>
+          <Sidebar context={context} sp={sp} />
 
-          <main className="flex-1 w-full min-w-0" style={{ padding: '10px 0 30px 20px' }}>
+          <main className="flex-1 w-full min-w-0" style={{ padding: '0 0 30px 20px' }}>
             <Routes>
-                <Route path="/"                    element={<Home context={context} sp={sp}/>} />
-                <Route path="/new-nfa"             element={<NewNFA context={context} sp={sp}/>} />
-                <Route path="/new-nfa/:id"         element={<NewNFA context={context} sp={sp}/>} />
-                <Route path="/view-nfa/:id"        element={<ViewNFA context={context} sp={sp}/>} />
-                <Route path="/approver-page/:id"   element={<ApproverPage context={context} sp={sp}/>} />
-                <Route path="/query-respond/:id"   element={<QueryRespond context={context} sp={sp}/>} />
-                <Route path="/inbox"               element={<Inbox context={context} sp={sp}/>} />
-                <Route path="/approver-detail"     element={<ApprovalDetailsView context={context} sp={sp}/>} />
-                <Route path="/approved-rejected"   element={<ApprovedRejectedByMe context={context} sp={sp}/>} />
-                <Route path="/detail-view"         element={<DetailView />} />
-                <Route path="/masters"             element={<Masters />} />
-                <Route path="/function-wise-status"    element={<FunctionWiseStatus context={context} sp={sp}/>} />
-                <Route path="/approver-wise-pendency"  element={<ApproverWisePendency />} />
-                <Route path="/ageing-report"       element={<AgeingReport context={context} sp={sp}/>} />
-                <Route path="/day-wise-ageing"     element={<DayWiseAgeing />} />
-                <Route path="/generic-report"      element={<GenericReport />} />
-                {/* Fallback to Home */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-          </div>
-
+              <Route path="/"                    element={<Home context={context} sp={sp}/>} />
+              <Route path="/new-nfa"             element={<NewNFA context={context} sp={sp}/>} />
+              <Route path="/new-nfa/:id"         element={<NewNFA context={context} sp={sp}/>} />
+              <Route path="/view-nfa/:id"        element={<ViewNFA context={context} sp={sp}/>} />
+              <Route path="/approver-page/:id"   element={<ApproverPage context={context} sp={sp}/>} />
+              <Route path="/query-respond/:id"   element={<QueryRespond context={context} sp={sp}/>} />
+              <Route path="/inbox"               element={<Inbox context={context} sp={sp}/>} />
+              <Route path="/approver-detail"     element={<ApprovalDetailsView context={context} sp={sp}/>} />
+              <Route path="/approved-rejected"   element={<ApprovedRejectedByMe context={context} sp={sp}/>} />
+              <Route path="/detail-view"         element={<DetailView />} />
+              <Route path="/masters"             element={<Masters />} />
+              <Route path="/function-wise-status"    element={<FunctionWiseStatus context={context} sp={sp}/>} />
+              <Route path="/approver-wise-pendency"  element={<ApproverWisePendency />} />
+              <Route path="/ageing-report"       element={<AgeingReport context={context} sp={sp}/>} />
+              <Route path="/day-wise-ageing"     element={<DayWiseAgeing />} />
+              <Route path="/generic-report"      element={<GenericReport />} />
+              {/* Fallback to Home */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
         </div>
+      </div>
       
     </HashRouter>
   );

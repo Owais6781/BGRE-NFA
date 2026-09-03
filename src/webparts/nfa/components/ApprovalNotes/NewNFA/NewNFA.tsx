@@ -21,6 +21,7 @@ import MessagePopup, { MessageType } from '../../../../../Share/Components/Messa
 import { NFAService, NFAStatus, IValidationError, INFAFormData } from '../../../../../Share/Services/NFAService';
 import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
 
 // Options
@@ -133,6 +134,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const [doaMatrixOptions, setDoaMatrixOptions] = useState<IDropdownOption[]>([]);
   const [doaMatrixApprovers, setDoaMatrixApprovers] = useState<IDropdownOption[]>([]);
   const lastDoaCheck = useRef({ dept: '', amount: '' });
+  const isInitialMount = useRef(true);
   const [doaAlert, setDoaAlert] = useState<{ show: boolean, type: MessageType, title: string, messages: string[], onSuccessRedirect?: boolean }>({
     show: false, type: 'info', title: '', messages: [], onSuccessRedirect: false
   });
@@ -393,19 +395,19 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   }, [form.originatorDept, id]);
 
   // --- 4. AUTO WORKFLOW: DOA MATRIX LOOKUP ---
-  const fetchMatchingMatrix = async (manualTrigger = false) => {
-    if (form.workflow !== 'AUTO' || !form.originatorDept || !form.packageAwardedCost) {
-      if (form.workflow === 'MANUAL') {
-        setDoaMatrixOptions([]);
-        setDoaMatrixApprovers([]);
-        setForm(prev => ({ ...prev, doaMatrix: '' }));
-      }
+  const fetchMatchingMatrix = async (manualTrigger = false, amountVal?: string) => {
+    const costToUse = amountVal !== undefined ? amountVal : form.packageAwardedCost;
+    const rawAmount = String(costToUse || "0").replace(/,/g, '');
+    const amount = parseFloat(rawAmount) || 0;
+
+    if (form.workflow !== 'AUTO' || !form.originatorDept || amount === 0) {
+      setDoaMatrixOptions([]);
+      setDoaMatrixApprovers([]);
+      updateField('doaMatrix', '');
       return;
     }
 
     try {
-      const rawAmount = String(form.packageAwardedCost || "0").replace(/,/g, '');
-      const amount = parseFloat(rawAmount) || 0;
       const shouldAlert = manualTrigger;
 
       const siteUrl = context.pageContext.web.absoluteUrl;
@@ -445,8 +447,23 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   };
 
   useEffect(() => {
-    fetchMatchingMatrix(false);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      fetchMatchingMatrix(false);
+      return;
+    }
+
+    if (form.workflow === 'AUTO') {
+      fetchMatchingMatrix(true);
+    }
   }, [form.workflow, form.originatorDept]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchMatchingMatrix(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [form.packageAwardedCost]);
 
   // --- 5. AUTO WORKFLOW: POPULATE APPROVERS ---
   useEffect(() => {
@@ -559,7 +576,10 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
-      <p className="formPageTitle">{id ? "Edit Note for Approval Request" : "Note for Approval Request Form"}</p>
+      <PageTitle 
+        title={id ? "Edit NFA" : "New NFA"} 
+        subtitle={id ? "Modify existing Note for Approval details." : "Create a new Note for Approval."} 
+      />
  
       <CollapsibleSection icon={<Building2 size={13} />} title="Basic Information" hasError={hasSectionErrors(['project', 'projectSubEntity', 'originatorDept'])}>
         <div className="flex flex-wrap gap-x-6 gap-y-4 mb-4">
@@ -567,7 +587,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             <DropdownField label="Project" value={form.project} options={projectOptions} onChange={handleProjectChange} emptyLabel="Select Project..." error={getFieldError('project')} />
           </div>
           <div className="flex-1 min-w-[220px]">
-            <MultiSelectDropdown label="Sub-Entity" options={subEntityOptions} selectedValues={form.projectSubEntity} onChange={v => updateField('projectSubEntity', v)} disabled={loadingSubEntity || !form.project} />
+            <MultiSelectDropdown label="Sub-Entity" options={subEntityOptions} selectedValues={form.projectSubEntity} onChange={v => updateField('projectSubEntity', v)} disabled={loadingSubEntity || !form.project} required error={getFieldError('projectSubEntity')} />
           </div>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
@@ -582,9 +602,9 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
  
       <CollapsibleSection icon={<FileText size={13} />} title="NFA Details" defaultOpen={false} hasError={hasSectionErrors(['referenceSubject', 'introduction', 'chronology', 'commercialProposal', 'paymentTerms'])}>
         <div className="mb-4"><TextAreaField label="Subject" value={form.referenceSubject} onChange={v => updateField('referenceSubject', v)} rows={2} required error={getFieldError('referenceSubject')} /></div>
-        <div className="mb-4"><RichTextEditor label="Introduction" value={form.introduction} onChange={v => updateField('introduction', v)} /></div>
-        <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)} /></div>
-        <div className="mb-4"><RichTextEditor label="Commercial Proposals" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)} /></div>
+        <div className="mb-4"><RichTextEditor label="Introduction" value={form.introduction} onChange={v => updateField('introduction', v)} required error={getFieldError('introduction')} /></div>
+        <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)} required error={getFieldError('chronology')} /></div>
+        <div className="mb-4"><RichTextEditor label="Commercial Proposals" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)} required error={getFieldError('commercialProposal')} /></div>
         <RichTextEditor label="Payment Terms" value={form.paymentTerms} onChange={v => updateField('paymentTerms', v)} />
       </CollapsibleSection>
  
@@ -598,7 +618,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       <CollapsibleSection icon={<DollarSign size={13} />} title="Financials" defaultOpen={false} hasError={hasSectionErrors(['budgetRemarks', 'packageAwardedCost', 'budget', 'capexSerialNo'])}>
         <div className="mb-4"><TextAreaField label="Remarks" value={form.budgetRemarks} onChange={v => updateField('budgetRemarks', v)} rows={3} /></div>
         <div className="flex gap-x-6 mb-4">
-          <div className="flex-1"><NumberInput label="Awarded Cost" value={form.packageAwardedCost} onChange={v => updateField('packageAwardedCost', v)} onBlur={() => fetchMatchingMatrix(true)} required error={getFieldError('packageAwardedCost')} /></div>
+          <div className="flex-1"><NumberInput label="Awarded Cost" value={form.packageAwardedCost} onChange={v => updateField('packageAwardedCost', v)} onBlur={v => fetchMatchingMatrix(true, v)} required error={getFieldError('packageAwardedCost')} /></div>
           <div className="flex-1"><NumberInput label="Budget" value={form.budget} onChange={v => updateField('budget', v)} required error={getFieldError('budget')} /></div>
         </div>
         <div className="mb-4"><TextAreaField label="Capex No" value={form.capexSerialNo} onChange={v => updateField('capexSerialNo', v)} rows={3} /></div>
@@ -912,7 +932,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                       </div>
                     </div>
                   ) : (
-                    <div>Writing records to DigitalApprovalNotes & DashboardList...</div>
+                    <div>Saving details and updating status...</div>
                   )}
                 </div>
               </div>

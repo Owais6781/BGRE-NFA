@@ -10,7 +10,6 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { NFAService } from '../../../../Share/Services/NFAService';
 
-const logo = require('../../assets/Leelalogo-black.svg');
 import "../../../../Share/styles/global.scss";
 
 type NavItem =
@@ -104,19 +103,8 @@ const Sidebar: React.FC<ISidebarProps> = ({ context, sp }) => {
   return (
     <div className={`sidebarWrapper${isCollapsed ? ' sidebarCollapsed' : ''}`}>
 
-      {/* Header with logo and toggle */}
-      <div className={`sidebarHeader ${isCollapsed ? 'flex-col gap-3 py-3 h-auto' : 'h-[80px]'}`}>
-        <div className="flex items-center justify-center">
-          <img 
-            src={logo} 
-            alt="Leela Logo" 
-            style={{ 
-              height: isCollapsed ? '28px' : '60px', 
-              transition: 'all 0.2s ease',
-              display: 'block'
-            }} 
-          />
-        </div>
+      {/* Header with toggle */}
+      <div className={`sidebarHeader ${isCollapsed ? 'justify-center !px-0' : 'justify-end !px-3'} !h-[50px]`}>
         <button
           className="sidebarToggleBtn"
           onClick={() => setIsCollapsed((c) => !c)}
@@ -182,7 +170,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ context, sp }) => {
               <p className="text-xs text-slate-600 leading-snug">
                 Our support team is available to assist you.
               </p>
-              <button className="w-full py-2 rounded-lg font-semibold text-sm transition-colors mt-1" style={{ background: '#AF8941', color: '#ffffff' }}>
+              <button className="w-full py-2 rounded-lg font-semibold text-sm transition-colors mt-1" style={{ background: 'var(--primary-burgundy, #5C1D24)', color: '#ffffff' }}>
                 Contact Support
               </button>
             </div>

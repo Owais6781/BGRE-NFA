@@ -9,6 +9,7 @@ import { NFAService } from '../../../../../Share/Services/NFAService';
 import { useNavigate } from 'react-router-dom';
 import { Clock, CheckCircle2, XCircle, FileEdit, FileText } from 'lucide-react';
 import "../../../../../Share/styles/global.scss";
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IHomeProps {
@@ -193,21 +194,27 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
     setFilters(newFilters);
   };
 
-  const SummaryCard = ({ icon: Icon, label, count, iconBgClass, iconColorClass, isActive, activeGlowClass, onClick }: any) => (
+  const SummaryCard = ({ icon: Icon, label, count, iconBgClass, iconColorClass, isActive, activeGlowClass, topBorderColor, onClick }: any) => (
     <div 
-      className={`flex-1 min-w-[150px] h-24 bg-white rounded-2xl px-5 shadow-sm border transition-all duration-300 group flex items-center gap-4 cursor-pointer select-none ${
+      className={`flex-1 min-w-[150px] h-[72px] bg-white rounded-2xl px-4 shadow-sm border transition-all duration-300 group flex items-center gap-3.5 cursor-pointer select-none ${
         isActive 
-          ? `border-[#AF8941] scale-[1.03] shadow-md ${activeGlowClass}` 
-          : 'border-slate-200 hover:shadow-md hover:border-[#AF8941]/50 hover:-translate-y-0.5'
+          ? `scale-[1.03] shadow-md ${activeGlowClass}` 
+          : 'hover:shadow-md hover:-translate-y-0.5'
       }`}
+      style={{
+        borderTop: `3px solid ${topBorderColor}`,
+        borderRight: `1px solid ${isActive ? '#AF8941' : '#e2e8f0'}`,
+        borderBottom: `1px solid ${isActive ? '#AF8941' : '#e2e8f0'}`,
+        borderLeft: `1px solid ${isActive ? '#AF8941' : '#e2e8f0'}`
+      }}
       onClick={onClick}
     >
-      <div className={`p-3 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${iconBgClass}`}>
-        <Icon size={24} className={iconColorClass} />
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 ${iconBgClass}`}>
+        <Icon size={18} className={iconColorClass} />
       </div>
-      <div className="flex flex-col">
-        <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</span>
-        <span className="text-3xl font-extrabold text-slate-800 leading-none">{count}</span>
+      <div className="flex flex-col min-w-0">
+        <span className="text-slate-400 text-[9.5px] font-bold uppercase tracking-wider mb-0.5 truncate">{label}</span>
+        <span className="text-2xl font-extrabold text-slate-800 leading-none">{count}</span>
       </div>
     </div>
   );
@@ -215,9 +222,20 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
   return (
     <div className="pageContainer">
 
-      <div className="sectionTitleBar flex items-center justify-between mb-4">
-        <span className="sectionTitle">Home</span>
-      </div>
+      <PageTitle 
+        title="Home" 
+        subtitle="Track every Note for Approval raised across Account Receivables." 
+        action={
+          <button 
+            type="button"
+            onClick={() => navigate('/new-nfa')}
+            className="btnPageAction"
+          >
+            <span className="text-base font-bold leading-none">+</span>
+            <span>New NFA</span>
+          </button>
+        }
+      />
 
       {/* ── Summary Stats ── */}
       <div className="flex flex-wrap lg:flex-nowrap gap-4" style={{ marginBottom: '16px' }}>
@@ -229,6 +247,7 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
           iconColorClass="text-blue-500" 
           isActive={!filters?.status}
           activeGlowClass="shadow-blue-50"
+          topBorderColor="#4A081E"
           onClick={() => handleCardClick('total')}
         />
         <SummaryCard 
@@ -239,6 +258,7 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
           iconColorClass="text-amber-500" 
           isActive={filters?.status === 'Pending'}
           activeGlowClass="shadow-amber-100"
+          topBorderColor="#D97706"
           onClick={() => handleCardClick('Pending')}
         />
         <SummaryCard 
@@ -249,6 +269,7 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
           iconColorClass="text-emerald-500" 
           isActive={filters?.status === 'Approved'}
           activeGlowClass="shadow-emerald-100"
+          topBorderColor="#059669"
           onClick={() => handleCardClick('Approved')}
         />
         <SummaryCard 
@@ -259,6 +280,7 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
           iconColorClass="text-rose-500" 
           isActive={filters?.status === 'Rejected'}
           activeGlowClass="shadow-rose-100"
+          topBorderColor="#DC2626"
           onClick={() => handleCardClick('Rejected')}
         />
         <SummaryCard 
@@ -269,6 +291,7 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
           iconColorClass="text-slate-500" 
           isActive={filters?.status === 'Draft'}
           activeGlowClass="shadow-slate-100"
+          topBorderColor="#7C3AED"
           onClick={() => handleCardClick('Draft')}
         />
       </div>

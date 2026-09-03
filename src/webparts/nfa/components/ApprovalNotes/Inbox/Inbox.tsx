@@ -10,6 +10,7 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { NFAService } from '../../../../../Share/Services/NFAService';
 import "../../../../../Share/styles/global.scss";
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IInboxProps {
@@ -154,9 +155,20 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
-      <div className="sectionTitleBar flex items-center justify-between mb-4">
-        <span className="sectionTitle">My Inbox</span>
-      </div>
+      <PageTitle 
+        title="My Inbox" 
+        subtitle="Review and manage your pending approvals and actionable items." 
+        action={
+          <button 
+            type="button"
+            onClick={() => navigate('/new-nfa')}
+            className="btnPageAction"
+          >
+            <span className="text-base font-bold leading-none">+</span>
+            <span>New NFA</span>
+          </button>
+        }
+      />
 
       {/* Tabs Header matching reference image */}
       <div className="flex items-center gap-1.5 mb-5">

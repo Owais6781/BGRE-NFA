@@ -10,6 +10,7 @@ interface RichTextEditorProps {
   required?: boolean;
   height?:   number;
   readOnly?: boolean;
+  error?:    string;
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
@@ -19,13 +20,20 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   required = false,
   height   = 200,
   readOnly = false,
+  error,
 }) => {
   return (
     <div className="flex flex-col gap-[6px] w-full">
 
-      <label className="formLabel">
+      <label className="formLabel flex items-center gap-1.5" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
         {label}
         {required && <span className="text-red-500 ml-[2px]">*</span>}
+        {error && (
+          <span className="inline-flex h-1.5 w-1.5 relative" style={{ display: 'inline-flex' }}>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+          </span>
+        )}
       </label>
 
       <Editor

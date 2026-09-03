@@ -14,6 +14,7 @@ import { CommonService, ApprovedRejectedRecord } from '../../../../../Share/Serv
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import ApprovedRejectedFilter from './ApprovedRejectedFilter';
 import "../../../../../Share/styles/global.scss";
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -331,12 +332,15 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
     <div className="pageContainer">
       <div className="contentCard">
 
-        <div className="sectionTitleBar flex items-center justify-between mb-4">
-          <span className="sectionTitle">Approved / Rejected by Me</span>
-          <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
-            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-          </button>
-        </div>
+        <PageTitle 
+          title="Approved / Rejected by Me" 
+          subtitle="View history of notes approved or rejected by your account." 
+          action={
+            <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
+              {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </button>
+          }
+        />
 
         {!isCollapsed && (
           <>

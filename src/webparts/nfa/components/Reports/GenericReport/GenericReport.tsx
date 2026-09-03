@@ -4,6 +4,7 @@ import GenericReportFilter from './GenericReportFilter';
 import ReportTable         from '../../../../../Share/Components/ReportTable';
 import ExportToExcel       from '../../../../../Share/Components/ExportToExcel';
 import TableToolbar        from '../../../../../Share/Components/TableToolbar';
+import PageTitle           from '../../../../../Share/Components/PageTitle';
 import "../../../../../Share/styles/global.scss";
 
 const COLUMNS = [
@@ -30,9 +31,10 @@ const GenericReport: React.FC = () => {
 
   return (
     <div className="pageContainer">
-      <div className="sectionTitleBar flex items-center justify-between">
-        <span className="sectionTitle">NFA Generic Report</span>
-      </div>
+      <PageTitle 
+        title="NFA Generic Report" 
+        subtitle="Custom filterable report for Note for Approval records." 
+      />
 
       <GenericReportFilter onSearch={handleSearch} onReset={() => setData([])} />
 

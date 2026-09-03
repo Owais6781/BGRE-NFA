@@ -5,6 +5,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import ApprovalDetailsFilter from './ApprovalDetailsFilter';
 import ApprovalDetailsTable  from './ApprovalDetailsTable';
 import "../../../../../Share/styles/global.scss";
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
 
 import { WebPartContext } from "@microsoft/sp-webpart-base";
@@ -153,12 +154,15 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
   return (
     <div className="pageContainer">
 
-      <div className="sectionTitleBar flex items-center justify-between">
-        <span className="sectionTitle">Detailed View for Approver</span>
-        <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
-          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-        </button>
-      </div>
+      <PageTitle 
+        title="Detailed View for Approver" 
+        subtitle="Comprehensive list and details of notes assigned to you." 
+        action={
+          <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
+            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          </button>
+        }
+      />
 
       {!isCollapsed && (
         <>

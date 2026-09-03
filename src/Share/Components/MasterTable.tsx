@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ChevronUp, ChevronDown, ExternalLink } from 'lucide-react';
 import TableToolbar from './TableToolbar';
 import { SearchInput } from './SearchInput';
+import PageTitle from './PageTitle';
 import "../styles/global.scss";
 
 interface MasterItem { name: string; url: string; }
@@ -30,12 +31,15 @@ const MasterTable: React.FC<MasterTableProps> = ({
     <div className="pageContainer">
       <div className="contentCard">
 
-        <div className="sectionTitleBar flex items-center justify-between">
-          <span className="sectionTitle">{title}</span>
-          <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
-            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-          </button>
-        </div>
+        <PageTitle 
+          title={title} 
+          subtitle="Manage and configure system masters and mappings." 
+          action={
+            <button className="iconBtn" onClick={() => setIsCollapsed(c => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
+              {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </button>
+          }
+        />
 
         {!isCollapsed && (
           <>

@@ -12,6 +12,7 @@ import { SPFI } from "@pnp/sp";
 import { ReportService, IFunctionStatusRecord } from '../../../../../Share/Services/ReportService';
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import FunctionWiseStatusFilter from './FunctionWiseStatusFilter';
+import PageTitle from '../../../../../Share/Components/PageTitle';
 import "../../../../../Share/styles/global.scss";
 
 const COLUMNS = [
@@ -108,9 +109,10 @@ const FunctionWiseStatus: React.FC<IFunctionWiseStatusProps> = ({ context, sp })
 
   return (
     <div className="pageContainer">
-      <div className="sectionTitleBar flex items-center justify-between">
-        <span className="sectionTitle">Function Wise Status Report</span>
-      </div>
+      <PageTitle 
+        title="Function Wise Status Report" 
+        subtitle="Analyze approval requests and workflows grouped by department/function." 
+      />
 
       {/* Filter Card */}
       <div className="mb-4">
