@@ -30,13 +30,13 @@ $font-bold:     700;
 ========================= */
 $primary-burgundy:        #4A081E;  // Exact Corporate Deep Burgundy from reference
 $primary-burgundy-hover:  #3D000F;
-$primary-burgundy-light:  #F7EFEF;
+$primary-burgundy-light:  #F7EBEF;  // Blush (header bg, active nav, icon tiles)
 
 $color-brand:        #262626;  // Softened Charcoal
 $color-brand-dark:   #1a1a1a;
-$color-accent:       #AF8941;  // Signature Leela Gold/Copper
-$color-accent-light: #fdfcf7;  // Soft cream
-$color-accent-ring:  rgba(175, 137, 65, 0.2);
+$color-accent:       #C6A854;  // Gold accent (card top borders) from DesignPreviewAR
+$color-accent-light: #FDFAF7;  // Soft cream (active card bg, row hover)
+$color-accent-ring:  rgba(198, 168, 84, 0.2);
 
 $color-white: #ffffff;
 $color-black: #000000;
@@ -44,74 +44,77 @@ $color-black: #000000;
 /* =========================
    TEXT COLORS
 ========================= */
-$text-primary:   #1F2937;
-$text-secondary: #71717A;
-$text-muted:     #8e8e8e;
+$text-primary:   #334155;
+$text-secondary: #64748B;
+$text-muted:     #94A3B8;
 $text-on-dark:   #ffffff;
 
 /* =========================
    BACKGROUND COLORS
 ========================= */
-$page-bg:       #F9F9F9;  // Clean, very light background matching reference
+$page-bg:       #FAF7F0;  // Warm cream page background (DesignPreviewAR)
 $content-bg:    #ffffff;
-$content-border: #e8e6e1;
+$content-border: #F1F5F9;
 
 /* =========================
    SIDEBAR COLORS
 ========================= */
-$sidebar-bg:          #F4F3F0;  // Clean, light neutral off-white
-$sidebar-header-bg:   #F4F3F0;
-$sidebar-active-bg:   $primary-burgundy;  // Dark burgundy background for active tab
-$sidebar-active-text: #ffffff;            // White text for active tab
-$sidebar-hover-bg:    #EAE8E3;
-$sidebar-text:        #374151;
-$sidebar-header-text: #1F2937;
-$sidebar-border:      #E8E6E1;
-$sidebar-section-title: #78716C;
+$sidebar-bg:          #FFFFFF;  // White sidebar (DesignPreviewAR)
+$sidebar-header-bg:   #FFFFFF;
+$sidebar-active-bg:   #F7EBEF;            // Blush background for active tab
+$sidebar-active-text: $primary-burgundy;  // Burgundy text for active tab
+$sidebar-hover-bg:    #FBF5F7;
+$sidebar-text:        #475569;
+$sidebar-header-text: #94A3B8;
+$sidebar-border:      #E2E8F0;
+$sidebar-section-title: #94A3B8;
+$sidebar-icon:        #64748B;
 $sidebar-active-border: $primary-burgundy;
 
 /* =========================
    HEADER COLORS
 ========================= */
-$header-bg:   #FAF9F6;  // Clean, warm/off-white header background
-$header-text: #1F2937;
-$header-border: #E8E6E1;
+$header-bg:   #F7EBEF;  // Blush header background (DesignPreviewAR)
+$header-text: $primary-burgundy;
+$header-user-text: #1E293B;
+$header-pill-border: #D7C5CB;
+$header-border: #EFDDE3;
 
 /* =========================
    TABLE COLORS
 ========================= */
 $table-header-bg:   #f8fafc;
-$table-header-text: #334155;
-$table-row-border:  #f0ede8;
-$table-row-hover:   #fdfcf7;
+$table-header-text: #64748B;
+$table-row-border:  #F1F5F9;
+$table-row-hover:   #FDFAF7;
 
 /* =========================
    BUTTON COLORS
 ========================= */
-$btn-primary-bg:     #AF8941;
+$btn-primary-bg:     #4A081E;
 $btn-primary-text:   #ffffff;
-$btn-primary-border: #AF8941;
-$btn-primary-hover:  #946e35;
+$btn-primary-border: #4A081E;
+$btn-primary-hover:  #3D000F;
 
 $btn-danger-bg:     #ef4444;
 $btn-danger-border: #dc2626;
 $btn-danger-text:   #ffffff;
 $btn-danger-hover:  #dc2626;
 
-$btn-secondary-bg:     #f1f5f9;
+$btn-secondary-bg:     #ffffff;
 $btn-secondary-text:   #334155;
 $btn-secondary-border: #cbd5e1;
-$btn-secondary-hover:  #e2e8f0;
+$btn-secondary-hover:  #f8fafc;
 
 /* =========================
    INPUT COLORS
 ========================= */
 $input-bg:           #ffffff;
 $input-border:       #cbd5e1;
-$input-text:         #0f172a;
+$input-text:         #334155;
 $input-placeholder:  #94a3b8;
-$input-focus-border: #AF8941;
-$input-focus-ring:   rgba(175, 137, 65, 0.1);
+$input-focus-border: #4A081E;
+$input-focus-ring:   rgba(74, 8, 30, 0.08);
 $input-disabled-bg:  #f8fafc;
 
 /* =========================
@@ -121,9 +124,9 @@ $success-color: #16a34a;
 $success-bg:    #f0fdf4;
 $success-border: rgba(22, 163, 74, 0.25);
 
-$warning-color: #d97706;
-$warning-bg:    #fffbeb;
-$warning-border: rgba(217, 119, 6, 0.25);
+$warning-color: #92400E;
+$warning-bg:    #FEF3C7;
+$warning-border: rgba(217, 119, 6, 0.35);
 
 $error-color: #dc2626;
 $error-bg:    #fef2f2;

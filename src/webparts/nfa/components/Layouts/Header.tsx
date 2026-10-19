@@ -18,7 +18,7 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
       const displayName = context.pageContext.user.displayName || "";
       const email = context.pageContext.user.email || "";
 
-      setUserName(displayName.toUpperCase());
+      setUserName(displayName);
 
       const parts = displayName.trim().split(" ");
       setUserInitials(
@@ -38,8 +38,8 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
     <header 
       className="appHeader flex items-center justify-between !shadow-none !border-b !rounded-none !h-[64px] px-4 sm:px-6 w-full shrink-0"
       style={{
-        background: 'var(--header-background, #FAF9F6)',
-        borderColor: 'var(--border-color, #E8E6E1)'
+        background: 'var(--header-background, #F7EBEF)',
+        borderColor: '#EFDDE3'
       }}
     >
       {/* Left — COMM-IT Logo + Application Title */}
@@ -50,17 +50,15 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
           style={{ height: '38px', width: 'auto', objectFit: 'contain', display: 'block' }} 
         />
         <div className="h-6 w-[1px] bg-slate-300"></div>
-        <span className="headerTitle uppercase tracking-widest text-[14px] !text-slate-800 opacity-95 font-bold truncate">
-          Note for Approval (NFA)
+        <span className="headerTitle truncate">
+          Note for Approval
         </span>
       </div>
 
       {/* Right — user info aligned with form end */}
       <div className="flex items-center gap-4 sm:gap-6 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-medium !text-slate-800 tracking-tight hidden sm:inline">{userName}</span>
-
-          <div className="headerAvatar overflow-hidden !border-slate-300 !bg-slate-100 !text-slate-700">
+        <div className="headerUserChip">
+          <div className="headerAvatar overflow-hidden">
             {userPhoto ? (
               <img
                 src={userPhoto}
@@ -72,6 +70,7 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
               <span className="text-[11px] font-bold">{userInitials}</span>
             )}
           </div>
+          <span className="headerUserName hidden sm:inline">{userName}</span>
         </div>
       </div>
     </header>

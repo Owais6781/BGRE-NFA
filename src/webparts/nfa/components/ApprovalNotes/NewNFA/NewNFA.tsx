@@ -636,7 +636,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full rounded-full transition-all duration-500 ${financialsSummary.percent > 100 ? 'bg-rose-500' : 'bg-[#AF8941]'}`} 
+                    className={`h-full rounded-full transition-all duration-500 ${financialsSummary.percent > 100 ? 'bg-rose-500' : 'bg-[#C6A854]'}`} 
                     style={{ width: `${Math.min(100, financialsSummary.percent)}%` }}
                   />
                 </div>
@@ -687,7 +687,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                     const name = appObj ? appObj.label : `Approver ID: ${app}`;
                     return (
                       <div key={idx} className="flex items-center gap-3 py-1">
-                        <div className="w-6 h-6 rounded-full bg-[#AF8941]/10 text-[#AF8941] border border-[#AF8941]/20 flex items-center justify-center font-bold text-[10px] shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-[#C6A854]/10 text-[#C6A854] border border-[#C6A854]/20 flex items-center justify-center font-bold text-[10px] shrink-0">
                           {idx + 1}
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -737,7 +737,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                 <button
                   type="button"
                   onClick={addApproverSlot}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-[#AF8941] bg-[#AF8941]/5 hover:bg-[#AF8941]/10 rounded-xl border border-[#AF8941]/20 hover:border-[#AF8941]/30 transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-[#C6A854] bg-[#C6A854]/5 hover:bg-[#C6A854]/10 rounded-xl border border-[#C6A854]/20 hover:border-[#C6A854]/30 transition-all cursor-pointer"
                 >
                   + Add Approver Level
                 </button>

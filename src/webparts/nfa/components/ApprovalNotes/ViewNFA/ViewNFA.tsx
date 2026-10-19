@@ -16,6 +16,7 @@ import { NFAService, INFAFormData } from '../../../../../Share/Services/NFAServi
 import { CommonService } from '../../../../../Share/Services/CommonService';
 import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
+import ExcelDataViewer from '../../../../../Share/Components/ExcelDataViewer';
 import { forceScrollToTop } from '../../../../../Share/utils';
 
 interface IViewNFAProps {
@@ -295,10 +296,10 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
     <div className="pageContainer">
       
       {/* Approval Chain Card */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-3 px-6 mb-6">
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm py-2 px-4 mb-3.5">
         <div 
           ref={stepperContainerRef}
-          className="relative flex items-center justify-start gap-1 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar"
+          className="relative flex items-center justify-start gap-1 overflow-x-auto pb-1 pt-0.5 no-scrollbar"
         >
           {workflowSteps.map((step, idx) => {
             const user = users.find(u => u.value === String(step.id));
@@ -336,27 +337,27 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                   ref={isCurrent ? currentStepRef : undefined}
                   className="flex flex-col items-center shrink-0"
                 >
-                  <span className={`text-[9px] font-extrabold uppercase tracking-wider mb-1 ${labelColor}`}>
+                  <span className={`text-[9px] font-extrabold uppercase tracking-wider mb-0.5 ${labelColor}`}>
                     {step.label}
                   </span>
                   
-                  <div className={`w-[145px] h-[40px] rounded-xl border flex flex-row items-center gap-2 px-2 py-0.5 transition-all duration-350 ${borderClass}`}>
+                  <div className={`w-[140px] h-[38px] rounded-lg border flex flex-row items-center gap-1.5 px-2 py-0.5 transition-all duration-350 ${borderClass}`}>
                     <UserAvatar 
                       email={user?.email} 
                       initials={initials} 
-                      className={`w-6 h-6 rounded-full shadow-inner shrink-0 ${avatarClass}`} 
+                      className={`w-5.5 h-5.5 rounded-full shadow-inner shrink-0 text-[10px] ${avatarClass}`} 
                     />
                     <span className="text-[10px] font-extrabold text-slate-700 text-left leading-tight line-clamp-2 flex-1">
                       {userLabel}
                     </span>
                   </div>
                   
-                  <div className={`w-2 h-2 rounded-full mt-1.5 ${dotClass}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1 ${dotClass}`} />
                 </div>
                 
                 {idx < workflowSteps.length - 1 && (
-                  <div className="flex items-center justify-center text-slate-500 shrink-0 mt-4">
-                    <ChevronRight size={16} strokeWidth={3} />
+                  <div className="flex items-center justify-center text-slate-400 shrink-0 mt-3">
+                    <ChevronRight size={14} strokeWidth={2.5} />
                   </div>
                 )}
               </React.Fragment>
@@ -365,439 +366,451 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         </div>
       </div>
 
-      {/* ── 70% / 30% Columns Wrapper ── */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* ── Left Column (70% Width) ── */}
-        <div className="w-full lg:w-[70%] space-y-6">
+      {/* ── MAIN DATA (100% FULL WIDTH - COMPACT VERTICAL SPACING) ── */}
+      <div className="w-full space-y-3.5">
 
-          {/* Basic Information */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-[10.5px] uppercase tracking-wider">
-                Request No: {form.requestNo || '-'} (Level {form.level || '1'})
-              </span>
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              {/* Row 1: Project (35%) | Sub-Entity (30%) | Date (25%) */}
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="w-full md:w-[35%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Project</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.project || '-'}</span>
-                </div>
-                <div className="w-full md:w-[30%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Sub-Entity</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">
-                    {form.projectSubEntity && form.projectSubEntity.length > 0 ? form.projectSubEntity.join(', ') : '-'}
-                  </span>
-                </div>
-                <div className="w-full md:w-[25%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Date</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.date || '-'}</span>
-                </div>
-              </div>
-
-              {/* Row 2: Function (35%) | DOA Matrix (30%) | Workflow (25%) */}
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="w-full md:w-[35%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Function</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.originatorDept || '-'}</span>
-                </div>
-                <div className="w-full md:w-[30%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">DOA Matrix</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.doaMatrix || '-'}</span>
-                </div>
-                <div className="w-full md:w-[25%] flex flex-col gap-1">
-                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Workflow</span>
-                  <span className="text-xs font-normal text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100 uppercase">{form.workflow || '-'}</span>
-                </div>
-              </div>
-            </div>
+        {/* Basic Information */}
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+            <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+            <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+              Request No: {form.requestNo || '-'} (Level {form.level || '1'})
+            </span>
           </div>
-
-          {/* NFA Details */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">NFA Details</span>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.referenceSubject || '-'}</span>
-              </div>
-              
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: form.introduction || '-' }} />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: form.chronology || '-' }} />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: form.commercialProposal || '-' }} />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: form.paymentTerms || '-' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Financial Details */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Financial Details</span>
-            </div>
-            
-            <div className="space-y-5">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1 p-3.5 bg-emerald-50/30 rounded-xl border border-emerald-100/50">
-                  <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider mb-0.5">Awarded Cost</span>
-                  <span className="text-base font-black text-emerald-700">₹ {Number(form.packageAwardedCost || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex-1 flex flex-col gap-1 p-3.5 bg-blue-50/30 rounded-xl border border-blue-100/50">
-                  <span className="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider mb-0.5">Budget</span>
-                  <span className="text-base font-black text-blue-700">₹ {Number(form.budget || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex-1 flex flex-col gap-1 p-3.5 bg-purple-50/30 rounded-xl border border-purple-100/50">
-                  <span className="text-[9px] font-extrabold text-purple-600 uppercase tracking-wider mb-0.5">Capex No</span>
-                  <span className="text-sm font-extrabold text-purple-700 truncate">{form.capexSerialNo || '-'}</span>
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.budgetRemarks || '-'}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recommendation */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Recommendation</span>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Justification</span>
-                <div className="text-sm text-slate-700 bg-slate-50/40 p-4 rounded-xl border border-slate-100 richTextContent max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: form.recommendation || '-' }} />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contractor Name</span>
-                <span className="text-sm font-bold text-slate-800 bg-blue-50/30 p-3.5 rounded-xl border border-blue-100/50">{form.contractorName || '-'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Contract Terms */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Contract Terms</span>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.liquidatedDamage || '-'}</div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.contractPerf || '-'}</div>
-                </div>
-              </div>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.defectLiability || '-'}</div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Work Completion</span>
-                  <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.workCompletion || '-'}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Annexures & Notes */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
-              <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Annexures & Notes</span>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.annexure || '-'}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 1</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.note1 || '-'}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 2</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.note2 || '-'}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 3</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.note3 || '-'}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note 4</span>
-                <div className="text-xs text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{form.note4 || '-'}</div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* ── Right Column (30% Width) ── */}
-        <div className="w-full lg:w-[30%] space-y-6">
           
-          {/* Attachments */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-              <div className="flex items-center gap-2">
-                <Paperclip size={14} className="text-emerald-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Attachments</span>
+          <div className="flex flex-col gap-2">
+            {/* Row 1: Project | Sub-Entity | Date */}
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="w-full md:w-[35%] flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Project</span>
+                <span className="text-xs font-medium text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.project || '-'}</span>
               </div>
-              <span className="bg-emerald-50 text-emerald-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-100">
-                {savedDocuments.length}
-              </span>
-            </div>
-            {savedDocuments.length > 0 ? (
-              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                {savedDocuments.map(doc => {
-                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
-                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
-                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                  
-                  return (
-                    <a 
-                      key={doc.id}
-                      href={doc.serverRelativeUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      data-interception="off"
-                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
-                    >
-                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
-                        <FileText size={12} />
-                      </div>
-                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
-                        {doc.fileName}
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-4 border border-dashed border-slate-200 rounded-xl">
-                <Paperclip size={18} className="text-slate-300 mb-1" />
-                <span className="text-[9.5px] text-slate-400 font-bold italic">No attachments found</span>
-              </div>
-            )}
-          </div>
-
-          {/* Query Documents (Show only if available) */}
-          {queryDocuments.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-                <div className="flex items-center gap-2">
-                  <Paperclip size={14} className="text-amber-500 shrink-0"/> 
-                  <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Documents</span>
-                </div>
-                <span className="bg-amber-50 text-amber-600 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border border-amber-100">
-                  {queryDocuments.length}
+              <div className="w-full md:w-[35%] flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Sub-Entity</span>
+                <span className="text-xs font-medium text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">
+                  {form.projectSubEntity && form.projectSubEntity.length > 0 ? form.projectSubEntity.join(', ') : '-'}
                 </span>
               </div>
-              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                {queryDocuments.map((doc, idx) => {
-                  const ext = doc.fileName.split('.').pop()?.toLowerCase();
-                  let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
-                  if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                  else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                  else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                  
-                  return (
-                    <a 
-                      key={idx}
-                      href={doc.serverRelativeUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      data-interception="off"
-                      className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
-                    >
-                      <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
-                        <FileText size={12} />
-                      </div>
-                      <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
-                        {doc.fileName}
-                      </span>
-                    </a>
-                  );
-                })}
+              <div className="w-full md:w-[30%] flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Date</span>
+                <span className="text-xs font-medium text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.date || '-'}</span>
               </div>
             </div>
-          )}
 
-          {/* Workflow History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
-              <History size={15} className="text-blue-500 shrink-0"/> 
-              <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
-            </div>
-            
-            <div className="space-y-4">
-              {history.length > 0 ? history.map((item, idx) => {
-                const isApproved = item.action === 'Approved';
-                const isRejected = item.action === 'Rejected';
-                const isQuery = item.action === 'Query';
-                
-                let badgeClass = 'bg-blue-50 text-blue-700 border-blue-100';
-                let dotClass = 'bg-blue-500';
-                
-                if (isApproved) {
-                  badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                  dotClass = 'bg-emerald-500';
-                } else if (isRejected) {
-                  badgeClass = 'bg-rose-50 text-rose-700 border-rose-100';
-                  dotClass = 'bg-rose-500';
-                } else if (isQuery) {
-                  badgeClass = 'bg-amber-50 text-amber-700 border-amber-100';
-                  dotClass = 'bg-amber-500';
-                }
-                
-                return (
-                  <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
-                    {idx < history.length - 1 && (
-                      <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
-                    )}
-                    <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
-                    <div className="flex flex-col min-w-0">
-                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                        {item.rawText || `${item.user} (${item.action})${item.remarks ? `: ${item.remarks}` : ""}`}
-                      </p>
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="text-center py-4 text-slate-400 italic text-[11px]">
-                  No audit history found.
-                </div>
-              )}
+            {/* Row 2: Function | DOA Matrix | Workflow */}
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="w-full md:w-[35%] flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Function</span>
+                <span className="text-xs font-medium text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.originatorDept || '-'}</span>
+              </div>
+              <div className="w-full md:w-[35%] flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">DOA Matrix</span>
+                <span className="text-xs font-medium text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.doaMatrix || '-'}</span>
+              </div>
+              <div className="w-full md:w-[30%] flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Workflow</span>
+                <span className="text-xs font-medium text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100 uppercase">{form.workflow || '-'}</span>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Comments History */}
-          {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-                <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Comments History</span>
+        {/* NFA Details (Main Data & Excel Viewer) */}
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+            <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+            <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">NFA Details</span>
+          </div>
+          
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
+              <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.referenceSubject || '-'}</span>
+            </div>
+            
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction</span>
+              <ExcelDataViewer html={form.introduction} label="Introduction" />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
+              <ExcelDataViewer html={form.chronology} label="Chronology" />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
+              <ExcelDataViewer html={form.commercialProposal} label="Commercial Proposals" />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
+              <ExcelDataViewer html={form.paymentTerms} label="Payment Terms" />
+            </div>
+          </div>
+        </div>
+
+        {/* Financial Details */}
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+            <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+            <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Financial Details</span>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="flex-1 flex flex-col gap-0.5 p-2.5 bg-emerald-50/30 rounded-lg border border-emerald-100/50">
+                <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider">Awarded Cost</span>
+                <span className="text-sm font-black text-emerald-700">₹ {Number(form.packageAwardedCost || 0).toLocaleString('en-IN')}</span>
               </div>
-              
-              <div className="space-y-3">
-                {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-medium text-slate-600 text-left">Comment: {item.remarks || ""}</span>
-                    </div>
-                    <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
-                      <div className="absolute -top-1 left-3 w-2.5 h-2.5 bg-white border-t border-l border-slate-100 rotate-45" />
-                      <p className="text-[10px] text-slate-500 leading-normal relative z-10">
-                        Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex-1 flex flex-col gap-0.5 p-2.5 bg-blue-50/30 rounded-lg border border-blue-100/50">
+                <span className="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider">Budget</span>
+                <span className="text-sm font-black text-blue-700">₹ {Number(form.budget || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex-1 flex flex-col gap-0.5 p-2.5 bg-purple-50/30 rounded-lg border border-purple-100/50">
+                <span className="text-[9px] font-extrabold text-purple-600 uppercase tracking-wider">Capex No</span>
+                <span className="text-xs font-extrabold text-purple-700 truncate">{form.capexSerialNo || '-'}</span>
               </div>
             </div>
-          )}
+            
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
+              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.budgetRemarks || '-'}</div>
+            </div>
+          </div>
+        </div>
 
-          {/* Query Remarks History */}
-          {queryHistory.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-                <MessageSquare size={14} className="text-amber-500 shrink-0"/> 
-                <span className="font-bold text-slate-700 text-[10.5px] uppercase tracking-wider">Query Remarks History</span>
+        {/* Recommendation */}
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+            <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+            <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Recommendation</span>
+          </div>
+          
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-1">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Justification</span>
+              <ExcelDataViewer html={form.recommendation} label="Justification" />
+            </div>
+
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Contractor Name</span>
+              <span className="text-xs font-bold text-slate-800 bg-blue-50/30 p-2.5 rounded-lg border border-blue-100/50">{form.contractorName || '-'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Contract Terms (Compact 4-Column Row) */}
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+            <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+            <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Contract Terms</span>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
+              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.liquidatedDamage || '-'}</div>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
+              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.contractPerf || '-'}</div>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
+              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.defectLiability || '-'}</div>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Work Completion</span>
+              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.workCompletion || '-'}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Annexures & Notes (Compact 2-Column Row for Notes) */}
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+            <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+            <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Annexures & Notes</span>
+          </div>
+          
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
+              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.annexure || '-'}</div>
+            </div>
+            
+            {/* Note 1 & Note 2 in 2 columns */}
+            <div className="flex flex-col md:flex-row gap-2.5">
+              <div className="flex-1 flex flex-col gap-0.5">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Note 1</span>
+                <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.note1 || '-'}</div>
               </div>
-              
-              <div className="space-y-3">
-                {queryHistory.map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col gap-2 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
-                    {/* The Query Part */}
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-medium text-slate-600 text-left">Query: {item.Query || ""}</span>
-                      </div>
-                      <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
-                        <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
-                        <p className="text-[10px] text-slate-500 leading-normal relative z-10">
-                          Remarks Added by {item.QueryBy ? item.QueryBy.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.QueriedOn || ""}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* The Response Part */}
-                    {item.Response && item.Response.trim() !== "" && (
-                      <div className="flex flex-col gap-1 mt-1.5 border-t border-slate-100 pt-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-medium text-slate-600 text-left">Query Response: {item.Response}</span>
-                        </div>
-                        <div className="p-2 bg-white rounded-lg border border-slate-100 relative shadow-sm">
-                          <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
-                          <p className="text-[10px] text-slate-500 leading-normal relative z-10">
-                            Query Responded by {item.QueryTo ? item.QueryTo.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.RespondedOn || ""}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="flex-1 flex flex-col gap-0.5">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Note 2</span>
+                <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.note2 || '-'}</div>
               </div>
             </div>
-          )}
 
+            {/* Note 3 & Note 4 in 2 columns */}
+            <div className="flex flex-col md:flex-row gap-2.5">
+              <div className="flex-1 flex flex-col gap-0.5">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Note 3</span>
+                <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.note3 || '-'}</div>
+              </div>
+              <div className="flex-1 flex flex-col gap-0.5">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Note 4</span>
+                <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.note4 || '-'}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
 
+      {/* ── SECONDARY INFORMATION & AUDIT HISTORY (EXACT SAME ROW) ── */}
+      <div className="mt-5 pt-3.5 border-t border-slate-200/80">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1.5 h-3.5 bg-emerald-600 rounded-full" />
+          <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+            Supporting Information & Audit History
+          </span>
+        </div>
+
+        <div 
+          className="w-full"
+          style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+            gap: '16px',
+            alignItems: 'start'
+          }}
+        >
+          
+          {/* Left Column: Documents (Attachments & Query Documents) */}
+          <div className="flex flex-col gap-3.5 w-full">
+            
+            {/* Attachments */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-2.5 border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <Paperclip size={14} className="text-emerald-500 shrink-0"/> 
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Attachments</span>
+                </div>
+                <span className="bg-emerald-50 text-emerald-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
+                  {savedDocuments.length}
+                </span>
+              </div>
+              {savedDocuments.length > 0 ? (
+                <div className="space-y-1.5 max-h-[190px] overflow-y-auto pr-1">
+                  {savedDocuments.map(doc => {
+                    const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                    let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                    if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                    else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                    else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                    
+                    return (
+                      <a 
+                        key={doc.id}
+                        href={doc.serverRelativeUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        data-interception="off"
+                        className="group flex items-center gap-2 p-1.5 px-2 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
+                      >
+                        <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                          <FileText size={12} />
+                        </div>
+                        <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
+                          {doc.fileName}
+                        </span>
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-4 border border-dashed border-slate-200 rounded-lg">
+                  <Paperclip size={18} className="text-slate-300 mb-1" />
+                  <span className="text-[10px] text-slate-400 font-semibold italic">No attachments found</span>
+                </div>
+              )}
+            </div>
+
+            {/* Query Documents (Show only if available) */}
+            {queryDocuments.length > 0 && (
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+                <div className="flex items-center justify-between mb-2.5 border-b border-slate-100 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Paperclip size={14} className="text-amber-500 shrink-0"/> 
+                    <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Query Documents</span>
+                  </div>
+                  <span className="bg-amber-50 text-amber-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-amber-100">
+                    {queryDocuments.length}
+                  </span>
+                </div>
+                <div className="space-y-1.5 max-h-[190px] overflow-y-auto pr-1">
+                  {queryDocuments.map((doc, idx) => {
+                    const ext = doc.fileName.split('.').pop()?.toLowerCase();
+                    let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                    if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
+                    else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                    else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                    
+                    return (
+                      <a 
+                        key={idx}
+                        href={doc.serverRelativeUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        data-interception="off"
+                        className="group flex items-center gap-2 p-1.5 px-2 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
+                      >
+                        <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                          <FileText size={12} />
+                        </div>
+                        <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
+                          {doc.fileName}
+                        </span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          {/* Right Column: Workflow History & Comments */}
+          <div className="flex flex-col gap-3.5 w-full">
+            
+            {/* Workflow History */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+                <History size={15} className="text-blue-500 shrink-0"/> 
+                <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
+              </div>
+              
+              <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
+                {history.length > 0 ? history.map((item, idx) => {
+                  const isApproved = item.action === 'Approved';
+                  const isRejected = item.action === 'Rejected';
+                  const isQuery = item.action === 'Query';
+                  
+                  let dotClass = 'bg-blue-500';
+                  
+                  if (isApproved) {
+                    dotClass = 'bg-emerald-500';
+                  } else if (isRejected) {
+                    dotClass = 'bg-rose-500';
+                  } else if (isQuery) {
+                    dotClass = 'bg-amber-500';
+                  }
+                  
+                  return (
+                    <div key={item.id || idx} className="relative pl-6 pb-0.5 last:pb-0">
+                      {idx < history.length - 1 && (
+                        <div className="absolute left-[6px] top-4 bottom-0 w-[1.5px] bg-slate-100" />
+                      )}
+                      <div className={`absolute left-0 top-1 w-3 h-3 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
+                      <div className="flex flex-col min-w-0">
+                        <p className="text-[10.5px] text-slate-600 font-medium leading-relaxed">
+                          {item.rawText || `${item.user} (${item.action})${item.remarks ? `: ${item.remarks}` : ""}`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="text-center py-3 text-slate-400 italic text-[10.5px]">
+                    No audit history found.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Comments History */}
+            {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 && (
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+                  <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Comments History</span>
+                </div>
+                
+                <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
+                  {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
+                    <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-lg border border-slate-100 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-medium text-slate-700 text-left">Comment: {item.remarks || ""}</span>
+                      </div>
+                      <div className="p-2 bg-white rounded-md border border-slate-100 relative shadow-sm">
+                        <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                        <p className="text-[9.5px] text-slate-500 leading-normal relative z-10">
+                          Remarks Added by {item.user} at Level {item.level || "1"} on {item.date}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Query Remarks History */}
+            {queryHistory.length > 0 && (
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+                  <MessageSquare size={14} className="text-amber-500 shrink-0"/> 
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Query Remarks History</span>
+                </div>
+                
+                <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
+                  {queryHistory.map((item, idx) => (
+                    <div key={item.id || idx} className="flex flex-col gap-1.5 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-lg border border-slate-100 transition-colors">
+                      {/* The Query Part */}
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-medium text-slate-700 text-left">Query: {item.Query || ""}</span>
+                        </div>
+                        <div className="p-2 bg-white rounded-md border border-slate-100 relative shadow-sm">
+                          <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                          <p className="text-[9.5px] text-slate-500 leading-normal relative z-10">
+                            Remarks Added by {item.QueryBy ? item.QueryBy.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.QueriedOn || ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* The Response Part */}
+                      {item.Response && item.Response.trim() !== "" && (
+                        <div className="flex flex-col gap-0.5 mt-1 border-t border-slate-100 pt-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-medium text-slate-700 text-left">Query Response: {item.Response}</span>
+                          </div>
+                          <div className="p-2 bg-white rounded-md border border-slate-100 relative shadow-sm">
+                            <div className="absolute -top-1 left-3 w-2 h-2 bg-white border-t border-l border-slate-100 rotate-45" />
+                            <p className="text-[9.5px] text-slate-500 leading-normal relative z-10">
+                              Query Responded by {item.QueryTo ? item.QueryTo.Title : "Unknown"} At Level {item.WFLevel || "1"} on {item.RespondedOn || ""}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+
+        </div>
+      </div>
+
       {/* Back Button */}
-      <div className="flex justify-center gap-4 py-8">
+      <div className="flex justify-center gap-4 py-4">
         <button 
           onClick={() => {
             forceScrollToTop();
             navigate(-1);
           }} 
-          className="px-6 h-[40px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all border border-slate-300 active:scale-98 shadow-sm"
+          className="px-6 h-[38px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-extrabold text-xs uppercase tracking-wider transition-all border border-slate-300 active:scale-98 shadow-sm"
         >
           Back
         </button>

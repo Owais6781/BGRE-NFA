@@ -310,10 +310,10 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
   const SummaryCard = ({ icon: Icon, label, count, iconBgClass, iconColorClass, isActive, activeGlowClass, onClick }: any) => (
     <div 
       className={`flex-1 min-w-[150px] h-24 bg-white rounded-2xl px-5 shadow-sm border transition-all duration-300 group flex items-center gap-4 select-none ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:border-[#AF8941]/50 hover:-translate-y-0.5' : 'cursor-default'
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-[#C6A854]/50 hover:-translate-y-0.5' : 'cursor-default'
       } ${
         isActive 
-          ? `border-[#AF8941] scale-[1.03] shadow-md ${activeGlowClass}` 
+          ? `border-[#C6A854] scale-[1.03] shadow-md ${activeGlowClass}` 
           : 'border-slate-200'
       }`}
       onClick={onClick || undefined}

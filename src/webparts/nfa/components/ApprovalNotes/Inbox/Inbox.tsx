@@ -179,9 +179,9 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
           style={
             activeTab === 'approver'
               ? {
-                  backgroundColor: '#1E3A5F',
+                  backgroundColor: '#4A081E',
                   color: '#ffffff',
-                  border: '1px solid #1E3A5F',
+                  border: '1px solid #4A081E',
                   height: '38px',
                   minWidth: '150px',
                   borderTopLeftRadius: '8px',
@@ -195,7 +195,7 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
                 }
               : {
                   backgroundColor: '#F3F4F6',
-                  color: '#1E3A5F',
+                  color: '#4A081E',
                   border: '1px solid #e2e8f0',
                   borderBottom: 'none',
                   height: '38px',
@@ -220,9 +220,9 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
           style={
             activeTab === 'query'
               ? {
-                  backgroundColor: '#1E3A5F',
+                  backgroundColor: '#4A081E',
                   color: '#ffffff',
-                  border: '1px solid #1E3A5F',
+                  border: '1px solid #4A081E',
                   height: '38px',
                   minWidth: '150px',
                   borderTopLeftRadius: '8px',
@@ -236,7 +236,7 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
                 }
               : {
                   backgroundColor: '#F3F4F6',
-                  color: '#1E3A5F',
+                  color: '#4A081E',
                   border: '1px solid #e2e8f0',
                   borderBottom: 'none',
                   height: '38px',

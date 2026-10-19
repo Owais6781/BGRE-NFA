@@ -203,9 +203,9 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
       }`}
       style={{
         borderTop: `3px solid ${topBorderColor}`,
-        borderRight: `1px solid ${isActive ? '#AF8941' : '#e2e8f0'}`,
-        borderBottom: `1px solid ${isActive ? '#AF8941' : '#e2e8f0'}`,
-        borderLeft: `1px solid ${isActive ? '#AF8941' : '#e2e8f0'}`
+        borderRight: `1px solid ${isActive ? '#C6A854' : '#e2e8f0'}`,
+        borderBottom: `1px solid ${isActive ? '#C6A854' : '#e2e8f0'}`,
+        borderLeft: `1px solid ${isActive ? '#C6A854' : '#e2e8f0'}`
       }}
       onClick={onClick}
     >

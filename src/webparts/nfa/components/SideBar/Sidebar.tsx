@@ -155,29 +155,29 @@ const Sidebar: React.FC<ISidebarProps> = ({ context, sp }) => {
         {/* Support Box */}
         <div className="mt-8">
           {/* Divider matching section titles */}
-          <div style={{ borderTop: '1px solid rgba(30, 58, 95, 0.08)' }}></div>
+          <div style={{ borderTop: '1px solid var(--sidebar-border, #E2E8F0)' }}></div>
           
           {!isCollapsed && (
-            <div className="m-4 mt-6 p-4 rounded-xl flex flex-col gap-3" style={{ background: '#EEF1F5' }}>
+            <div className="m-4 mt-6 p-4 rounded-xl flex flex-col gap-3" style={{ background: 'var(--primary-burgundy-light, #F7EBEF)' }}>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full" style={{ background: 'rgba(30, 58, 95, 0.08)' }}>
-                  <Headphones size={24} color="#1E3A5F" strokeWidth={1.5} />
+                <div className="p-2 rounded-full" style={{ background: '#ffffff' }}>
+                  <Headphones size={24} color="#4A081E" strokeWidth={1.5} />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[#1E3A5F] font-semibold text-sm">Need Help?</span>
+                  <span className="text-[#4A081E] font-semibold text-sm">Need Help?</span>
                 </div>
               </div>
               <p className="text-xs text-slate-600 leading-snug">
                 Our support team is available to assist you.
               </p>
-              <button className="w-full py-2 rounded-lg font-semibold text-sm transition-colors mt-1" style={{ background: 'var(--primary-burgundy, #5C1D24)', color: '#ffffff' }}>
+              <button className="w-full py-2 rounded-lg font-semibold text-sm transition-colors mt-1" style={{ background: 'var(--primary-burgundy, #4A081E)', color: '#ffffff' }}>
                 Contact Support
               </button>
             </div>
           )}
           {isCollapsed && (
-            <div className="mx-auto mt-6 mb-4 p-2 rounded-full cursor-pointer hover:bg-[#EEF1F5] transition-colors flex items-center justify-center w-[36px] h-[36px]" title="Contact Support" style={{ background: '#EEF1F5' }}>
-               <Headphones size={20} color="#1E3A5F" strokeWidth={1.5} />
+            <div className="mx-auto mt-6 mb-4 p-2 rounded-full cursor-pointer transition-colors flex items-center justify-center w-[36px] h-[36px]" title="Contact Support" style={{ background: 'var(--primary-burgundy-light, #F7EBEF)' }}>
+               <Headphones size={20} color="#4A081E" strokeWidth={1.5} />
             </div>
           )}
         </div>

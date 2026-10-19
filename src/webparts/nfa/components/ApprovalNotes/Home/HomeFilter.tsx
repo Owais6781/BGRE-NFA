@@ -71,7 +71,7 @@ const HomeFilter: React.FC<HomeFilterProps> = ({ filters, onSearch, onClear, fun
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex items-center gap-2">
-          <SlidersHorizontal size={14} className="text-[#AF8941]" />
+          <SlidersHorizontal size={14} className="text-[#C6A854]" />
           <span>Filters</span>
         </div>
         <ChevronDown 

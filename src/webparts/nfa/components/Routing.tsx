@@ -61,7 +61,7 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
   return (
     <HashRouter>
       <ScrollToTop />
-      <div className="w-full flex flex-col min-h-screen" style={{ background: 'var(--page-background, #F8F7F4)' }}>
+      <div className="w-full flex flex-col min-h-screen" style={{ background: 'var(--page-background, #FAF7F0)' }}>
         <Header context={context} />
 
         <div className="w-full flex flex-1 min-w-0" style={{ padding: '10px' }}>
