@@ -26,7 +26,7 @@ import { RichTextEditor } from '../../../../../Share/Components/RichTextEditor';
 import DropdownField from '../../../../../Share/Components/DropdownField';
 import CommonButton from '../../../../../Share/Components/CommonButton';
 import "../../../../../Share/styles/global.scss";
-import { forceScrollToTop } from '../../../../../Share/utils';
+import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
 
 interface IApproverPageProps {
   context: WebPartContext;
@@ -926,7 +926,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               <div className="space-y-6">
                 <div>
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
-                  <h2 className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1">{nfa.referenceSubject || '-'}</h2>
+                  <h2 className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1">{stripHtml(nfa.referenceSubject) || '-'}</h2>
                 </div>
                 
                 <div className="border-t border-slate-100 pt-4">

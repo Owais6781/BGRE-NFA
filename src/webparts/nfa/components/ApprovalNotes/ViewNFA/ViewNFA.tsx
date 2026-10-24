@@ -17,7 +17,7 @@ import { CommonService } from '../../../../../Share/Services/CommonService';
 import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
 import ExcelDataViewer from '../../../../../Share/Components/ExcelDataViewer';
-import { forceScrollToTop } from '../../../../../Share/utils';
+import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
 
 interface IViewNFAProps {
   context: WebPartContext;
@@ -425,7 +425,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
-              <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.referenceSubject || '-'}</span>
+              <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">{stripHtml(form.referenceSubject) || '-'}</span>
             </div>
             
             <div className="flex flex-col gap-1">

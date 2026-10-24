@@ -1,3 +1,5 @@
+import { stripHtml } from "../utils";
+export { stripHtml } from "../utils";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { spfi, SPFx, SPFI } from "@pnp/sp";
 import "@pnp/sp/webs";
@@ -10,14 +12,14 @@ export const formatHistoryDate = (date: Date): string => {
   const day = pad(date.getDate());
   const month = pad(date.getMonth() + 1);
   const year = date.getFullYear();
-  
+
   let hours = date.getHours();
   const minutes = pad(date.getMinutes());
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12;
   hours = hours ? hours : 12;
   const strTime = `${hours}:${minutes} ${ampm}`;
-  
+
   return `${day}/${month}/${year} ${strTime}`;
 };
 
@@ -30,6 +32,12 @@ export interface INFAFormData {
   referenceSubject: string;
   requestNo?: string;
   introduction: string;
+
+  completeIndentPRReceivedFromDate: string;
+  boqSpecificationsRevisionsByDate: string;
+  RFQRefNo: string;
+  remark: string;
+
   chronology: string;
   commercialProposal: string;
   paymentTerms: string;
@@ -40,7 +48,8 @@ export interface INFAFormData {
   budgetRemarks: string;
   packageAwardedCost: string;
   budget: string;
-  capexSerialNo: string;
+  budgetedNonBudgeted: string;
+  capexSerialNo?: string;
   recommendation: string;
   contractorName: string;
   annexure: string;
@@ -82,7 +91,7 @@ export type NFAStatus = "Draft" | "Pending";
 
 export class NFAService {
   private sp: SPFI;
-  private listName: string = "DigitalApprovalNotes";
+   private listName: string = "DigitalApprovalNotes";
   private context: WebPartContext;
 
   constructor(context: WebPartContext) {
@@ -90,15 +99,15 @@ export class NFAService {
     this.sp = spfi().using(SPFx(context));
   }
 
-public async resolveUserId(loginName: string): Promise<number | null> {
-  try {
-    const user = await this.sp.web.ensureUser(loginName);
-    return user.Id;
-  } catch (error) {
-    console.error(error);
-    return null;
+  public async resolveUserId(loginName: string): Promise<number | null> {
+    try {
+      const user = await this.sp.web.ensureUser(loginName);
+      return user.Id;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
   }
-}
 
   public validateForm(form: INFAFormData, status: NFAStatus): IValidationResult {
     const errors: IValidationError[] = [];
@@ -106,10 +115,9 @@ public async resolveUserId(loginName: string): Promise<number | null> {
     if (status === "Draft") return { isValid: errors.length === 0, errors };
 
     if (!form.originatorDept.trim()) errors.push({ field: "originatorDept", message: "Dept is required." });
-    if (!form.referenceSubject.trim()) errors.push({ field: "referenceSubject", message: "Subject is required." });
+    if (!stripHtml(form.referenceSubject)) errors.push({ field: "referenceSubject", message: "Subject is required." });
     if (!form.projectSubEntity || form.projectSubEntity.length === 0) errors.push({ field: "projectSubEntity", message: "Sub-Entity is required." });
 
-    const stripHtml = (html: string): string => (html || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
     if (!stripHtml(form.introduction)) errors.push({ field: "introduction", message: "Introduction is required." });
     if (!stripHtml(form.chronology)) errors.push({ field: "chronology", message: "Chronology is required." });
     if (!stripHtml(form.commercialProposal)) errors.push({ field: "commercialProposal", message: "Commercial Proposals is required." });
@@ -128,55 +136,96 @@ public async resolveUserId(loginName: string): Promise<number | null> {
     return { isValid: errors.length === 0, errors };
   }
 
+
+
+   private toSharePointDate(value: string): string | null {
+    if (!value) return null;
+
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (match) {
+      return `${match[1]}-${match[2]}-${match[3]}T12:00:00`;
+    }
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime())
+      ? null
+      : date.toISOString();
+  }
+
+
+  
   private buildRequestBody(
     form: INFAFormData,
     status: NFAStatus,
     resolvedApprovers: (number | null)[],
     projectName: string,
-    subEntityNames: string
+    subEntityNames: string,
+    pendingAtName: string = "",
+    functionOptions: { label: string, value: string }[] = []
   ): Record<string, any> {
     const now = new Date();
+    const cleanSubject = stripHtml(form.referenceSubject);
+
+    const funcObj = functionOptions.find(
+      f => f.value === String(form.originatorDept) || f.label === form.originatorDept
+    );
+    const functionName = funcObj ? funcObj.label : form.originatorDept;
+    const functionId = funcObj ? funcObj.value : form.originatorDept;
+
     const body: Record<string, any> = {
-      Title: form.referenceSubject,
+      Title: cleanSubject,
       Project: projectName,
       ProjectSubEntity: subEntityNames,
-      Dept: form.originatorDept,
+      FunctionName: functionName,
+      FunctionID: String(functionId || ""),
+
       Status: status,
-      SubjectMatter: form.referenceSubject,
+      SubjectMatter: cleanSubject,
       BriefDesc: form.introduction,
-      Chronology: form.chronology,
-      CommercialProposal: form.commercialProposal,
-      PaymentTerms: form.paymentTerms,
-      LiquidatedDamage: form.liquidatedDamage,
-      ContractPerformance: form.contractPerf,
-      DefectLibilityPeriod: form.defectLiability,
-      WorkCompletionPeriod: form.workCompletion,
-      BudgetRemarks: form.budgetRemarks,
-      ApprovalAmount: form.packageAwardedCost,
-      Budget: form.budget,
-      RecommendationJust: form.recommendation,
-      ContractorName: form.contractorName,
-      AnnexureEnclosure: form.annexure,
-      AdditionalText1: form.note1,
-      AdditionalText2: form.note2,
-      AdditionalText3: form.note3,
-      AdditionalText4: form.note4,
-      WorkflowType: form.workflow,
-      DOAClause: form.doaMatrix,
-      RequestedOn: form.date,
+
+      RFQRefNo: form.RFQRefNo || "",
+      Remark: form.remark || "",
+
+      Chronology: form.chronology || "",
+      CommercialProposal: form.commercialProposal || "",
+      PaymentTerms: form.paymentTerms || "",
+      LiquidatedDamage: form.liquidatedDamage || "",
+      ContractPerformance: form.contractPerf || "",
+      DefectLibilityPeriod: form.defectLiability || "",
+      WorkCompletionPeriod: form.workCompletion || "",
+      BudgetRemarks: form.budgetRemarks || "",
+      ApprovalAmount: form.packageAwardedCost || "0.00",
+      Budget: form.budget || "0.00",
+      BudgetedNonBudgted: form.budgetedNonBudgeted || "",
+      // CapexSerialNo: form.capexSerialNo || "",
+      RecommendationJust: form.recommendation || "",
+      ContractorName: form.contractorName || "",
+      AnnexureEnclosure: form.annexure || "",
+      AdditionalText1: form.note1 || "",
+      AdditionalText2: form.note2 || "",
+      AdditionalText3: form.note3 || "",
+      AdditionalText4: form.note4 || "",
+      WorkflowType: form.workflow || "",
+      DOAClause: form.doaMatrix || "",
+      RequestedOn: form.date || "",
       Month: now.toLocaleString('default', { month: 'long' }),
       Year: now.getFullYear().toString(),
-      PendingAtId: resolvedApprovers[0] || null, 
-      Level: 1, 
-      UniqId: form.uniqId || "",
+      WFLevel: status === "Draft" ? "0" : "1",
+      UniqID: form.uniqId || "",
+      PendingAt: status === "Pending" ? (pendingAtName || "") : "",
     };
 
-    // Mapping 12 levels of approvers to ApprovalLevel1Id, ApprovalLevel2Id, etc.
-    for (let i = 0; i < 12; i++) {
-      const fieldName = `ApprovalLevel${i + 1}Id`;
-      body[fieldName] = resolvedApprovers[i] || null;
+    const prDate = this.toSharePointDate(form.completeIndentPRReceivedFromDate);
+    if (prDate) {
+      body.PRreceivedDate = prDate;
     }
 
+    const boqDate = this.toSharePointDate(form.boqSpecificationsRevisionsByDate);
+    if (boqDate) {
+      body.BOQRevisionsDate = boqDate;
+    }
     return body;
   }
 
@@ -231,8 +280,9 @@ public async resolveUserId(loginName: string): Promise<number | null> {
     functionOptions: { label: string, value: string }[]
   ): Promise<void> {
     try {
-      const funcObj = functionOptions.find(f => f.value === form.originatorDept);
+      const funcObj = functionOptions.find(f => f.value === String(form.originatorDept) || f.label === form.originatorDept);
       const functionName = funcObj ? funcObj.label : form.originatorDept;
+      const functionId = funcObj ? funcObj.value : form.originatorDept;
 
       const pendingAtId = resolvedApprovers[0] || null;
       let pendingAtName = "";
@@ -250,7 +300,7 @@ public async resolveUserId(loginName: string): Promise<number | null> {
       const logBody1: Record<string, any> = {
         Title: requestNo,
         WFID: String(itemId),
-        FunctionID: form.originatorDept,
+        FunctionID: String(functionId),
         FunctionName: functionName,
         Project: projectName,
         Amount: form.packageAwardedCost,
@@ -266,7 +316,7 @@ public async resolveUserId(loginName: string): Promise<number | null> {
       const logBody2: Record<string, any> = {
         Title: requestNo,
         WFID: String(itemId),
-        FunctionID: form.originatorDept,
+        FunctionID: String(functionId),
         FunctionName: functionName,
         Project: projectName,
         Amount: form.packageAwardedCost,
@@ -303,10 +353,10 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         // Dashboard Log: Current State (Pending)
         const dashboardBody: Record<string, any> = {
           Title: requestNo,
-          Function: functionName,
           Project: projectName,
+           Function: functionName,
+          FunctionID: String(functionId),
           Amount: form.packageAwardedCost,
-          FunctionID: form.originatorDept,
           WFID: String(itemId),
           WFLevel: "1",
           Status: "Pending",
@@ -341,9 +391,9 @@ public async resolveUserId(loginName: string): Promise<number | null> {
   }
 
   public async saveNFA(
-    form: INFAFormData, 
-    status: NFAStatus, 
-    projectOptions: { label: string, value: string }[], 
+    form: INFAFormData,
+    status: NFAStatus,
+    projectOptions: { label: string, value: string }[],
     subEntityOptions: { label: string, value: string }[],
     functionOptions: { label: string, value: string }[]
   ): Promise<INFASaveResponse> {
@@ -362,7 +412,24 @@ public async resolveUserId(loginName: string): Promise<number | null> {
       const projectObj = projectOptions.find(p => p.value === form.project);
       const projectName = projectObj ? projectObj.label : form.project;
       const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
-      const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames);
+
+      const pendingAtId = resolvedApprovers[0] || null;
+      let pendingAtName = "";
+      if (pendingAtId) {
+        try {
+          const user = await this.sp.web.getUserById(pendingAtId)();
+          pendingAtName = user.Title || "";
+        } catch (e1) {
+          try {
+            const user = await this.sp.web.siteUsers.getById(pendingAtId)();
+            pendingAtName = user.Title || "";
+          } catch (userErr) {
+            console.error("NFAService: Error fetching site user for pendingAtId:", pendingAtId, userErr);
+          }
+        }
+      }
+
+      const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames, pendingAtName, functionOptions);
 
       if (status === "Draft") {
         body.Title = this.generateRequestNo(projectName, form.date, "Draft", 0);
@@ -377,17 +444,6 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         requestNo = this.generateRequestNo(projectName, form.date, "Pending", itemId);
         const initiatorName = this.context.pageContext.user.displayName || "Initiator";
         const dateStr = formatHistoryDate(new Date());
-
-        const pendingAtId = resolvedApprovers[0] || null;
-        let pendingAtName = "";
-        if (pendingAtId) {
-          try {
-            const user = await this.sp.web.siteUsers.getById(pendingAtId)();
-            pendingAtName = user.Title || "";
-          } catch (userErr) {
-            console.error("NFAService: Error fetching site user for pendingAtId:", pendingAtId, userErr);
-          }
-        }
 
         const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
         const pendingWorkflowHistory = pendingAtName
@@ -411,10 +467,10 @@ public async resolveUserId(loginName: string): Promise<number | null> {
   }
 
   public async updateNFA(
-    itemId: number, 
-    form: INFAFormData, 
-    status: NFAStatus, 
-    projectOptions: { label: string, value: string }[], 
+    itemId: number,
+    form: INFAFormData,
+    status: NFAStatus,
+    projectOptions: { label: string, value: string }[],
     subEntityOptions: { label: string, value: string }[],
     functionOptions: { label: string, value: string }[]
   ): Promise<INFASaveResponse> {
@@ -433,7 +489,24 @@ public async resolveUserId(loginName: string): Promise<number | null> {
       const projectObj = projectOptions.find(p => p.value === form.project);
       const projectName = projectObj ? projectObj.label : form.project;
       const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
-      const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames);
+
+      const pendingAtId = resolvedApprovers[0] || null;
+      let pendingAtName = "";
+      if (pendingAtId) {
+        try {
+          const user = await this.sp.web.getUserById(pendingAtId)();
+          pendingAtName = user.Title || "";
+        } catch (e1) {
+          try {
+            const user = await this.sp.web.siteUsers.getById(pendingAtId)();
+            pendingAtName = user.Title || "";
+          } catch (userErr) {
+            console.error("NFAService: Error fetching site user for pendingAtId:", pendingAtId, userErr);
+          }
+        }
+      }
+
+      const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames, pendingAtName, functionOptions);
 
       const requestNo = this.generateRequestNo(projectName, form.date, status, itemId);
       body.Title = requestNo;
@@ -445,23 +518,12 @@ public async resolveUserId(loginName: string): Promise<number | null> {
           const initiatorName = this.context.pageContext.user.displayName || "Initiator";
           const dateStr = formatHistoryDate(new Date());
 
-          const pendingAtId = resolvedApprovers[0] || null;
-          let pendingAtName = "";
-          if (pendingAtId) {
-            try {
-              const user = await this.sp.web.siteUsers.getById(pendingAtId)();
-              pendingAtName = user.Title || "";
-            } catch (userErr) {
-              console.error("NFAService: Error fetching site user for pendingAtId:", pendingAtId, userErr);
-            }
-          }
-
           const initWorkflowHistory = `NFA Request Initiated by ${initiatorName} on ${dateStr}</br>`;
           const pendingWorkflowHistory = pendingAtName
             ? `\nNFA Pending at ${pendingAtName} at level-1 on ${dateStr}</br>`
             : "";
           const newWorkflowEntry = initWorkflowHistory + pendingWorkflowHistory;
-          
+
           body.WorkflowHistory = currentWorkflowHistory
             ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
             : newWorkflowEntry;
@@ -487,18 +549,28 @@ public async resolveUserId(loginName: string): Promise<number | null> {
   public async getNFA(itemId: number): Promise<INFAFormData | null> {
     try {
       const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}`);
-      const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-        .select("*", "PendingAt/Id", "PendingAt/Title", "Author/Id", "Author/Title", "CommentHistory", "WorkflowHistory", ...levels.map(l => `${l}/Id`), ...levels.map(l => `${l}/Title`))
-        .expand("PendingAt", "Author", ...levels)();
+      // const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
+      //   .select("*", "PendingAt/Id", "PendingAt/Title", "Author/Id", "Author/Title", "CommentHistory", "WorkflowHistory", ...levels.map(l => `${l}/Id`), ...levels.map(l => `${l}/Title`))
+      //   .expand("PendingAt", "Author", ...levels)();
 
+        const item = await this.sp.web.lists
+      .getByTitle(this.listName)
+      .items.getById(itemId)();
+      console.log("Raw SharePoint Item:", item);
       return {
         project: item.Project || "",
         projectSubEntity: item.ProjectSubEntity ? item.ProjectSubEntity.split("; ") : [],
-        originatorDept: item.Dept || "",
+        originatorDept: item.FunctionID || item.FunctionName || "",
         date: item.RequestedOn || "",
-        referenceSubject: item.SubjectMatter || item.Title || "",
+        referenceSubject: stripHtml(item.SubjectMatter || item.Title || ""),
         requestNo: item.Title || "",
         introduction: item.BriefDesc || "",
+
+        completeIndentPRReceivedFromDate: item.PRreceivedDate ? item.PRreceivedDate.substring(0, 10) : "",
+        boqSpecificationsRevisionsByDate: item.BOQRevisionsDate ? item.BOQRevisionsDate.substring(0, 10) : "",
+        RFQRefNo: item.RFQRefNo || "",
+        remark: item.Remark || "",
+
         chronology: item.Chronology || "",
         commercialProposal: item.CommercialProposal || "",
         paymentTerms: item.PaymentTerms || "",
@@ -509,7 +581,8 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         budgetRemarks: item.BudgetRemarks || "",
         packageAwardedCost: item.ApprovalAmount || "0.00",
         budget: item.Budget || "0.00",
-        capexSerialNo: "", 
+        budgetedNonBudgeted: item. BudgetedNonBudgted || "",
+        capexSerialNo: "",
         recommendation: item.RecommendationJust || "",
         contractorName: item.ContractorName || "",
         annexure: item.AnnexureEnclosure || "",
@@ -520,9 +593,9 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         workflow: item.WorkflowType || "",
         doaMatrix: item.DOAClause || "",
         approvers: levels.map(l => item[l]?.Id || ""),
-        uniqId: item.UniqId || "",
-        level: item.Level || 0,
-        pendingAtId: item.PendingAt ? item.PendingAt.Id : null,
+        uniqId: item.UniqID || item.UniqId || "",
+        level: parseInt(item.WFLevel || item.Level || "0", 10),
+        pendingAtId: (() => { const lvl = parseInt(item.WFLevel || item.Level || "1", 10); return (lvl >= 1 && lvl <= 12) ? (item[levels[lvl - 1]]?.Id || item[`ApprovalLevel${lvl}Id`] || null) : null; })(),
         initiatorId: item.Author ? item.Author.Id : undefined,
         commentHistory: item.CommentHistory || "",
         workflowHistory: item.WorkflowHistory || "",
@@ -535,14 +608,16 @@ public async resolveUserId(loginName: string): Promise<number | null> {
     }
   }
 
+
+
   public async getNFAList(): Promise<any[]> {
     try {
       const currentUser = await this.sp.web.currentUser();
       const currentUserId = currentUser.Id;
 
       const items = await this.sp.web.lists.getByTitle(this.listName).items
-        .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "PendingAt/Title", "Level")
-        .expand("PendingAt")
+        .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "WFLevel", "ApprovalLevel1/Title")
+        .expand("ApprovalLevel1")
         .filter(`AuthorId eq ${currentUserId}`)();
 
       return items.map((item: any) => ({
@@ -552,8 +627,8 @@ public async resolveUserId(loginName: string): Promise<number | null> {
         project: item.Project,
         createdOn: item.RequestedOn,
         status: item.Status,
-        pendingAt: item.PendingAt ? item.PendingAt.Title : "",
-        level: item.Level || 0
+        pendingAt: item.ApprovalLevel1 ? item.ApprovalLevel1.Title : "",
+        level: parseInt(item.WFLevel || item.Level || "0", 10)
       }));
     } catch (error) {
       console.error("Error fetching NFA list:", error);
@@ -584,9 +659,9 @@ public async resolveUserId(loginName: string): Promise<number | null> {
           project: item.Project,
           createdDate: item.RequestedOn || createdDate.toLocaleDateString('en-IN'),
           status: item.Status,
-          pendingAt: item.PendingAt ? item.PendingAt.Title : "",
+          pendingAt: item.ApprovalLevel1 ? item.ApprovalLevel1.Title : "",
           pendingAtId: item.PendingAt ? item.PendingAt.Id : null,
-          level: item.Level || 0,
+          level: parseInt(item.WFLevel || item.Level || "0", 10),
           amount: item.ApprovalAmount || "0.00",
           initiator: item.Author ? item.Author.Title : "",
           agingDays: diffDays

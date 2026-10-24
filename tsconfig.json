@@ -1,7 +1,24 @@
 {
-  "extends": "./node_modules/@microsoft/spfx-web-build-rig/profiles/default/tsconfig-base.json",
+  // "extends": "./node_modules/@microsoft/spfx-web-build-rig/profiles/default/tsconfig-base.json",
+  // "compilerOptions": {
+  // "lib": ["es2016", "dom"],
+  // "ignoreDeprecations": "5.0"
+  // }
+
   "compilerOptions": {
-  "lib": ["es2016", "dom"],
-  "ignoreDeprecations": "5.0"
-  }
+    "target": "es6",
+    "lib": ["dom", "es2016"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "jsx": "react",
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*"]
+
+
+
 }

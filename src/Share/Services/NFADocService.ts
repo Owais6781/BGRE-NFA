@@ -14,7 +14,8 @@ export interface ISavedDocument {
 
 export class NFADocService {
   private context: WebPartContext;
-  private listName: string = "NFADoc";
+   private listName: string = "NFADocs";
+ 
 
   constructor(context: WebPartContext) {
     this.context = context;

@@ -10,7 +10,7 @@ import { SPHttpClient } from "@microsoft/sp-http";
 export class ApprovalService {
   private sp: SPFI;
   private context: WebPartContext;
-  private listName: string = "DigitalApprovalNotes";
+  private listName: string = "DigitalApprovalNotes"; 
   private queryMgtListName: string = "QueryMgt";
 
   constructor(context: WebPartContext, sp: SPFI) {
@@ -26,7 +26,7 @@ export class ApprovalService {
     updateBody: Record<string, any>
   ): Promise<any> {
     const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-      .select("Status", "CommentHistory", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "Level", "Author/Title", "RequestedOn", "DOAClause")
+      .select("Status", "CommentHistory", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause")
       .expand("Author")();
 
     let userName = "Unknown User";
@@ -61,16 +61,16 @@ export class ApprovalService {
 
     const now = new Date();
     const dateString = now.toLocaleString("en-IN");
-    const newCommentEntry = `[${dateString}] ${userName} (${action}) [Level ${item.Level || 1}]: ${remarks || "No remarks"}`;
+    const newCommentEntry = `[${dateString}] ${userName} (${action}) [Level ${item.WFLevel || item.Level || 1}]: ${remarks || "No remarks"}`;
 
     const dateStr = formatHistoryDate(now);
     let newWorkflowEntry = "";
     if (action === "Query") {
-      newWorkflowEntry = `Pending for Query response to ${queryUserName} at level-${item.Level || 1} on ${dateStr}</br>`;
+      newWorkflowEntry = `Pending for Query response to ${queryUserName} at level-${item.WFLevel || item.Level || 1} on ${dateStr}</br>`;
     } else {
-      newWorkflowEntry = `NFA Request ${action} by ${userName} at Level ${item.Level || 1}. on ${dateStr}</br>`;
+      newWorkflowEntry = `NFA Request ${action} by ${userName} at Level ${item.WFLevel || item.Level || 1}. on ${dateStr}</br>`;
       if (action === "Approved" && updateBody.PendingAtId) {
-        newWorkflowEntry += `\nNFA Pending at ${nextApproverName} at level-${updateBody.Level || (item.Level + 1)} on ${dateStr}</br>`;
+        newWorkflowEntry += `\nNFA Pending at ${nextApproverName} at level-${updateBody.WFLevel || parseInt(updateBody.WFLevel, 10) || (parseInt(item.WFLevel || item.Level || "1", 10) + 1)} on ${dateStr}</br>`;
       }
     }
 
@@ -81,6 +81,19 @@ export class ApprovalService {
     const isUnderQuery = item.Status === "Query";
 
     const bodyToUpdate = { ...updateBody };
+    delete bodyToUpdate.PendingAtId;
+
+    if (action === "Approved") {
+      bodyToUpdate.PendingAt = nextApproverName && nextApproverName !== "Unknown Approver" ? nextApproverName : "";
+    } else if (action === "Query") {
+      bodyToUpdate.PendingAt = queryUserName && queryUserName !== "Unknown User" ? queryUserName : "";
+    } else if (action === "Delegate") {
+      bodyToUpdate.PendingAt = nextApproverName && nextApproverName !== "Unknown Approver" ? nextApproverName : "";
+    } else if (action === "Returned") {
+      bodyToUpdate.PendingAt = item.Author ? item.Author.Title : "";
+    } else if (action === "Rejected") {
+      bodyToUpdate.PendingAt = "";
+    }
 
     if (isNormalAction && !isUnderQuery) {
       bodyToUpdate.CommentHistory = currentCommentHistory 
@@ -147,7 +160,7 @@ export class ApprovalService {
         Amount: String(item.ApprovalAmount || "0.00"),
         Status: action,
         PendingAt: "",
-        WFLevel: String(item.Level || 1),
+        WFLevel: String(item.WFLevel || item.Level || 1),
         Remarks: remarks || ""
       };
 
@@ -164,7 +177,7 @@ export class ApprovalService {
           Amount: String(item.ApprovalAmount || "0.00"),
           Status: "Pending",
           PendingAt: pendingAtName,
-          WFLevel: String(newLevel !== undefined ? newLevel : (item.Level || 1)),
+          WFLevel: String(newLevel !== undefined ? newLevel : (item.WFLevel || item.Level || 1)),
           Remarks: ""
         };
 
@@ -222,7 +235,7 @@ export class ApprovalService {
           Amount: String(item.ApprovalAmount || "0.00"),
           FunctionID: item.Dept || "",
           WFID: String(itemId),
-          WFLevel: isQueryAction ? String(item.Level || 1) : String(newLevel !== undefined ? newLevel : (item.Level || 1)),
+          WFLevel: isQueryAction ? String(item.WFLevel || item.Level || 1) : String(newLevel !== undefined ? newLevel : (item.WFLevel || item.Level || 1)),
           Status: newStatus,
           DOA: doaClause,
           CurrentApproverId: isTerminal ? null : (isQueryAction ? currentUserId : newPendingAtId),
@@ -323,18 +336,18 @@ export class ApprovalService {
       const updateBody: Record<string, any> = {};
       
       if (nextApproverId) {
-        updateBody.Level = nextLevel;
+        updateBody.WFLevel = String(nextLevel);
         updateBody.PendingAtId = nextApproverId;
         updateBody.Status = "Pending";
       } else {
-        updateBody.Level = currentLevel;
+        updateBody.WFLevel = String(currentLevel);
         updateBody.PendingAtId = null;
         updateBody.Status = "Approved";
       }
       
       const item = await this.getAndUpdateCommentHistory(itemId, "Approved", remarks, currentUserId, updateBody);
       
-      await this.writeWFLog(item, itemId, remarks, "Approved", updateBody.Level, updateBody.PendingAtId, currentUserId);
+      await this.writeWFLog(item, itemId, remarks, "Approved", parseInt(updateBody.WFLevel, 10), updateBody.PendingAtId, currentUserId);
       
       return { success: true, message: nextApproverId ? "NFA approved and forwarded to next level." : "NFA fully approved!" };
     } catch (error) {
@@ -415,7 +428,7 @@ export class ApprovalService {
           Query: remarks || "",
           Status: "Pending",
           QueriedOn: new Date().toLocaleString("en-IN"),
-          WFLevel: String(item.Level || 1),
+          WFLevel: String(item.WFLevel || item.Level || 1),
           FunctionID: item.Dept || "",
           NFAType: "NFA"
         };
@@ -473,7 +486,7 @@ export class ApprovalService {
       const updateBody = {
         Status: "Returned",
         PendingAtId: initiatorId,
-        Level: 0
+        WFLevel: "0"
       };
       
       const item = await this.getAndUpdateCommentHistory(itemId, "Returned", remarks, currentUserId, updateBody);
@@ -562,7 +575,7 @@ export class ApprovalService {
 
       // 2. Fetch the NFA item from DigitalApprovalNotes
       const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-        .select("Status", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "Level", "Author/Title", "RequestedOn", "DOAClause")
+        .select("Status", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause")
         .expand("Author")();
 
       // 3. Get current user details
@@ -598,7 +611,7 @@ export class ApprovalService {
       }
 
       // 6. Update DigitalApprovalNotes item
-      const newWorkflowEntry = `Query responded by ${userName} at Level ${item.Level || 1}. on ${dateStr}</br>`;
+      const newWorkflowEntry = `Query responded by ${userName} at Level ${item.WFLevel || item.Level || 1}. on ${dateStr}</br>`;
       const currentWorkflowHistory = item.WorkflowHistory || "";
       const updatedWorkflowHistory = currentWorkflowHistory
         ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
@@ -620,7 +633,7 @@ export class ApprovalService {
         Amount: String(item.ApprovalAmount || "0.00"),
         Status: "Responded",
         PendingAt: "",
-        WFLevel: String(item.Level || 1),
+        WFLevel: String(item.WFLevel || item.Level || 1),
         Remarks: remarks || ""
       };
       await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody);
@@ -651,7 +664,7 @@ export class ApprovalService {
           Amount: String(item.ApprovalAmount || "0.00"),
           FunctionID: item.Dept || "",
           WFID: String(itemId),
-          WFLevel: String(item.Level || 1),
+          WFLevel: String(item.WFLevel || item.Level || 1),
           Status: "Pending",
           DOA: doaClause,
           CurrentApproverId: queryById,

@@ -13,7 +13,7 @@ export interface IDropdownOption {
 // ── Interface for Project Master list item ──
 export interface IProjectMasterItem {
   Id: number;
-  ProjectName: string; 
+  ProjectName: string;
 }
 
 
@@ -37,7 +37,7 @@ export class DropdownService {
   public async getProjects(): Promise<IDropdownOption[]> {
     try {
       const items: IProjectMasterItem[] = await this.sp.web.lists
-        .getByTitle("Project Master")
+        .getByTitle("ProjectMaster")
         .items
         .select("Id", "ProjectName")
         .orderBy("ProjectName", true)
@@ -89,9 +89,12 @@ export class DropdownService {
         .orderBy("Title", true)
         .top(500)();
   
+
+    
       return items.map((item) => ({
         label: item.Title,
-        value: item.Title,
+        value: String(item.Id),
+
       }));
     } catch (error) {
       console.error("Error fetching Function Master data:", error);

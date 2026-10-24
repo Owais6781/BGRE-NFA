@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { SPHttpClient } from "@microsoft/sp-http";
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2, History, MessageSquare
- } from 'lucide-react';
-import { Skeleton } from 'primereact/skeleton'; 
+import {
+  Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2, History, MessageSquare
+} from 'lucide-react';
+import { Skeleton } from 'primereact/skeleton';
 import { InputField } from '../../../../../Share/Components/InputField';
 import { TextAreaField } from '../../../../../Share/Components/TextAreaField';
 import { NumberInput } from '../../../../../Share/Components/NumberInput';
@@ -40,8 +41,8 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ icon, title, ch
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
     <div className={`formSection ${isOpen ? 'formSection--open' : 'formSection--closed'} ${hasError ? 'border-red-300 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`}>
-      <div 
-        className={`formSectionHeader formSectionHeader--toggle flex items-center justify-between cursor-pointer ${hasError ? 'bg-red-50/30' : ''}`} 
+      <div
+        className={`formSectionHeader formSectionHeader--toggle flex items-center justify-between cursor-pointer ${hasError ? 'bg-red-50/30' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="formSectionHeader__left flex items-center gap-2">
@@ -129,7 +130,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const [pendingAttachments, setPendingAttachments] = useState<IAttachmentEntry[]>([]);
   const [errors, setErrors] = useState<IValidationError[]>([]);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [manualSlotsCount, setManualSlotsCount] = useState(1);
+  const [manualSlotsCount, setManualSlotsCount] = useState(4);
   const [matrixApproverOptions, setMatrixApproverOptions] = useState<IDropdownOption[]>([]);
   const [doaMatrixOptions, setDoaMatrixOptions] = useState<IDropdownOption[]>([]);
   const [doaMatrixApprovers, setDoaMatrixApprovers] = useState<IDropdownOption[]>([]);
@@ -144,12 +145,18 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const [form, setForm] = useState<INFAFormData>({
     originatorDept: '', date: today, project: '', projectSubEntity: [],
     referenceSubject: '', introduction: '', chronology: '',
+    completeIndentPRReceivedFromDate: '',
+    boqSpecificationsRevisionsByDate: '',
+    RFQRefNo: '',
+    remark: '',
     commercialProposal: '', paymentTerms: '',
     liquidatedDamage: 'NA', contractPerf: 'NA',
     defectLiability: 'NA', workCompletion: 'Work must be completed and handed over to the satisfaction of Owner on or before -------',
     budgetRemarks: '', packageAwardedCost: '0.00', budget: '0.00',
-    capexSerialNo: '', recommendation: '', contractorName: '',
-    annexure: '', note1: '', note2: '', note3: '', note4: '',
+    budgetedNonBudgeted: "",
+    capexSerialNo: '',
+    recommendation: '', contractorName: '',
+    annexure: ' Enter Annexure/ Enclosur (if any)', note1: 'Enter Note-1 ', note2: 'Enter Note-2 ', note3: 'Enter Note-3 ', note4: 'Enter Note-4 ',
     workflow: 'MANUAL', doaMatrix: '',
     approvers: Array(12).fill(null),
     uniqId: '',
@@ -180,15 +187,15 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const getFileBadge = (fileName: string) => {
     const ext = fileName.split('.').pop()?.toLowerCase();
     const map: Record<string, { bg: string, text: string, border: string, label: string }> = {
-      'pdf':  { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'PDF' },
+      'pdf': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'PDF' },
       'xlsx': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'EXCEL' },
-      'xls':  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'EXCEL' },
+      'xls': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'EXCEL' },
       'docx': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'WORD' },
-      'doc':  { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'WORD' },
-      'png':  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
-      'jpg':  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
+      'doc': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'WORD' },
+      'png': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
+      'jpg': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
       'jpeg': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' },
-      'svg':  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' }
+      'svg': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'IMAGE' }
     };
     const style = map[ext || ''] || { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', label: 'FILE' };
     return (
@@ -226,10 +233,18 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         setFunctionOptions(dpts);
 
         if (id) {
+          console.log("URL ID:", id);
+          console.log("Parsed ID:", parseInt(id,));
+
           const nfaData = await nfaService.getNFA(parseInt(id));
+
+
+
           if (nfaData) {
             const matchedProject = projects.find(p => p.label === nfaData.project);
             if (matchedProject) nfaData.project = matchedProject.value;
+            const matchedFunc = dpts.find(d => d.value === String(nfaData.originatorDept) || d.label === nfaData.originatorDept);
+            if (matchedFunc) nfaData.originatorDept = matchedFunc.value;
 
             const subs1 = await dropdownService.getSubEntity(nfaData.project);
             setSubEntityOptions(subs1);
@@ -248,7 +263,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             setSavedDocuments(docs);
             setSubEntityOptions(subs);
             setForm(nfaData);
-            
+
             const parseCommentHistory = (commentHistoryText: string): any[] => {
               if (!commentHistoryText) return [];
               const lines = commentHistoryText.split("\n");
@@ -351,7 +366,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
             // Calculate initial manual slots count
             const lastFilledIdx = nfaData.approvers.map(a => a !== null && a !== '').lastIndexOf(true);
-            setManualSlotsCount(lastFilledIdx >= 0 ? lastFilledIdx + 1 : 1);
+            setManualSlotsCount(lastFilledIdx >= 0 ? Math.max(4, lastFilledIdx + 1) : 4);
           }
         } else {
           const newId = docService.generateUniqId();
@@ -377,13 +392,19 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     const getOptionsFromMatrix = async () => {
       try {
         const siteUrl = context.pageContext.web.absoluteUrl;
-        const endpoint = `${siteUrl}/_api/web/lists/getbytitle('ApproverMatrix')/items?$filter=Title eq '${form.originatorDept}' and IsActive eq 1&$select=Approver/Id,Approver/Title&$expand=Approver`;
+        //const endpoint = `${siteUrl}/_api/web/lists/getbytitle('ApproverMatrix')/items?$filter=Title eq '${form.originatorDept}' and IsActive eq 1&$select=Approver/Id,Approver/Title&$expand=Approver`;
+        const funcName = functionOptions.find(f => f.value === String(form.originatorDept))?.label || form.originatorDept;
+        const endpoint = `${siteUrl}/_api/web/lists/getbytitle('ApproverMaster')/items?$filter=(FunctionName eq '${funcName}' or FunctionName eq '${form.originatorDept}' or FunctionID eq '${form.originatorDept}')&$select=Id,ApproverName/Id,ApproverName/Title&$expand=ApproverName`;
         const response = await context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
         const data = await response.json();
+
+        console.log("ApproverMaster Data:", data);
         if (data.value) {
           const options = data.value.map((item: any) => ({
-            label: item.Approver.Title,
-            value: String(item.Approver.Id)
+            //  label: item.Approver.Title,
+            //  value: String(item.Approver.Id)
+            label: item.ApproverName.Title,
+            value: String(item.ApproverName.Id)
           }));
           setMatrixApproverOptions(options);
         }
@@ -393,6 +414,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     };
     getOptionsFromMatrix();
   }, [form.originatorDept, id]);
+
 
   // --- 4. AUTO WORKFLOW: DOA MATRIX LOOKUP ---
   const fetchMatchingMatrix = async (manualTrigger = false, amountVal?: string) => {
@@ -411,7 +433,8 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       const shouldAlert = manualTrigger;
 
       const siteUrl = context.pageContext.web.absoluteUrl;
-      const filter = `Function eq '${form.originatorDept}' and MinAmount le ${amount} and MaxAmount ge ${amount}`;
+      const funcName = functionOptions.find(f => f.value === String(form.originatorDept))?.label || form.originatorDept;
+      const filter = `(Function eq '${funcName}' or Function eq '${form.originatorDept}' or FunctionID eq '${form.originatorDept}') and MinAmount le ${amount} and MaxAmount ge ${amount}`;
       const endpoint = `${siteUrl}/_api/web/lists/getbytitle('DOAMatrix')/items?$filter=${filter}`;
 
       const response = await context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
@@ -436,7 +459,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             show: true,
             type: 'warning',
             title: 'DOA Matrix Not Found',
-            messages: [`No DOA Matrix rule found for '${form.originatorDept}' at the amount of ${amount}.`, "Please verify your DOA list or switch to MANUAL workflow."]
+            messages: [`No DOA Matrix rule found for '${funcName}' at the amount of ${amount}.`, "Please verify your DOA list or switch to MANUAL workflow."]
           });
           lastDoaCheck.current = { dept: form.originatorDept, amount: rawAmount };
         }
@@ -576,15 +599,15 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
-      <PageTitle 
-        title={id ? "Edit NFA" : "New NFA"} 
-        subtitle={id ? "Modify existing Note for Approval details." : "Create a new Note for Approval."} 
+      <PageTitle
+        title={id ? "Edit NFA" : "New NFA"}
+        subtitle={id ? "Modify existing Note for Approval details." : "Create a new Note for Approval."}
       />
- 
+
       <CollapsibleSection icon={<Building2 size={13} />} title="Basic Information" hasError={hasSectionErrors(['project', 'projectSubEntity', 'originatorDept'])}>
         <div className="flex flex-wrap gap-x-6 gap-y-4 mb-4">
           <div className="flex-1 min-w-[220px]">
-            <DropdownField label="Project" value={form.project} options={projectOptions} onChange={handleProjectChange} emptyLabel="Select Project..." error={getFieldError('project')} />
+            <DropdownField label="Entity" value={form.project} options={projectOptions} onChange={handleProjectChange} emptyLabel="Select Entity..." error={getFieldError('project')} />
           </div>
           <div className="flex-1 min-w-[220px]">
             <MultiSelectDropdown label="Sub-Entity" options={subEntityOptions} selectedValues={form.projectSubEntity} onChange={v => updateField('projectSubEntity', v)} disabled={loadingSubEntity || !form.project} required error={getFieldError('projectSubEntity')} />
@@ -599,29 +622,61 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           </div>
         </div>
       </CollapsibleSection>
- 
+
       <CollapsibleSection icon={<FileText size={13} />} title="NFA Details" defaultOpen={false} hasError={hasSectionErrors(['referenceSubject', 'introduction', 'chronology', 'commercialProposal', 'paymentTerms'])}>
         <div className="mb-4"><TextAreaField label="Subject" value={form.referenceSubject} onChange={v => updateField('referenceSubject', v)} rows={2} required error={getFieldError('referenceSubject')} /></div>
         <div className="mb-4"><RichTextEditor label="Introduction" value={form.introduction} onChange={v => updateField('introduction', v)} required error={getFieldError('introduction')} /></div>
+        <div className="flex gap-4 mb-4">
+          <div className="flex-1 min-w-0">
+            <InputField label="Complete Indent/PR received from & Date" type="date" value={form.completeIndentPRReceivedFromDate || ''} onChange={(v) => updateField('completeIndentPRReceivedFromDate', v)}    required error={getFieldError('completeIndentPRReceivedFromDate')}/>
+
+          </div>
+          <div className="flex-1 min-w-0">
+            <InputField label="BOQ/Specifications Revisions by & Date " type="date" value={form.boqSpecificationsRevisionsByDate || ''} onChange={(v) => updateField('boqSpecificationsRevisionsByDate', v)} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <InputField label="RFQ Ref No" value={form.RFQRefNo || ''} onChange={(v) => updateField('RFQRefNo', v)} />
+          </div>
+        </div>
+        <div className="mb-4"><InputField label="Remarks" value={form.remark || ''} onChange={(v) => updateField('remark', v)} /></div>
+
         <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)} required error={getFieldError('chronology')} /></div>
         <div className="mb-4"><RichTextEditor label="Commercial Proposals" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)} required error={getFieldError('commercialProposal')} /></div>
         <RichTextEditor label="Payment Terms" value={form.paymentTerms} onChange={v => updateField('paymentTerms', v)} />
       </CollapsibleSection>
- 
+
       <CollapsibleSection icon={<Wrench size={13} />} title="Contract Terms" defaultOpen={false} hasError={hasSectionErrors(['liquidatedDamage', 'contractPerf', 'defectLiability', 'workCompletion'])}>
-        <div className="mb-4"><TextAreaField label="LD" value={form.liquidatedDamage} onChange={v => updateField('liquidatedDamage', v)} rows={3} /></div>
-        <div className="mb-4"><TextAreaField label="CPG" value={form.contractPerf} onChange={v => updateField('contractPerf', v)} rows={3} /></div>
-        <div className="mb-4"><TextAreaField label="DLP" value={form.defectLiability} onChange={v => updateField('defectLiability', v)} rows={3} /></div>
+        <div className="mb-4"><TextAreaField label="Liquidated Damage" value={form.liquidatedDamage} onChange={v => updateField('liquidatedDamage', v)} rows={3} /></div>
+        <div className="mb-4"><TextAreaField label="Contract Performance Gurantee" value={form.contractPerf} onChange={v => updateField('contractPerf', v)} rows={3} /></div>
+        <div className="mb-4"><TextAreaField label="Defect Liability Period" value={form.defectLiability} onChange={v => updateField('defectLiability', v)} rows={3} /></div>
         <TextAreaField label="Work Completion" value={form.workCompletion} onChange={v => updateField('workCompletion', v)} rows={3} />
       </CollapsibleSection>
- 
-      <CollapsibleSection icon={<DollarSign size={13} />} title="Financials" defaultOpen={false} hasError={hasSectionErrors(['budgetRemarks', 'packageAwardedCost', 'budget', 'capexSerialNo'])}>
-        <div className="mb-4"><TextAreaField label="Remarks" value={form.budgetRemarks} onChange={v => updateField('budgetRemarks', v)} rows={3} /></div>
+
+      <CollapsibleSection icon={<DollarSign size={13} />} title="Financials" defaultOpen={false} hasError={hasSectionErrors(['budgetRemarks', 'packageAwardedCost', 'budget'])}>
+        <div className="mb-4"><TextAreaField label="Budget Remarks" value={form.budgetRemarks} onChange={v => updateField('budgetRemarks', v)} rows={3} /></div>
         <div className="flex gap-x-6 mb-4">
-          <div className="flex-1"><NumberInput label="Awarded Cost" value={form.packageAwardedCost} onChange={v => updateField('packageAwardedCost', v)} onBlur={v => fetchMatchingMatrix(true, v)} required error={getFieldError('packageAwardedCost')} /></div>
+          <div className="flex-1"><NumberInput label="Packeage Awarded Cost" value={form.packageAwardedCost} onChange={v => updateField('packageAwardedCost', v)} onBlur={v => fetchMatchingMatrix(true, v)} required error={getFieldError('packageAwardedCost')} /></div>
           <div className="flex-1"><NumberInput label="Budget" value={form.budget} onChange={v => updateField('budget', v)} required error={getFieldError('budget')} /></div>
+        <div className="flex-1">
+  <DropdownField
+    label="Budgeted/ Non Budgeted"
+    value={form.budgetedNonBudgeted}
+    options={[
+      { label: "Budgeted", value: "Budgeted" },
+      { label: "Non Budgeted", value: "Non Budgeted" }
+    ]}
+    onChange={(value) =>
+      setForm((prev) => ({
+        ...prev,
+        budgetedNonBudgeted: value
+      }))
+    }
+    emptyLabel="Select Budget Type..."
+    error={getFieldError("budgetedNonBudgeted")}
+  />
+</div>
         </div>
-        <div className="mb-4"><TextAreaField label="Capex No" value={form.capexSerialNo} onChange={v => updateField('capexSerialNo', v)} rows={3} /></div>
+        {/* <div className="mb-4"><TextAreaField label="Capex No" value={form.capexSerialNo} onChange={v => updateField('capexSerialNo', v)} rows={3} /></div> */}
         {financialsSummary.budget > 0 && (
           <div className="mt-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-200/80 flex flex-wrap gap-4 items-center justify-between">
             <div className="flex flex-col">
@@ -635,8 +690,8 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Budget Utilization</span>
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-500 ${financialsSummary.percent > 100 ? 'bg-rose-500' : 'bg-[#C6A854]'}`} 
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${financialsSummary.percent > 100 ? 'bg-rose-500' : 'bg-[#C6A854]'}`}
                     style={{ width: `${Math.min(100, financialsSummary.percent)}%` }}
                   />
                 </div>
@@ -646,34 +701,51 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           </div>
         )}
       </CollapsibleSection>
- 
+
       <CollapsibleSection icon={<Star size={13} />} title="Recommendation" defaultOpen={false} hasError={hasSectionErrors(['recommendation', 'contractorName'])}>
-        <div className="mb-4"><RichTextEditor label="Justification" value={form.recommendation} onChange={v => updateField('recommendation', v)} /></div>
+        <div className="mb-4"><RichTextEditor label="Recommendation with Justification" value={form.recommendation} onChange={v => updateField('recommendation', v)} /></div>
         <InputField label="Contractor Name" value={form.contractorName} onChange={v => updateField('contractorName', v)} />
+      <div className="mb-4"><TextAreaField label="Annexure/ Enclosur(if any)" value={form.annexure} onChange={v => updateField('annexure', v)} rows={3} /></div>
+      <div className="mb-4"><TextAreaField label="Note 1" value={form.note1} onChange={v => updateField('note1', v)} rows={2} /></div>
+      <div className="mb-4"><TextAreaField label="Note 2" value={form.note2} onChange={v => updateField('note2', v)} rows={2} /></div>
+      <div className="mb-4"><TextAreaField label="Note 3" value={form.note3} onChange={v => updateField('note3', v)} rows={2} /></div>
+      <div className="mb-4"><TextAreaField label="Note 4" value={form.note4} onChange={v => updateField('note4', v)} rows={2} /></div>
+
       </CollapsibleSection>
- 
+
       <CollapsibleSection icon={<Settings size={13} />} title="Workflow & Approvers" defaultOpen={false} hasError={hasSectionErrors(['workflow', 'doaMatrix', 'approvers'])}>
         <div className="flex gap-x-6 mb-6">
-          <div className="flex-1"><DropdownField label="Workflow" value={form.workflow} options={workflowOptions} onChange={v => updateField('workflow', v)} showEmptyOption={false} /></div>
           <div className="flex-1">
-            <DropdownField 
-              label="DOA Matrix" 
-              value={form.doaMatrix} 
-              options={doaMatrixOptions} 
-              onChange={v => updateField('doaMatrix', v)} 
-              disabled={form.workflow !== 'AUTO'} 
-              emptyLabel="Select DOA Matrix..." 
+            <DropdownField label="Workflow" value={form.workflow} options={workflowOptions} onChange={v => updateField('workflow', v)} showEmptyOption={false} />
+          </div>
+          <div className="flex-1">
+            <DropdownField
+              label="DOA Matrix"
+              value={form.doaMatrix}
+              options={doaMatrixOptions}
+              onChange={v => updateField('doaMatrix', v)}
+              disabled={form.workflow !== 'AUTO'}
+              emptyLabel="Select DOA Matrix..."
               error={form.workflow === 'AUTO' ? getFieldError('approvers') : undefined}
             />
           </div>
         </div>
+
         {form.workflow === 'AUTO' ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
               {form.approvers.map((app, idx) => {
                 if (!app) return null;
                 return (
-                  <DropdownField key={idx} label={`Approver Level ${idx + 1}`} value={String(app ?? "")} options={doaMatrixApprovers} onChange={(v) => updateApprover(idx, v)} disabled emptyLabel="None" />
+                  <DropdownField
+                    key={idx}
+                    label={`Approver Level ${idx + 1}`}
+                    value={String(app ?? "")}
+                    options={doaMatrixApprovers}
+                    onChange={(v) => updateApprover(idx, v)}
+                    disabled
+                    emptyLabel="None"
+                  />
                 );
               })}
             </div>
@@ -703,23 +775,23 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           </>
         ) : (
           <div className="flex flex-col gap-4">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
               {Array.from({ length: manualSlotsCount }).map((_, idx) => {
                 const app = form.approvers[idx];
                 return (
                   <div key={idx} className="flex items-end gap-2 relative group">
                     <div className="flex-1">
-                      <DropdownField 
-                        label={`Approver Level ${idx + 1}`} 
-                        value={String(app ?? "")} 
-                        options={matrixApproverOptions} 
-                        onChange={(v) => updateApprover(idx, v)} 
+                      <DropdownField
+                        label={`Approver Level ${idx + 1}`}
+                        value={String(app ?? "")}
+                        options={matrixApproverOptions}
+                        onChange={(v) => updateApprover(idx, v)}
                         emptyLabel="Select Approver..."
                         error={idx === 0 ? getFieldError('approvers') : undefined}
                       />
                     </div>
                     {manualSlotsCount > 1 && idx === manualSlotsCount - 1 && (
-                      <button 
+                      <button
                         type="button"
                         onClick={() => removeApproverSlot(idx)}
                         className="mb-1 p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 transition-all cursor-pointer"
@@ -746,7 +818,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           </div>
         )}
       </CollapsibleSection>
- 
+
       <CollapsibleSection icon={<Paperclip size={13} />} title="Attachments" defaultOpen={false}>
         <div className="flex justify-end mb-4"><CommonButton text="+ Add Attachment" variant="primary" onClick={() => setIsPopupOpen(true)} /></div>
         {(savedDocuments.length > 0 || pendingAttachments.length > 0) ? (
@@ -815,7 +887,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               const isApproved = item.action === 'Approved';
               const isRejected = item.action === 'Rejected';
               const isQuery = item.action === 'Query';
-              
+
               let dotClass = 'bg-blue-500';
               if (isApproved) {
                 dotClass = 'bg-emerald-500';
@@ -824,7 +896,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               } else if (isQuery) {
                 dotClass = 'bg-amber-500';
               }
-              
+
               return (
                 <div key={item.id || idx} className="relative pl-7 pb-2 last:pb-0">
                   {idx < history.length - 1 && (
@@ -864,7 +936,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       )}
 
       <AttachmentPopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} onSave={(entries) => { setPendingAttachments(prev => [...prev, ...entries]); setIsPopupOpen(false); }} />
-      
+
       {isSaving && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           {!savingProgress ? (
@@ -888,7 +960,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                   animation-delay: 1.15s;
                 }
               `}</style>
-              
+
               <div className="bg-white/95 rounded-3xl p-8 max-w-sm w-full border border-slate-200/80 shadow-2xl flex flex-col items-center justify-center gap-5 text-center transform scale-100 transition-all duration-300">
                 <div className="relative flex items-center justify-center h-16 w-16">
                   <span className="animate-ping absolute inline-flex h-12 w-12 rounded-full bg-blue-400 opacity-20"></span>
@@ -896,14 +968,14 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                     <FileText size={20} className="text-blue-600" />
                   </div>
                 </div>
-                
+
                 <div className="space-y-1.5">
                   <h3 className="font-black text-slate-800 text-base">Saving NFA</h3>
                   <p className="text-[11px] text-slate-450 font-bold uppercase tracking-wider">
                     Please wait while we upload your attachments and save the request
                   </p>
                 </div>
-                
+
                 <div className="relative w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-progress-1"></div>
                   <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-progress-2"></div>
@@ -918,7 +990,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                   <FileText size={20} className="text-blue-600" />
                 </div>
               </div>
-              
+
               <div className="space-y-1.5 w-full">
                 <h3 className="font-black text-slate-800 text-base">
                   {savingProgress.step === 'attachments' ? "Uploading Attachments" : "Saving Form Data"}
@@ -936,10 +1008,10 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                   )}
                 </div>
               </div>
-              
+
               <div className="w-full space-y-1">
                 <div className="relative w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300"
                     style={{ width: `${savingProgress.percent}%` }}
                   ></div>
@@ -990,7 +1062,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             });
             const service = new NFAService(context);
             const res = id ? await service.updateNFA(parseInt(id), form, 'Pending', projectOptions, subEntityOptions, functionOptions) : await service.saveNFA(form, 'Pending', projectOptions, subEntityOptions, functionOptions);
-            
+
             setSavingProgress({
               step: 'complete',
               currentFileIndex: 0,
@@ -1053,7 +1125,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             });
             const service = new NFAService(context);
             const res = id ? await service.updateNFA(parseInt(id), form, 'Draft', projectOptions, subEntityOptions, functionOptions) : await service.saveNFA(form, 'Draft', projectOptions, subEntityOptions, functionOptions);
-            
+
             setSavingProgress({
               step: 'complete',
               currentFileIndex: 0,

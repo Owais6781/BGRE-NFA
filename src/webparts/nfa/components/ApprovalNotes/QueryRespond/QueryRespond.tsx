@@ -19,7 +19,7 @@ import { ApprovalService } from '../../../../../Share/Services/ApprovalService';
 import { CommonService } from '../../../../../Share/Services/CommonService';
 import MessagePopup from '../../../../../Share/Components/MessagePopup';
 import "../../../../../Share/styles/global.scss";
-import { forceScrollToTop } from '../../../../../Share/utils';
+import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
 
 interface IQueryRespondProps {
   context: WebPartContext;
@@ -539,7 +539,7 @@ const QueryRespond: React.FC<IQueryRespondProps> = ({ context, sp }) => {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
-                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{nfa.referenceSubject || '-'}</span>
+                <span className="text-sm font-semibold text-slate-700 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 whitespace-pre-wrap">{stripHtml(nfa.referenceSubject) || '-'}</span>
               </div>
               
               <div className="flex flex-col gap-1">

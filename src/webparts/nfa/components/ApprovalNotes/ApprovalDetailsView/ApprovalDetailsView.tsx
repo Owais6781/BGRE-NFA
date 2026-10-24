@@ -6,7 +6,7 @@ import ApprovalDetailsFilter from './ApprovalDetailsFilter';
 import ApprovalDetailsTable  from './ApprovalDetailsTable';
 import "../../../../../Share/styles/global.scss";
 import PageTitle from '../../../../../Share/Components/PageTitle';
-import { forceScrollToTop } from '../../../../../Share/utils';
+import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
 
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
@@ -79,7 +79,7 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
           return {
             id: item.Id,
             nfa: item.Title || "",
-            subject: item.SubjectMatter || item.Title || "",
+            subject: stripHtml(item.SubjectMatter || item.Title || ""),
             function: item.Dept || "",
             createdBy: item.Author ? item.Author.Title : "",
             createdOn: item.RequestedOn || item.Created || "",
