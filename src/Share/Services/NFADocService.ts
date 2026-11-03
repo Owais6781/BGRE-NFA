@@ -14,8 +14,7 @@ export interface ISavedDocument {
 
 export class NFADocService {
   private context: WebPartContext;
-   private listName: string = "NFADocs";
- 
+  private listName: string = "NFADocs";
 
   constructor(context: WebPartContext) {
     this.context = context;
@@ -30,15 +29,15 @@ export class NFADocService {
 
   // ── Save Single Document ──
   private async createListItem(
-    documentType: string,
+    title: string,
     uniqId: string
   ): Promise<number> {
     const siteUrl = this.context.pageContext.web.absoluteUrl;
     const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items`;
 
     const body = JSON.stringify({
-      Title: documentType,
-      UniqId: uniqId,
+      Title: title,
+      UniqNo: uniqId,
     });
 
     const response: SPHttpClientResponse = await this.context.spHttpClient.post(
@@ -96,6 +95,7 @@ export class NFADocService {
   public async saveDocuments(
     entries: IAttachmentEntry[],
     uniqId: string,
+    requestNo?: string,
     onProgress?: (current: number, total: number, fileName: string) => void
   ): Promise<ISavedDocument[]> {
     const savedDocs: ISavedDocument[] = [];
@@ -107,8 +107,9 @@ export class NFADocService {
         onProgress(current, total, entry.file.name);
       }
       
-      // 1. Create list item
-      const itemId = await this.createListItem(entry.documentType, uniqId);
+      // 1. Create list item with documentType in Title
+      const docTitle = entry.documentType || "Attachment";
+      const itemId = await this.createListItem(docTitle, uniqId);
 
       // 2. Attach file to item
       await this.attachFileToItem(itemId, entry.file);
@@ -116,7 +117,7 @@ export class NFADocService {
       // 3. Track saved document
       savedDocs.push({
         id: itemId,
-        documentType: entry.documentType,
+        documentType: docTitle,
         fileName: entry.file.name,
         fileSize: entry.file.size,
         uniqId,
@@ -129,6 +130,38 @@ export class NFADocService {
     }
 
     return savedDocs;
+  }
+
+  // ── Update Title with RequestNo for All Documents of UniqId ──
+  public async updateDocumentsRequestNo(uniqId: string, requestNo: string): Promise<void> {
+    // Retain document Type in Title column as per specification (do not overwrite with requestNo)
+    return;
+  }
+
+  // ── Update Document Type (Title column in NFADocs list) ──
+  public async updateDocumentType(itemId: number, newType: string): Promise<void> {
+    if (!itemId || !newType) return;
+    const siteUrl = this.context.pageContext.web.absoluteUrl;
+    const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items(${itemId})`;
+
+    const response: SPHttpClientResponse = await this.context.spHttpClient.post(
+      endpoint,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "IF-MATCH": "*",
+          "X-HTTP-Method": "MERGE",
+        },
+        body: JSON.stringify({ Title: newType }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to update document type: ${errorText}`);
+    }
   }
 
   // ── Delete Document ──
@@ -154,33 +187,106 @@ export class NFADocService {
     }
   }
 
-  public async getDocumentsByUniqId(uniqId: string): Promise<ISavedDocument[]> {
-    try {
-      const siteUrl = this.context.pageContext.web.absoluteUrl;
-      // Filter by UniqId and Expand AttachmentFiles to get the actual file details
-      const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items?$filter=UniqId eq '${uniqId}'&$expand=AttachmentFiles`;
+  public async getDocumentsByUniqId(
+    uniqId?: string,
+    nfaId?: number,
+    requestNo?: string
+  ): Promise<ISavedDocument[]> {
+    const docMap = new Map<string, ISavedDocument>();
+    const siteUrl = this.context.pageContext.web.absoluteUrl;
 
-      const response: SPHttpClientResponse = await this.context.spHttpClient.get(
-        endpoint,
-        SPHttpClient.configurations.v1
-      );
-
-      if (!response.ok) return [];
-
-      const data = await response.json();
-
-      // Map the list items to the ISavedDocument interface
-      return data.value.map((item: any) => ({
-        id: item.Id,
-        documentType: item.Title, // We stored the type in the Title field
-        fileName: item.AttachmentFiles && item.AttachmentFiles.length > 0 ? item.AttachmentFiles[0].FileName : "Unknown",
-        fileSize: item.AttachmentFiles && item.AttachmentFiles.length > 0 ? item.AttachmentFiles[0].Length : 0,
-        uniqId: item.UniqId,
-        serverRelativeUrl: item.AttachmentFiles && item.AttachmentFiles.length > 0 ? item.AttachmentFiles[0].ServerRelativeUrl : ""
-      }));
-    } catch (error) {
-      console.error("Error fetching documents by UniqId:", error);
-      return [];
+    // 1. Fetch from NFADocs list by UniqNo
+    if (uniqId && uniqId.trim()) {
+      try {
+        const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items?$select=Id,Title,UniqNo&$filter=UniqNo eq '${encodeURIComponent(uniqId.trim())}'&$expand=AttachmentFiles`;
+        const res = await this.context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.value) {
+            for (const item of data.value) {
+              if (item.AttachmentFiles && item.AttachmentFiles.length > 0) {
+                for (const att of item.AttachmentFiles) {
+                  const key = (att.ServerRelativeUrl || att.FileName).toLowerCase();
+                  if (!docMap.has(key)) {
+                    docMap.set(key, {
+                      id: item.Id,
+                      documentType: item.Title || "Attachment",
+                      fileName: att.FileName || "Unknown",
+                      fileSize: att.Length || 0,
+                      uniqId: item.UniqNo || uniqId,
+                      serverRelativeUrl: att.ServerRelativeUrl || ""
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("NFADocService: Error querying NFADocs by UniqNo:", err);
+      }
     }
+
+    // 2. Fetch from NFADocs list by Title = requestNo (fallback for when UniqNo differs)
+    if (requestNo && requestNo.trim()) {
+      try {
+        const endpoint = `${siteUrl}/_api/web/lists/getbytitle('${this.listName}')/items?$select=Id,Title,UniqNo&$filter=Title eq '${encodeURIComponent(requestNo.trim())}'&$expand=AttachmentFiles`;
+        const res = await this.context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.value) {
+            for (const item of data.value) {
+              if (item.AttachmentFiles && item.AttachmentFiles.length > 0) {
+                for (const att of item.AttachmentFiles) {
+                  const key = (att.ServerRelativeUrl || att.FileName).toLowerCase();
+                  if (!docMap.has(key)) {
+                    docMap.set(key, {
+                      id: item.Id,
+                      documentType: item.Title || "Attachment",
+                      fileName: att.FileName || "Unknown",
+                      fileSize: att.Length || 0,
+                      uniqId: item.UniqNo || uniqId || "",
+                      serverRelativeUrl: att.ServerRelativeUrl || ""
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("NFADocService: Error querying NFADocs by requestNo Title:", err);
+      }
+    }
+
+    // 3. Fetch from DigitalApprovalNotes item direct attachments (legacy system support)
+    if (nfaId && !isNaN(nfaId) && nfaId > 0) {
+      try {
+        const endpoint = `${siteUrl}/_api/web/lists/getbytitle('DigitalApprovalNotes')/items(${nfaId})/AttachmentFiles`;
+        const res = await this.context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.value) {
+            for (const att of data.value) {
+              const key = (att.ServerRelativeUrl || att.FileName).toLowerCase();
+              if (!docMap.has(key)) {
+                docMap.set(key, {
+                  id: nfaId,
+                  documentType: "Attachment",
+                  fileName: att.FileName || "Unknown",
+                  fileSize: att.Length || 0,
+                  uniqId: uniqId || "",
+                  serverRelativeUrl: att.ServerRelativeUrl || ""
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("NFADocService: Error querying DigitalApprovalNotes direct attachments:", err);
+      }
+    }
+
+    return Array.from(docMap.values());
   }
 }

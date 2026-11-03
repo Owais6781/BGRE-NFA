@@ -6,7 +6,8 @@ import { Pagination }    from '../../../../../Share/Components/Pagination';
 import ExportToExcel     from '../../../../../Share/Components/ExportToExcel';
 import "../../../../../Share/styles/global.scss";
 
-interface DetailViewRecord {
+export interface DetailViewRecord {
+  id:               number;
   nfa:              string;
   subject:          string;
   function:         string;
@@ -23,7 +24,7 @@ interface DetailViewRecord {
 
 interface DetailViewTableProps {
   data:           DetailViewRecord[];
-  onRecordClick?: (nfa: string) => void;
+  onRecordClick?: (id: number) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -43,6 +44,17 @@ const exportColumns = [
   { key: 'packageCost',   label: 'Package Cost'          },
 ];
 
+const formatDateFriendly = (dateStr: string) => {
+  if (!dateStr) return '—';
+  const dateObj = new Date(dateStr);
+  if (isNaN(dateObj.getTime())) return dateStr;
+  return dateObj.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
 const DetailViewTable: React.FC<DetailViewTableProps> = ({
   data,
   onRecordClick,
@@ -56,10 +68,10 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
     {
       key: 'nfa',
       label: 'NFA',
-      render: (val: string) => (
+      render: (val: string, row: DetailViewRecord) => (
         <button
           className="tableLinkBtn"
-          onClick={(e) => { e.stopPropagation(); onRecordClick?.(val); }}
+          onClick={(e) => { e.stopPropagation(); onRecordClick?.(row.id); }}
         >
           {val}
         </button>
@@ -68,13 +80,17 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
     { key: 'subject',   label: 'Subject'    },
     { key: 'function',  label: 'Function'   },
     { key: 'createdBy', label: 'Created By' },
-    { key: 'createdOn', label: 'Created On' },
+    { 
+      key: 'createdOn', 
+      label: 'Created On',
+      render: (val: string) => formatDateFriendly(val)
+    },
     {
       key: 'status',
       label: 'Status',
       render: (val: string) => (
         <span className={`statusBadge ${
-          val === 'Approved' ? 'statusApproved' :
+          val === 'Approved' || val === 'Completed' ? 'statusApproved' :
           val === 'Rejected' ? 'statusRejected' :
           'statusPending'
         }`}>
@@ -85,6 +101,7 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
     {
       key: 'approvedRejOn',
       label: 'Approved Rejected On',
+      render: (val: string) => formatDateFriendly(val)
     },
     { key: 'pendingAt',   label: 'Pending At'   },
     { key: 'pendingFrom', label: 'Pending From' },

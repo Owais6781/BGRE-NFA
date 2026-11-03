@@ -97,8 +97,10 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
   useEffect(() => {
     const fetchInbox = async () => {
       const service = new NFAService(context);
+      console.log("service Inbox",service)
       try {
         const data = await service.getInboxData();
+        console.log("Inbox Data:", data);
         setInboxData(data);
       } catch (err) {
         console.error("Failed to load inbox data:", err);

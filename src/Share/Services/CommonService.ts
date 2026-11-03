@@ -38,7 +38,7 @@ export class CommonService {
 
       // Query WFLogList where Author/Id equals current user's ID and Status is 'Approved' or 'Rejected'
       const logItems = await this.sp.web.lists.getByTitle(this.logListName).items
-        .filter(`Author/Id eq ${currentUserId} and (Status eq 'Approved' or Status eq 'Rejected')`)
+        .filter(`Author/Id eq ${currentUserId} and (Status eq 'Approved' or Status eq 'Rejected' or Status eq 'Completed')`)
         .select("Title", "WFID", "FunctionName", "Project", "Status", "WFLevel", "Created", "PPLPendingAt/Title", "Author/Id", "Author/Title")
         .expand("PPLPendingAt", "Author")();
 
@@ -139,6 +139,12 @@ export class CommonService {
 
   public async getQueryHistory(wfid: string): Promise<any[]> {
     try {
+      try {
+        return await this.sp.web.lists.getByTitle("QueryMgtList").items
+          .filter(`WFID eq '${wfid}'`)
+          .select("Id", "Title", "WFID", "Query", "Response", "RespondedOn", "WFLevel", "QueriedOn", "QueryBy/Title", "QueryTo/Title", "AttachmentFiles")
+          .expand("QueryBy", "QueryTo", "AttachmentFiles")();
+      } catch { }
       return await this.sp.web.lists.getByTitle("QueryMgt").items
         .filter(`WFID eq '${wfid}'`)
         .select("Id", "Title", "WFID", "Query", "Response", "RespondedOn", "WFLevel", "QueriedOn", "QueryBy/Title", "QueryTo/Title", "AttachmentFiles")

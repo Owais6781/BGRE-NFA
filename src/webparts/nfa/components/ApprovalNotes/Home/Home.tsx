@@ -111,7 +111,8 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
 
   const activeFiltersList = useMemo(() => {
     if (!filters) return [];
-    const list = [];
+
+    const list: { key: string; label: string }[] = [];
     if (filters.fromDate && filters.fromDate !== minus11) {
       list.push({ key: 'fromDate', label: `From: ${filters.fromDate}` });
     }
@@ -335,15 +336,16 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
         loading={loading}
         onClearFilters={() => setFilters(null)}
         onRowClick={(record) => {
-           const status = (record.status || "").toLowerCase();
-           if (status === 'draft') {
-             navigate(`/new-nfa/${record.id}`);
-           } else if (status === 'pending') {
+          //  const status = (record.status || "").toLowerCase();
+          //  if (status === 'draft') {
+          //    navigate(`/new-nfa/${record.id}`);
+          //  } else if (status === 'pending') {
+          //    navigate(`/view-nfa/${record.id}`);
+          //  } else {
              navigate(`/view-nfa/${record.id}`);
-           } else {
-             navigate(`/view-nfa/${record.id}`);
-           }
+          //  }
         }}
+         
       />
 
     </div>

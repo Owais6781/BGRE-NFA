@@ -1,9 +1,12 @@
 import * as React from 'react';
 import { useState }    from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 import DatePickerField from '../../../../../Share/Components/Dateinput';
 import DropdownField   from '../../../../../Share/Components/DropdownField';
 import CommonButton    from '../../../../../Share/Components/CommonButton';
 import "../../../../../Share/styles/global.scss";
+
+import { IDropdownOption } from '../../../../../Share/Services/DropdownService';
 
 interface FilterValues {
   fromDate: string;
@@ -16,32 +19,27 @@ interface FilterValues {
 interface DetailViewFilterProps {
   onSearch: (filters: FilterValues) => void;
   onClear:  () => void;
+  projectOptions: IDropdownOption[];
+  functionOptions: IDropdownOption[];
 }
 
-const functionOptions = [
-  { label: 'IT',      value: 'IT'      },
-  { label: 'HR',      value: 'HR'      },
-  { label: 'GYM',     value: 'GYM'     },
-  { label: 'Finance', value: 'Finance' },
-];
-
 const statusOptions = [
-  { label: 'Pending',  value: 'Pending'  },
-  { label: 'Approved', value: 'Approved' },
-  { label: 'Rejected', value: 'Rejected' },
+  { label: 'Pending',   value: 'Pending'   },
+  { label: 'Approved',  value: 'Approved'  },
+  { label: 'Completed', value: 'Completed' },
+  { label: 'Rejected',  value: 'Rejected'  },
 ];
 
-const projectOptions = [
-  { label: 'Project A', value: 'A' },
-  { label: 'Project B', value: 'B' },
-];
-
-const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ onSearch, onClear }) => {
+const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ 
+  onSearch, 
+  onClear,
+  projectOptions,
+  functionOptions
+}) => {
   const today   = new Date().toISOString().split('T')[0];
-  const minus18 = new Date(Date.now() - 18 * 24 * 60 * 60 * 1000)
-                    .toISOString().split('T')[0];
+  const defaultFrom = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  const [fromDate,   setFromDate]   = useState(minus18);
+  const [fromDate,   setFromDate]   = useState(defaultFrom);
   const [toDate,     setToDate]     = useState(today);
   const [funcVal,    setFuncVal]    = useState('');
   const [statusVal,  setStatusVal]  = useState('');
@@ -58,7 +56,7 @@ const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ onSearch, onClear }
   };
 
   const handleClear = () => {
-    setFromDate(minus18);
+    setFromDate(defaultFrom);
     setToDate(today);
     setFuncVal('');
     setStatusVal('');
@@ -67,75 +65,68 @@ const DetailViewFilter: React.FC<DetailViewFilterProps> = ({ onSearch, onClear }
   };
 
   return (
-    <div className="contentCard">
-
-      {/* ── Row 1: From Date + To Date ── */}
-      <div className="flex flex-wrap gap-x-6 gap-y-4">
-        <div className="flex-1 min-w-[200px]">
-          <DatePickerField
-            label="From Date"
-            value={fromDate}
-            onChange={setFromDate}
-            required
-          />
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <DatePickerField
-            label="To Date"
-            value={toDate}
-            onChange={setToDate}
-            required
-          />
+    <div className="filterCard">
+      <div className="filterCardHeader">
+        <SlidersHorizontal size={14} />
+        Filters
+      </div>
+      <div className="filterCardBody">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <div className="flex-1 min-w-[150px] max-w-[200px]">
+            <DatePickerField
+              label="From Date"
+              value={fromDate}
+              onChange={setFromDate}
+            />
+          </div>
+          <div className="flex-1 min-w-[150px] max-w-[200px]">
+            <DatePickerField
+              label="To Date"
+              value={toDate}
+              onChange={setToDate}
+            />
+          </div>
+          <div className="flex-1 min-w-[160px] max-w-[220px]">
+            <DropdownField
+              label="Function"
+              value={funcVal}
+              onChange={setFuncVal}
+              options={functionOptions || []}
+              emptyLabel="All Functions"
+            />
+          </div>
+          <div className="flex-1 min-w-[140px] max-w-[180px]">
+            <DropdownField
+              label="Status"
+              value={statusVal}
+              onChange={setStatusVal}
+              options={statusOptions}
+              emptyLabel="All Statuses"
+            />
+          </div>
+          <div className="flex-1 min-w-[160px] max-w-[220px]">
+            <DropdownField
+              label="Project"
+              value={projectVal}
+              onChange={setProjectVal}
+              options={projectOptions || []}
+              emptyLabel="All Projects"
+            />
+          </div>
+          <div className="flex items-center gap-2 pb-0.5">
+            <CommonButton
+              text="Search"
+              variant="primary"
+              onClick={handleSearch}
+            />
+            <CommonButton
+              text="Clear"
+              variant="danger"
+              onClick={handleClear}
+            />
+          </div>
         </div>
       </div>
-
-      {/* ── Row 2: Function + Status ── */}
-      <div className="flex flex-wrap gap-x-6 gap-y-4 mt-4">
-        <div className="flex-1 min-w-[200px]">
-          <DropdownField
-            label="Function"
-            value={funcVal}
-            onChange={setFuncVal}
-            options={functionOptions}
-            required
-          />
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <DropdownField
-            label="Status"
-            value={statusVal}
-            onChange={setStatusVal}
-            options={statusOptions}
-            required
-          />
-        </div>
-      </div>
-
-      {/* ── Row 3: Project + Search ── */}
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-4 mt-4">
-        <div className="flex-1 min-w-[200px] max-w-[calc(50%-12px)]">
-          <DropdownField
-            label="Project"
-            value={projectVal}
-            onChange={setProjectVal}
-            options={projectOptions}
-            required
-          />
-        </div>
-        <div className="flex flex-1 justify-end items-end gap-2">
-          <CommonButton
-            text="Search.."
-            variant="primary"
-            onClick={handleSearch}
-          />
-          <CommonButton
-            text="Clear"
-            variant="danger"
-            onClick={handleClear}
-          />
-        </div>
-      </div>
-
     </div>
   );
 };

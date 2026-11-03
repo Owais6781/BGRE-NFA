@@ -10,12 +10,18 @@ import "../../../../../Share/styles/global.scss";
 interface NFARecord {
   id: number;
   requestNo: string; 
-  function: string; 
+  function: string;
+  contractorName: string;
   project: string;
   createdOn: string; // CDate
   status: string; 
+  Approvedrejectedby: string; 
+  Approvedrejectdatetime: string; 
   pendingAt: string;
   level: number;
+  PendingFrom: string;
+  packageAwardedCost: string;
+   doaMatrix: string;
 }
 
 interface HomeTableProps {
@@ -30,11 +36,17 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500];
 const exportColumns = [
   { key: 'requestNo', label: 'Request No.' },
   { key: 'function',  label: 'Function'    },
+  { key: 'contractorName',  label: 'Contractor Name'    },
   { key: 'project',   label: 'Project'     },
   { key: 'createdOn', label: 'CDate'       },
   { key: 'status',    label: 'Status'      },
+  { key: 'Approvedrejectedby',    label: 'Approved Reject By'      },
+  { key: 'Approvedrejectdatetime',    label: 'Approved Reject Date'      },
   { key: 'pendingAt', label: 'Pending At'  },
   { key: 'level',     label: 'Level'       },
+   { key: 'PendingFrom',     label: 'Pending From'       },
+   { key: 'doaMatrix',     label: 'DOA Clause'},
+   { key: 'packageAwardedCost',     label: 'Amount'},
 ];
 
 const formatDateFriendly = (dateStr: string) => {
@@ -55,25 +67,35 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
 
   const columns = [
     {
-      key: 'requestNo', label: 'Title / Request No.',
+      key: 'requestNo', label: 'Request No.',
       render: (val: string, row: NFARecord) => (
-        <button className="tableLinkBtn" onClick={(e) => { e.stopPropagation(); onRowClick?.(row); }}>
+        <button className="tableLinkBtn"
+        onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (row.id) {
+          onRowClick?.(row);
+        }
+      }}
+         >
           {val}
         </button>
       ),
     },
     { key: 'function', label: 'Function' },
-    { key: 'project',  label: 'Project'  },
-    { 
+     { key: 'contractorName', label: 'Contractor Name' },
+        { 
       key: 'createdOn', 
-      label: 'CDate',
+      label: 'Created On',
       render: (val: string) => formatDateFriendly(val)
     },
     {
       key: 'status', label: 'Status',
       render: (val: string) => {
         const clsMap: Record<string, { bg: string, text: string, border: string }> = {
-          'Approved': { bg: 'bg-emerald-50/60', text: 'text-emerald-700', border: 'border-emerald-500/30' },
+          'Approved':  { bg: 'bg-emerald-50/60', text: 'text-emerald-700', border: 'border-emerald-500/30' },
+          'Completed': { bg: 'bg-emerald-50/60', text: 'text-emerald-700', border: 'border-emerald-500/30' },
           'Rejected': { bg: 'bg-rose-50/60', text: 'text-rose-700', border: 'border-rose-500/30' },
           'Draft':    { bg: 'bg-slate-50/60', text: 'text-slate-700', border: 'border-slate-500/30' },
           'Pending':  { bg: 'bg-amber-50/60', text: 'text-amber-700', border: 'border-amber-500/30' }
@@ -88,6 +110,13 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
         );
       }
     },
+      { key: 'Approvedrejectedby',  label: 'Approved Reject By'  },
+        { key: 'Approvedrejectdatetime',  label: 'Approved Reject Date'  },
+
+
+   
+ 
+    
     { 
       key: 'pendingAt', 
       label: 'Pending At',
@@ -118,7 +147,11 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
         );
       }
     },
+    { key: 'PendingFrom',     label: 'Pending From'      },
     { key: 'level',     label: 'Level'      },
+     { key: 'doaMatrix',     label: 'DOA Clause'},
+     { key: 'project',  label: 'Entity'  },
+      { key: 'packageAwardedCost',  label: 'Amount'  },
   ];
 
   const filtered    = data.filter((row) =>
@@ -203,7 +236,6 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
           data={paginated}
           emptyMessage="No NFA records found"
           stickyFirstColumn={true}
-          onRowClick={onRowClick}
           loading={false}
         />
       )}

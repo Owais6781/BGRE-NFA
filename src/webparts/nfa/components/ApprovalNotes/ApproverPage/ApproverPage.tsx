@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  Building2, FileText, Wrench, DollarSign, Paperclip, 
-  Settings, Star, ChevronDown, ArrowLeft, History, 
+import {
+  Building2, FileText, Wrench, DollarSign, Paperclip,
+  Settings, Star, ChevronDown, ArrowLeft, History,
   MessageSquare, User, CheckCircle2, Clock, Circle,
   ChevronRight, Check, X, HelpCircle, UserCheck, CornerUpLeft, Download,
   MapPin, Calendar, Hourglass, Layers, GitBranch, BadgeDollarSign, Target, Tag,
@@ -44,9 +44,9 @@ const formatFileSize = (bytes?: number) => {
 const splitHistoryTextAndDate = (item: any) => {
   const raw = item.rawText || "";
   const date = item.date || "";
-  
+
   let cleanText = raw.replace(/<[^>]*>/g, "").trim();
-  
+
   if (date) {
     const dateIndex = cleanText.lastIndexOf(date);
     if (dateIndex !== -1) {
@@ -58,9 +58,9 @@ const splitHistoryTextAndDate = (item: any) => {
       }
     }
   }
-  
+
   cleanText = cleanText.replace(/\.$/, "").trim();
-  
+
   return {
     text: cleanText,
     date: date || "System Log"
@@ -78,8 +78,8 @@ const UserAvatar: React.FC<{ email?: string; initials: string; className: string
 
   if (photoUrl && !imgFailed) {
     return (
-      <img 
-        src={photoUrl} 
+      <img
+        src={photoUrl}
         alt={initials}
         onError={() => setImgFailed(true)}
         className={`${className} object-cover rounded-full`}
@@ -96,7 +96,7 @@ const UserAvatar: React.FC<{ email?: string; initials: string; className: string
 const renderHistoryText = (text: string) => {
   const statusRegex = /(Pending|Approved?|Rejected?|Initiated|Queried|Query|Returned?|Delegated?|Resolved|Submitted)/i;
   const parts = text.split(statusRegex);
-  
+
   return (
     <span className="leading-relaxed text-[13px] text-slate-600 font-medium">
       {parts.map((part, idx) => {
@@ -126,11 +126,11 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [nfa, setNfa] = useState<INFAFormData | null>(null);
   const [docs, setDocs] = useState<ISavedDocument[]>([]);
-  const [users, setUsers] = useState<{label: string, value: string, email?: string}[]>([]);
+  const [users, setUsers] = useState<{ label: string, value: string, email?: string }[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
-  
+
   // Action State
   const [remarks, setRemarks] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
@@ -175,7 +175,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
   const handleAction = async (actionType: 'Approve' | 'Reject' | 'Query' | 'Delegate' | 'Return') => {
     if (!id || !nfa) return;
-    
+
     if ((actionType === 'Reject' || actionType === 'Query' || actionType === 'Return') && !remarks.trim()) {
       setPopupConfig({
         show: true,
@@ -186,7 +186,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
       });
       return;
     }
-    
+
     if ((actionType === 'Query' || actionType === 'Delegate') && !selectedUser) {
       setPopupConfig({
         show: true,
@@ -202,7 +202,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
     const service = new ApprovalService(context, sp);
     const subject = nfa.referenceSubject || "NFA Action Note";
     const itemId = parseInt(id);
-    
+
     let result = { success: false, message: "" };
 
     try {
@@ -218,7 +218,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         const initiatorId = nfa.initiatorId || currentUserId;
         result = await service.returnNFA(itemId, remarks, initiatorId, currentUserId, subject);
       }
-      
+
       if (result.success && (actionType === 'Approve' || actionType === 'Reject')) {
         try {
           const itemObj = await sp.web.lists.getByTitle("DigitalApprovalNotes").items.getById(itemId).select("WorkflowHistoryHTML")();
@@ -226,7 +226,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
           const approverName = context.pageContext.user.displayName || "Approver";
           const actionName = actionType === 'Approve' ? 'Approved' : 'Rejected';
-          
+
           const pad = (num: number) => num < 10 ? '0' + num : String(num);
           const now = new Date();
           const day = pad(now.getDate());
@@ -240,7 +240,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           const dateTimeVal = `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
 
           const newRowHTML = `<tr><td>(${nfa.level} Approver)</td><td></td><td>${approverName}</td><td>${remarks || ""}</td><td>${actionName}</td><td>${dateTimeVal}</td></tr>`;
-          
+
           let updatedHTML = "";
           const cleanedCurrent = currentHTML.trim();
           if (!cleanedCurrent) {
@@ -296,7 +296,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
       if (!id) return;
       const nfaService = new NFAService(context);
       const docService = new NFADocService(context);
-      
+
       try {
         const commonService = new CommonService(context, sp);
         const [nfaData, siteUsers, historyData, qHistory] = await Promise.all([
@@ -315,7 +315,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           }
           setNfa(nfaData);
           setUsers(siteUsers);
-          
+
           const parseCommentHistory = (commentHistoryText: string): any[] => {
             if (!commentHistoryText) return [];
             const lines = commentHistoryText.split("\n");
@@ -422,7 +422,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           }
           setComments(finalComments);
 
-          const attachedDocs = await docService.getDocumentsByUniqId(nfaData.uniqId);
+          const attachedDocs = await docService.getDocumentsByUniqId(nfaData.uniqId, parseInt(id), nfaData.requestNo);
           setDocs(attachedDocs);
           setQueryHistory(qHistory);
         }
@@ -471,7 +471,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const workflowSteps = useMemo(() => {
     if (!nfa) return [];
     const steps = [{ label: 'Initiator', id: nfa.initiatorId, type: 'initiator' }];
-    
+
     nfa.approvers.forEach((appId, idx) => {
       if (appId) {
         steps.push({ label: `Level ${idx + 1}`, id: Number(appId), type: 'approver' });
@@ -526,7 +526,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
   const ageingText = useMemo(() => {
     if (!receivedOnDate || receivedOnDate === "Unknown") return "0 Hours";
-    
+
     try {
       const match = receivedOnDate.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?/i);
       if (!match) {
@@ -620,10 +620,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           -ms-overflow-style: auto !important;
         }
       `}</style>
-      
+
       {/* Approval Chain Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-4 px-6 mb-6">
-        <div 
+        <div
           ref={stepperContainerRef}
           className="relative flex items-center justify-start gap-1 overflow-x-auto pb-2 pt-0.5 no-scrollbar"
         >
@@ -634,12 +634,12 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             const isInitiator = idx === 0;
             const userLabel = user?.label || 'Pending';
             const initials = getInitials(userLabel);
-            
+
             let borderClass = 'border-slate-200 bg-white';
             let avatarClass = 'bg-slate-100 text-slate-400';
             let labelColor = 'text-slate-400';
-            let statusBadge = null;
-            
+            let statusBadge: React.ReactNode = null;
+
             if (isCurrent) {
               borderClass = 'border-amber-500 bg-amber-50/10 shadow-lg shadow-amber-100';
               avatarClass = 'bg-amber-500 text-white animate-pulse';
@@ -677,22 +677,22 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 </div>
               );
             }
-            
+
             return (
               <React.Fragment key={idx}>
-                <div 
+                <div
                   ref={isCurrent ? currentStepRef : undefined}
                   className="flex flex-col items-center shrink-0"
                 >
                   <span className={`text-[9px] font-extrabold uppercase tracking-wider mb-1 ${labelColor}`}>
                     {step.label}
                   </span>
-                  
+
                   <div className={`w-[155px] h-[40px] rounded-xl border flex flex-row items-center gap-2 px-2 py-0.5 transition-all duration-350 ${borderClass}`}>
-                    <UserAvatar 
-                      email={user?.email} 
-                      initials={initials} 
-                      className={`w-6 h-6 rounded-full shadow-inner shrink-0 ${avatarClass}`} 
+                    <UserAvatar
+                      email={user?.email}
+                      initials={initials}
+                      className={`w-6 h-6 rounded-full shadow-inner shrink-0 ${avatarClass}`}
                     />
                     <span className="text-[10px] font-extrabold text-slate-700 text-left leading-tight line-clamp-2 flex-1">
                       {userLabel}
@@ -700,7 +700,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     {statusBadge}
                   </div>
                 </div>
-                
+
                 {idx < workflowSteps.length - 1 && (
                   <div className="flex items-center justify-center text-slate-500 shrink-0 mt-4 mx-0.5">
                     <ChevronRight size={16} strokeWidth={3} />
@@ -714,7 +714,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
       {/* ── 70% / 30% Columns Wrapper ── */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
+
         {/* ── Left Column (70% Width) ── */}
         <div className="w-full lg:w-[70%] space-y-6">
 
@@ -735,7 +735,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 {nfa.requestNo || '-'}
               </span>
             </div>
-            
+
             {/* Strict 2-Column Details Grid — all fields in pairs, matching reference */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px' }}>
 
@@ -745,7 +745,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <Building2 size={13} className="text-blue-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Project</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Entity</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.project || '-'}</span>
                 </div>
               </div>
@@ -791,7 +791,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <Layers size={13} className="text-amber-500" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Data Matrix</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">DOA Matrix</span>
                   <span className="text-[13px] text-slate-700 font-semibold mt-0.5">{nfa.doaMatrix || '-'}</span>
                 </div>
               </div>
@@ -818,9 +818,20 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               </div>
               <span className="font-bold text-slate-800 text-[14px]">Financial Summary</span>
             </div>
-            
+
             {/* Budget, Awarded, Capex — forced single row */}
             <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', width: '100%' }}>
+              {/* Packeage Awarded Cost */}
+              <div style={{ flex: '1 1 0%', minWidth: 0, padding: '10px', background: 'rgba(236,253,245,0.6)', border: '1px solid #a7f3d0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '18px', height: '18px', background: '#d1fae5', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Target size={10} className="text-emerald-600" />
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Packeage Awarded Cost</span>
+                </div>
+                <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#047857' }}>₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</div>
+              </div>
+
               {/* Budget */}
               <div style={{ flex: '1 1 0%', minWidth: 0, padding: '10px', background: 'rgba(239,246,255,0.6)', border: '1px solid #bfdbfe', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -832,26 +843,17 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#1d4ed8' }}>₹ {Number(nfa.budget || 0).toLocaleString('en-IN')}</div>
               </div>
 
-              {/* Awarded Cost */}
-              <div style={{ flex: '1 1 0%', minWidth: 0, padding: '10px', background: 'rgba(236,253,245,0.6)', border: '1px solid #a7f3d0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '18px', height: '18px', background: '#d1fae5', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Target size={10} className="text-emerald-600" />
-                  </div>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Awarded</span>
-                </div>
-                <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#047857' }}>₹ {Number(nfa.packageAwardedCost || 0).toLocaleString('en-IN')}</div>
-              </div>
 
-              {/* Capex Serial No */}
+
+              {/*Budgeted/ Non Budgeted */}
               <div style={{ flex: '1 1 0%', minWidth: 0, padding: '10px', background: 'rgba(245,243,255,0.6)', border: '1px solid #ddd6fe', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ width: '18px', height: '18px', background: '#ede9fe', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Tag size={10} className="text-purple-600" />
                   </div>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capex No</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budgeted/ Non Budgeted</span>
                 </div>
-                <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#6d28d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nfa.capexSerialNo || ''}>{nfa.capexSerialNo || '-'}</div>
+                <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#6d28d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nfa.budgetedNonBudgeted || ''}>{nfa.budgetedNonBudgeted || '-'}</div>
               </div>
             </div>
 
@@ -868,53 +870,50 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
           {/* Details Card with Tabs */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-            
+
             {/* Horizontal Tabs Header — matching reference image style */}
             <div className="flex flex-wrap border-b border-slate-200 gap-x-6 gap-y-2.5 mb-5">
-              <button 
+              <button
                 type="button"
                 onClick={() => setActiveTab('details')}
-                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
-                  activeTab === 'details' 
-                    ? 'border-blue-600 text-blue-700 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${activeTab === 'details'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 <Paperclip size={15} className={activeTab === 'details' ? 'text-blue-600' : 'text-slate-400'} />
                 NFA Details
               </button>
-              <button 
-                type="button"
-                onClick={() => setActiveTab('recommendation')}
-                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
-                  activeTab === 'recommendation' 
-                    ? 'border-blue-600 text-blue-700 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <Star size={15} className={activeTab === 'recommendation' ? 'text-blue-600' : 'text-slate-400'} />
-                Recommendation
-              </button>
-              <button 
+              <button
                 type="button"
                 onClick={() => setActiveTab('terms')}
-                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
-                  activeTab === 'terms' 
-                    ? 'border-blue-600 text-blue-700 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${activeTab === 'terms'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 <Settings size={15} className={activeTab === 'terms' ? 'text-blue-600' : 'text-slate-400'} />
                 Contract Terms
               </button>
-              <button 
+              <button
+                type="button"
+                onClick={() => setActiveTab('recommendation')}
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${activeTab === 'recommendation'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+              >
+                <Star size={15} className={activeTab === 'recommendation' ? 'text-blue-600' : 'text-slate-400'} />
+                Recommendation
+              </button>
+
+              <button
                 type="button"
                 onClick={() => setActiveTab('notes')}
-                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${
-                  activeTab === 'notes' 
-                    ? 'border-blue-600 text-blue-700 font-extrabold' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
+                className={`font-bold transition-all flex items-center gap-2 px-3.5 pb-2.5 border-b-2 -mb-[2px] text-[13px] ${activeTab === 'notes'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 <Paperclip size={15} className={activeTab === 'notes' ? 'text-blue-600' : 'text-slate-400'} />
                 Annexures & Notes
@@ -928,17 +927,17 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
                   <h2 className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1">{stripHtml(nfa.referenceSubject) || '-'}</h2>
                 </div>
-                
+
                 <div className="border-t border-slate-100 pt-4">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Introduction / Preamble / Background</span>
-                  <div 
+                  <div
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent transition-all duration-300"
                     style={!isIntroExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
                   >
                     <div dangerouslySetInnerHTML={{ __html: nfa.introduction || '-' }} />
                   </div>
                   {nfa.introduction && nfa.introduction.replace(/<[^>]*>/g, "").length > 450 && (
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setIsIntroExpanded(!isIntroExpanded)}
                       className="text-[12px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
@@ -948,16 +947,48 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   )}
                 </div>
 
+                <div className="flex flex-row items-start gap-4 w-full border-t border-slate-100 pt-4">
+              
+                  <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">   Complete Indent/PR received from & Date</span>
+                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap"> 
+                             {nfa.completeIndentPRReceivedFromDate
+                    ? (() => {
+                      const [year, month, day] =
+                        nfa.completeIndentPRReceivedFromDate.split("T")[0].split("-");
+                      return `${day}/${month}/${year.slice(-2)}`;
+                    })()
+                    : "-"}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">BOQ/Specifications Revisions by & Date</span>
+                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">                 
+                      {nfa.boqSpecificationsRevisionsByDate
+                    ? (() => {
+                      const [year, month, day] =
+                        nfa.boqSpecificationsRevisionsByDate.split("T")[0].split("-");
+                      return `${day}/${month}/${year.slice(-2)}`;
+                    })()
+                    : "-"}
+                    </div>
+                  </div>
+               
+                  <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">RFQ Ref No</span>
+                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.RFQRefNo || '-'}</div>
+                  </div>
+                </div>
                 <div className="border-t border-slate-100 pt-4">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
-                  <div 
+                  <div
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
                     style={!isChronologyExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
                   >
                     <div dangerouslySetInnerHTML={{ __html: nfa.chronology || '-' }} />
                   </div>
                   {nfa.chronology && nfa.chronology.replace(/<[^>]*>/g, "").length > 450 && (
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setIsChronologyExpanded(!isChronologyExpanded)}
                       className="text-[12px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
@@ -969,14 +1000,14 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
                 <div className="border-t border-slate-100 pt-4">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Commercial Proposals</span>
-                  <div 
+                  <div
                     className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1 richTextContent transition-all duration-300"
                     style={!isCommercialExpanded ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
                   >
                     <div dangerouslySetInnerHTML={{ __html: nfa.commercialProposal || '-' }} />
                   </div>
                   {nfa.commercialProposal && nfa.commercialProposal.replace(/<[^>]*>/g, "").length > 450 && (
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setIsCommercialExpanded(!isCommercialExpanded)}
                       className="text-[12px] font-bold text-blue-600 hover:text-blue-800 mt-1 cursor-pointer block"
@@ -997,34 +1028,35 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
             {activeTab === 'recommendation' && (
               <div className="space-y-4">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Recommendation with Justification</span>
+                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent">
+                    <div dangerouslySetInnerHTML={{ __html: nfa.recommendation || '-' }} />
+                  </div>
+                </div>
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 p-3.5 bg-blue-50/20 border border-blue-100/50 rounded-xl">
                     <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Contractor Name</span>
                     <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-0.5">{nfa.contractorName || '-'}</div>
                   </div>
                 </div>
-                
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Justification / Recommendation</span>
-                  <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 richTextContent">
-                    <div dangerouslySetInnerHTML={{ __html: nfa.recommendation || '-' }} />
-                  </div>
-                </div>
+
+
               </div>
             )}
 
             {activeTab === 'terms' && (
               <div className="space-y-4">
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Liquidated Damage</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.liquidatedDamage || '-'}</div>
                 </div>
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Contract Performance Gurantee</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.contractPerf || '-'}</div>
                 </div>
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Defect Liability Period</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.defectLiability || '-'}</div>
                 </div>
                 <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
@@ -1037,7 +1069,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             {activeTab === 'notes' && (
               <div className="space-y-4">
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Annexure/ Enclosur(if any)</span>
                   <div className="text-[13px] text-slate-700 font-semibold leading-relaxed bg-slate-50/40 p-3 rounded-xl border border-slate-100 mt-1 whitespace-pre-wrap">{nfa.annexure || '-'}</div>
                 </div>
                 <div>
@@ -1073,11 +1105,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             <div className="flex items-center gap-4 pb-2 border-b border-slate-100 mb-3">
               <button
                 type="button"
-                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${
-                  activeDocTab === 'attachments'
-                    ? 'border-blue-600 text-blue-700 font-extrabold'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
-                }`}
+                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'attachments'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
+                  }`}
                 onClick={() => setActiveDocTab('attachments')}
               >
                 <div className="w-5 h-5 bg-blue-50 border border-blue-100 rounded flex items-center justify-center shrink-0">
@@ -1088,11 +1119,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
               <button
                 type="button"
-                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${
-                  activeDocTab === 'query'
-                    ? 'border-blue-600 text-blue-700 font-extrabold'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
-                }`}
+                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'query'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
+                  }`}
                 onClick={() => setActiveDocTab('query')}
               >
                 <div className="w-5 h-5 bg-slate-50 border border-slate-150 rounded flex items-center justify-center shrink-0">
@@ -1108,28 +1138,27 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 docs.length > 0 ? (
                   <>
                     <div className="relative">
-                      <div className={`space-y-2 overflow-y-auto pr-1 transition-all ${
-                        isDocsExpanded ? 'max-h-[500px]' : 'max-h-[210px]'
-                      }`}>
+                      <div className={`space-y-2 overflow-y-auto pr-1 transition-all ${isDocsExpanded ? 'max-h-[500px]' : 'max-h-[210px]'
+                        }`}>
                         {docs.map(doc => {
                           const ext = doc.fileName.split('.').pop()?.toLowerCase();
                           let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
                           if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                          else if (['xlsx','xls','csv'].indexOf(ext||'') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                          else if (['docx','doc'].indexOf(ext||'') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                          else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                          else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
                           return (
-                            <a 
-                              key={doc.id} 
-                              href={doc.serverRelativeUrl} 
-                              target="_blank" 
+                            <a
+                              key={doc.id}
+                              href={doc.serverRelativeUrl}
+                              target="_blank"
                               rel="noopener noreferrer"
                               data-interception="off"
-                              className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
+                              className="group flex items-center justify-between gap-2 p-1.5 px-2 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
                             >
-                              <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                              <div className="flex items-center gap-2 min-w-0 overflow-hidden"><div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
                                 <FileText size={13} />
                               </div>
-                              <span className="text-[13px] font-semibold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
+                              <span className="text-[13px] font-semibold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>{doc.fileName}</span></div><span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-emerald-50 group-hover:text-emerald-700 group-hover:border-emerald-200 transition-colors">{doc.documentType || 'Attachment'}</span><span style={{ display: 'none' }}>
                                 {doc.fileName}
                               </span>
                             </a>
@@ -1166,13 +1195,13 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                       const ext = doc.fileName.split('.').pop()?.toLowerCase();
                       let iconColor = 'text-slate-500 bg-slate-50 border-slate-100';
                       if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
-                      else if (['xlsx','xls','csv'].indexOf(ext||'') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
-                      else if (['docx','doc'].indexOf(ext||'') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
+                      else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
+                      else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
                       return (
-                        <a 
-                          key={doc.id||idx} 
-                          href={doc.serverRelativeUrl} 
-                          target="_blank" 
+                        <a
+                          key={doc.id || idx}
+                          href={doc.serverRelativeUrl}
+                          target="_blank"
                           rel="noopener noreferrer"
                           data-interception="off"
                           className="group flex items-center gap-2 p-1.5 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
@@ -1202,10 +1231,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           {/* Workflow History Card — matching reference image */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2.5">
-              <History size={15} className="text-blue-500 shrink-0"/> 
+              <History size={15} className="text-blue-500 shrink-0" />
               <span className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Workflow History</span>
             </div>
-            
+
             <div className="space-y-4">
               {history.length > 0 ? (
                 (() => {
@@ -1215,7 +1244,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                       {displayedHistory.map((item, idx) => {
                         const rawText = item.rawText || "";
                         const lower = rawText.toLowerCase();
-                        
+
                         let dotClass = 'bg-blue-500';
                         if (lower.includes("approved") || lower.includes("resolved") || lower.includes("submitted")) {
                           dotClass = 'bg-emerald-500';
@@ -1224,7 +1253,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         } else if (lower.includes("query")) {
                           dotClass = 'bg-amber-500';
                         }
-                        
+
                         let descText = rawText;
                         let dateText = item.date || "";
 
@@ -1254,7 +1283,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                               <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
                             )}
                             <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
-                            
+
                             <div className="flex flex-col min-w-0">
                               <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
                                 {renderHistoryText(descText)}
@@ -1268,7 +1297,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                           </div>
                         );
                       })}
-                      
+
                       {history.length > 4 && (
                         <div className="pt-3 text-center">
                           <button
@@ -1294,7 +1323,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           {/* Comments & Query History Card — matching reference image */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-              <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
+              <MessageSquare size={14} className="text-indigo-500 shrink-0" />
               <span className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Comments History</span>
             </div>
 
@@ -1302,11 +1331,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             <div className="flex items-center gap-3 mb-4 pt-1">
               <button
                 type="button"
-                className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all border ${
-                  activeCommentTab === 'comments'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
-                    : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
-                }`}
+                className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all border ${activeCommentTab === 'comments'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                  : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
+                  }`}
                 onClick={() => setActiveCommentTab('comments')}
               >
                 Comments ({comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length})
@@ -1314,11 +1342,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
               <button
                 type="button"
-                className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all border ${
-                  activeCommentTab === 'query'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
-                    : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
-                }`}
+                className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all border ${activeCommentTab === 'query'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                  : 'bg-slate-50 text-slate-500 border-slate-200/80 hover:bg-slate-100'
+                  }`}
                 onClick={() => setActiveCommentTab('query')}
               >
                 Query Remarks ({queryHistory.length})
@@ -1405,16 +1432,16 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               Action Console (Level {nfa.level || '4'})
             </span>
           </div>
-          
+
           <div className="flex flex-col md:flex-row gap-6 items-stretch">
-            
+
             {/* Remarks TextArea (Left 60%) */}
             <div className="w-full md:w-[60%] flex flex-col">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block shrink-0">
                 Remarks / Comments <span className="text-rose-500">*</span>
               </label>
               <div className="relative flex-1">
-                <textarea 
+                <textarea
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all resize-none h-[110px] leading-relaxed shadow-sm"
                   placeholder="Type your approval / rejection comments here..."
                   value={remarks}
@@ -1422,29 +1449,29 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 />
               </div>
             </div>
-            
+
             {/* Delegate/Query User (Right 40%) */}
             <div className="w-full md:w-[40%] flex flex-col justify-start">
-              
+
               {/* Custom People Picker */}
               <div className="relative" ref={suggestionsRef}>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">
                   Delegate / Query User
                 </label>
-                
+
                 {selectedUserObj ? (
                   /* Selected User Pill */
                   <div className="flex items-center justify-between bg-blue-50/50 border border-blue-200/80 rounded-xl p-2.5 h-[42px] shadow-sm">
                     <div className="flex items-center gap-2 min-w-0">
-                      <UserAvatar 
-                        email={selectedUserObj.email} 
-                        initials={getInitials(selectedUserObj.label)} 
-                        className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] shrink-0 shadow-inner" 
+                      <UserAvatar
+                        email={selectedUserObj.email}
+                        initials={getInitials(selectedUserObj.label)}
+                        className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] shrink-0 shadow-inner"
                       />
                       <span className="text-[13px] font-semibold text-slate-700 truncate">{selectedUserObj.label}</span>
                     </div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => {
                         setSelectedUser('');
                         setUserSearch('');
@@ -1457,7 +1484,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 ) : (
                   /* Search input */
                   <div className="relative">
-                    <input 
+                    <input
                       type="text"
                       className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500 transition-all h-[42px] shadow-sm"
                       placeholder="Search people by name..."
@@ -1486,10 +1513,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                             setShowSuggestions(false);
                           }}
                         >
-                          <UserAvatar 
-                            email={u.email} 
-                            initials={getInitials(u.label)} 
-                            className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-[9px] shrink-0 shadow-inner" 
+                          <UserAvatar
+                            email={u.email}
+                            initials={getInitials(u.label)}
+                            className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-[9px] shrink-0 shadow-inner"
                           />
                           <span className="text-[13px] font-semibold text-slate-700">{u.label}</span>
                         </button>
@@ -1502,58 +1529,58 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   </div>
                 )}
               </div>
-              
+
               <span className="text-[11px] text-slate-400 font-semibold mt-2.5 block leading-none pl-0.5">
                 Delegated user will be notified to take action.
               </span>
             </div>
-            
+
           </div>
 
           {/* Centered Action Buttons Bar (Using inline background colors to avoid Tailwind purging issues) */}
           <div className="flex flex-wrap gap-3 items-center justify-center pt-5 border-t border-slate-100">
-            <button 
+            <button
               type="button"
-              onClick={() => handleAction('Approve')} 
-              disabled={isActionLoading} 
+              onClick={() => handleAction('Approve')}
+              disabled={isActionLoading}
               style={{ backgroundColor: '#00b294', color: '#ffffff' }}
               className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
               <Check size={14} strokeWidth={2.5} /> Approve
             </button>
-            <button 
+            <button
               type="button"
-              onClick={() => handleAction('Reject')} 
-              disabled={isActionLoading} 
+              onClick={() => handleAction('Reject')}
+              disabled={isActionLoading}
               style={{ backgroundColor: '#e81123', color: '#ffffff' }}
               className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
               <X size={14} strokeWidth={2.5} /> Reject
             </button>
-            <button 
+            <button
               type="button"
-              onClick={() => handleAction('Query')} 
-              disabled={isActionLoading} 
+              onClick={() => handleAction('Query')}
+              disabled={isActionLoading}
               style={{ backgroundColor: '#ff8c00', color: '#ffffff' }}
               className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
               <HelpCircle size={14} strokeWidth={2.5} /> Query
             </button>
-            <button 
+            <button
               type="button"
-              onClick={() => handleAction('Delegate')} 
-              disabled={isActionLoading} 
+              onClick={() => handleAction('Delegate')}
+              disabled={isActionLoading}
               style={{ backgroundColor: '#0078d4', color: '#ffffff' }}
               className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
               <UserCheck size={14} strokeWidth={2.5} /> Delegate
             </button>
-            <button 
+            <button
               type="button"
               onClick={() => {
                 forceScrollToTop();
                 navigate('/inbox');
-              }} 
+              }}
               style={{ backgroundColor: '#ffffff', color: '#475569', borderColor: '#cbd5e1' }}
               className="px-5 h-[38px] hover:bg-slate-50 rounded-lg font-bold text-xs uppercase tracking-wider border transition-all flex items-center gap-2 shadow-sm active:scale-[0.98]"
             >
@@ -1563,7 +1590,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         </div>
       )}
 
-      <MessagePopup 
+      <MessagePopup
         isOpen={popupConfig.show}
         type={popupConfig.type}
         title={popupConfig.title}

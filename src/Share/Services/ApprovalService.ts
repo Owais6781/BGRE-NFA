@@ -10,7 +10,7 @@ import { SPHttpClient } from "@microsoft/sp-http";
 export class ApprovalService {
   private sp: SPFI;
   private context: WebPartContext;
-  private listName: string = "DigitalApprovalNotes"; 
+  private listName: string = "DigitalApprovalNotes";
   private queryMgtListName: string = "QueryMgt";
 
   constructor(context: WebPartContext, sp: SPFI) {
@@ -26,7 +26,7 @@ export class ApprovalService {
     updateBody: Record<string, any>
   ): Promise<any> {
     const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-      .select("Status", "CommentHistory", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause")
+      .select("Status", "CommentHistory", "WorkflowHistory", "Title", "Project", "ProjectSubEntity", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause", "WorkflowType")
       .expand("Author")();
 
     let userName = "Unknown User";
@@ -96,7 +96,7 @@ export class ApprovalService {
     }
 
     if (isNormalAction && !isUnderQuery) {
-      bodyToUpdate.CommentHistory = currentCommentHistory 
+      bodyToUpdate.CommentHistory = currentCommentHistory
         ? `${currentCommentHistory}\n${newCommentEntry}`
         : newCommentEntry;
     }
@@ -114,12 +114,13 @@ export class ApprovalService {
           .filter(`WFID eq '${itemId}' and QueryToId eq ${currentUserId}`)
           .orderBy("ID", false)
           .select("Id")();
-        
+
         if (queryItems.length > 0) {
           // Update the latest query record with the response
           await this.sp.web.lists.getByTitle(this.queryMgtListName).items.getById(queryItems[0].Id).update({
             Response: remarks || "",
-            Status: "Responded"
+            Status: "Responded",
+            WFLevel: String(item.WFLevel || item.Level || 1),
           });
         }
       } catch (qErr) {
@@ -137,50 +138,137 @@ export class ApprovalService {
     action: string,
     newLevel: number | undefined,
     newPendingAtId: number | null,
-    currentUserId: number
+    currentUserId: number,
+    functionOptions: { label: string, value: string }[] = []
   ): Promise<void> {
+
+
+    const funcObj = functionOptions.find(
+      f =>
+        f.value === String(item.FunctionID || item.originatorDept || "") ||
+        f.label === String(item.FunctionName || item.Dept || item.originatorDept || "")
+    );
+
+    let functionName = funcObj
+      ? funcObj.label
+      : String(item.FunctionName || item.Dept || "");
+
+    let functionId = funcObj
+      ? funcObj.value
+      : String(item.FunctionID || "");
+
     try {
       let pendingAtName = "";
       if (newPendingAtId) {
         try {
           const user = await this.sp.web.siteUsers.getById(newPendingAtId)();
           pendingAtName = user.Title || "";
+
         } catch (uErr) {
           console.error("ApprovalService: Error getting user for WFLogList:", uErr);
         }
       }
 
-      // Log 1: Completed Action Log (PPLPendingAt = null)
+
+
+
+      let actionTakerName = "";
+      if (currentUserId) {
+        try {
+          const user = await this.sp.web.siteUsers.getById(currentUserId)();
+          actionTakerName = user.Title || "";
+        } catch (uErr) {
+          console.error("ApprovalService: Error getting action taker user:", uErr);
+        }
+      }
+
+      const currentLevelStr = String(item.WFLevel || item.Level || 1);
+      if (!functionId || !functionName) {
+        try {
+          const existingLogs = await this.sp.web.lists.getByTitle("WFLogList").items
+            .filter(`WFID eq '${itemId}' and FunctionID ne null`)
+            .select("FunctionID", "FunctionName")
+            .top(1)();
+          if (existingLogs.length > 0) {
+            if (!functionId && existingLogs[0].FunctionID) functionId = String(existingLogs[0].FunctionID);
+            if (!functionName && existingLogs[0].FunctionName) functionName = String(existingLogs[0].FunctionName);
+          }
+        } catch (logErr) {
+          console.warn("ApprovalService: could not fetch Function from WFLogList:", logErr);
+        }
+      }
+
+      if (!functionId && functionName) {
+        try {
+          const fItems = await this.sp.web.lists.getByTitle("FunctionMaster").items
+            .filter(`Title eq '${functionName}'`)
+            .select("Id", "Title")
+            .top(1)();
+          if (fItems.length > 0) {
+            functionId = String(fItems[0].Id);
+          }
+        } catch (fmErr) {
+          console.warn("ApprovalService: could not fetch from FunctionMaster:", fmErr);
+        }
+      }
+
+      const isApproved = (action === "Approved");
+      const isRejected = (action === "Rejected");
+      const isQuery = (action === "Query");
+    const wfType = String(item.WorkflowType || item.workflow || "MANUAL").trim().toUpperCase();
+      let pendingAtValue = "";
+      if (isApproved || isRejected) {
+        pendingAtValue = actionTakerName;
+      } else if (isQuery) {
+        pendingAtValue = pendingAtName;
+      } else {
+        pendingAtValue = pendingAtName || actionTakerName;
+      }
+
+      let pplPendingAtValue: number | null = null;
+      if (isApproved || isRejected) {
+        pplPendingAtValue = currentUserId;
+      } else if (isQuery) {
+        pplPendingAtValue = newPendingAtId;
+      } else {
+        pplPendingAtValue = newPendingAtId || currentUserId;
+      }
+    
       const logBody1: Record<string, any> = {
         Title: item.Title || "NFA",
         WFID: String(itemId),
-        FunctionID: item.Dept || "",
-        FunctionName: item.Dept || "",
+        FunctionID: String(functionId || ""),
+        FunctionName: functionName || "",
+        Department: functionName || "",
         Project: item.Project || "",
         Amount: String(item.ApprovalAmount || "0.00"),
-        Status: action,
-        PendingAt: "",
+        Status: (action === "Approved" && !newPendingAtId) ? "Completed" : action,
+        PendingAt: pendingAtValue,
+        PPLPendingAtId: pplPendingAtValue,
         WFLevel: String(item.WFLevel || item.Level || 1),
-        Remarks: remarks || ""
+        Remarks: remarks || "",
+
       };
 
       await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody1);
-
-      // Log 2: Next Pending Task Log (only if newPendingAtId is not null and action is not Rejected/Query)
-      if (newPendingAtId && action !== "Rejected" && action !== "Query") {
+   
+      // Log 2: Next Pending Row (only if newPendingAtId is not null and action is Approved)
+      if (newPendingAtId && action === "Approved") {
         const logBody2: Record<string, any> = {
           Title: item.Title || "NFA",
           WFID: String(itemId),
-          FunctionID: item.Dept || "",
-          FunctionName: item.Dept || "",
+          FunctionID: String(functionId || ""),
+          FunctionName: functionName || "",
+          Department: functionName || "",
+          DOAClause: item.DOAClause || "",
           Project: item.Project || "",
           Amount: String(item.ApprovalAmount || "0.00"),
           Status: "Pending",
           PendingAt: pendingAtName,
-          WFLevel: String(newLevel !== undefined ? newLevel : (item.WFLevel || item.Level || 1)),
+          WFLevel: String(newLevel !== undefined ? newLevel : (parseInt(currentLevelStr, 10) + 1)),
           Remarks: ""
         };
-
+    
         logBody2.PPLPendingAtId = newPendingAtId;
 
         await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody2);
@@ -188,7 +276,7 @@ export class ApprovalService {
 
       // DashboardList Save Integration
       try {
-        let actionTakerName = "";
+        // actionTakerName already resolved above
         if (currentUserId) {
           try {
             const user = await this.sp.web.siteUsers.getById(currentUserId)();
@@ -219,23 +307,33 @@ export class ApprovalService {
 
         let newStatus = action;
         if (action === "Approved") {
-          newStatus = newPendingAtId ? "Pending" : "Approved";
+          newStatus = newPendingAtId ? "Pending" : "Completed";
         } else if (action === "Delegate") {
           newStatus = "Pending";
         }
 
-        const isTerminal = (newStatus === "Approved" || newStatus === "Rejected");
+        const isTerminal = (newStatus === "Approved" || newStatus === "Completed" || newStatus === "Rejected");
 
         const isQueryAction = (action === "Query");
+const dashboardWFLevel = isQueryAction
+  ? String(item.WFLevel || item.Level || 1)
+  : String(newLevel ?? item.WFLevel ?? item.Level ?? 1);
 
         const dashboardBody: Record<string, any> = {
           Title: item.Title || "NFA",
-          Function: item.Dept || "",
+          FunctionID: String(functionId || ""),
+          Function: functionName || "",
+          Department: functionName || "",
+          DOAClause: item.DOAClause || "",
+          Entity: item.Project || "",
+          SubEntity: item.ProjectSubEntity || "",
+          WorkflowType: wfType,
           Project: item.Project || "",
           Amount: String(item.ApprovalAmount || "0.00"),
-          FunctionID: item.Dept || "",
+
           WFID: String(itemId),
-          WFLevel: isQueryAction ? String(item.WFLevel || item.Level || 1) : String(newLevel !== undefined ? newLevel : (item.WFLevel || item.Level || 1)),
+          WFLevel: dashboardWFLevel,
+
           Status: newStatus,
           DOA: doaClause,
           CurrentApproverId: isTerminal ? null : (isQueryAction ? currentUserId : newPendingAtId),
@@ -265,8 +363,8 @@ export class ApprovalService {
         } else {
           updatePayload.QueryPendingToID = "";
           updatePayload.QueryPendingToName = "";
-          updatePayload.QueryPendingOn = null;
-          updatePayload.QueryById = null;
+          updatePayload.QueryPendingOn = "";
+          updatePayload.QueryById = 0;
           updatePayload.DelegatedToID = "";
           updatePayload.DelegatedToName = "";
         }
@@ -291,7 +389,7 @@ export class ApprovalService {
           } else {
             fallbackPayload.QueryPendingToID = "";
             fallbackPayload.QueryPendingToName = "";
-            fallbackPayload.QueryPendingOn = null;
+            fallbackPayload.QueryPendingOn = "";
             fallbackPayload.QueryBy = "";
             fallbackPayload.DelegatedToID = "";
             fallbackPayload.DelegatedToName = "";
@@ -305,6 +403,45 @@ export class ApprovalService {
         }
       } catch (dashErr) {
         console.warn("ApprovalService: Failed to write to DashboardList:", dashErr);
+        try {
+          const isQueryAction = action === "Query";
+          // actionTakerName already resolved above
+          if (currentUserId) {
+            try {
+              const user = await this.sp.web.siteUsers.getById(currentUserId)();
+              actionTakerName = user.Title || "";
+            } catch (userErr) {
+              console.error("Failed to get action taker name:", userErr);
+            }
+          }
+
+
+
+          const targetWFLevel = isQueryAction ? String(item.WFLevel || item.Level || 1) : String(newLevel !== undefined ? newLevel : (item.WFLevel || item.Level || 1));
+          let newStatus = action;
+          if (action === "Approved") {
+            newStatus = newPendingAtId ? "Pending" : "Completed";
+          } else if (action === "Delegate") {
+            newStatus = "Pending";
+          }
+          const isTerminal =
+            newStatus === "Approved" || newStatus === "Completed" || newStatus === "Rejected";
+          const existingDash = await this.sp.web.lists.getByTitle("DashboardList").items
+            .filter(`WFID eq '${itemId}'`)
+            .select("Id")();
+          if (existingDash.length > 0) {
+            await this.sp.web.lists.getByTitle("DashboardList").items.getById(existingDash[0].Id).update({
+              WFLevel: targetWFLevel,
+              Status: newStatus,
+              CurrentApproverId: isTerminal ? null : (isQueryAction ? currentUserId : newPendingAtId),
+              CurrentApprovalName: isTerminal ? "" : (isQueryAction ? actionTakerName : pendingAtName),
+              CurrentApprovalID: isTerminal ? "" : (isQueryAction ? String(currentUserId) : (newPendingAtId ? String(newPendingAtId) : "")),
+              PendingFrom: actionTakerName
+            });
+          }
+        } catch (coreErr) {
+          console.warn("ApprovalService: Core fallback failed to update WFLevel in DashboardList:", coreErr);
+        }
       }
 
     } catch (logErr) {
@@ -323,7 +460,7 @@ export class ApprovalService {
     try {
       let nextLevel = currentLevel + 1;
       let nextApproverId: number | null = null;
-      
+
       while (nextLevel <= 12) {
         const app = approvers[nextLevel - 1];
         if (app && String(app).trim() !== "" && String(app).trim() !== "null") {
@@ -332,9 +469,29 @@ export class ApprovalService {
         }
         nextLevel++;
       }
-      
+
+      if (!nextApproverId) {
+        try {
+          const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}Id`);
+          const dbItem = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
+            .select(...levels)();
+          let checkLvl = currentLevel + 1;
+          while (checkLvl <= 12) {
+            const val = dbItem[`ApprovalLevel${checkLvl}Id`];
+            if (val && !isNaN(parseInt(String(val), 10))) {
+              nextApproverId = parseInt(String(val), 10);
+              nextLevel = checkLvl;
+              break;
+            }
+            checkLvl++;
+          }
+        } catch (fetchErr) {
+          console.warn("ApprovalService: Fallback approver lookup error:", fetchErr);
+        }
+      }
+
       const updateBody: Record<string, any> = {};
-      
+
       if (nextApproverId) {
         updateBody.WFLevel = String(nextLevel);
         updateBody.PendingAtId = nextApproverId;
@@ -344,11 +501,11 @@ export class ApprovalService {
         updateBody.PendingAtId = null;
         updateBody.Status = "Approved";
       }
-      
+
       const item = await this.getAndUpdateCommentHistory(itemId, "Approved", remarks, currentUserId, updateBody);
-      
+
       await this.writeWFLog(item, itemId, remarks, "Approved", parseInt(updateBody.WFLevel, 10), updateBody.PendingAtId, currentUserId);
-      
+
       return { success: true, message: nextApproverId ? "NFA approved and forwarded to next level." : "NFA fully approved!" };
     } catch (error) {
       console.error("ApprovalService: approveNFA failed:", error);
@@ -367,11 +524,11 @@ export class ApprovalService {
         Status: "Rejected",
         PendingAtId: null
       };
-      
+
       const item = await this.getAndUpdateCommentHistory(itemId, "Rejected", remarks, currentUserId, updateBody);
 
       await this.writeWFLog(item, itemId, remarks, "Rejected", undefined, null, currentUserId);
-      
+
       return { success: true, message: "NFA has been rejected." };
     } catch (error) {
       console.error("ApprovalService: rejectNFA failed:", error);
@@ -384,7 +541,8 @@ export class ApprovalService {
     remarks: string,
     queryUserId: number | number[] | string,
     currentUserId: number,
-    subject: string
+    subject: string,
+    functionOptions: { label: string, value: string }[] = []
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Parse queryUserId into an array of numbers
@@ -408,10 +566,70 @@ export class ApprovalService {
         Status: "Query",
         PendingAtId: primaryQueryUserId
       };
-      
+
       const item = await this.getAndUpdateCommentHistory(itemId, "Query", remarks, currentUserId, updateBody);
 
       await this.writeWFLog(item, itemId, remarks, "Query", undefined, primaryQueryUserId, currentUserId);
+
+
+      const funcObj = functionOptions.find(
+        f =>
+          f.value === String(item.FunctionID || item.originatorDept || "") ||
+          f.label === String(item.FunctionName || item.Dept || item.originatorDept || "")
+      );
+
+      let functionName = funcObj
+        ? funcObj.label
+        : String(item.FunctionName || item.Dept || "");
+
+      let functionId = funcObj
+        ? funcObj.value
+        : String(item.FunctionID || "");
+
+      // Ensure FunctionID is the actual numeric ID and FunctionName is the text name
+      if (!functionId || !functionName) {
+        try {
+          const existingLogs = await this.sp.web.lists.getByTitle("WFLogList").items
+            .filter(`WFID eq '${itemId}' and FunctionID ne null`)
+            .select("FunctionID", "FunctionName")
+            .top(1)();
+          if (existingLogs.length > 0) {
+            if (!functionId && existingLogs[0].FunctionID) functionId = String(existingLogs[0].FunctionID);
+            if (!functionName && existingLogs[0].FunctionName) functionName = String(existingLogs[0].FunctionName);
+          }
+        } catch (logErr) {
+          console.warn("ApprovalService: could not fetch Function from WFLogList:", logErr);
+        }
+      }
+
+      if (!functionId && functionName) {
+        try {
+          const fItems = await this.sp.web.lists.getByTitle("FunctionMaster").items
+            .filter(`Title eq '${functionName}'`)
+            .select("Id", "Title")
+            .top(1)();
+          if (fItems.length > 0) {
+            functionId = String(fItems[0].Id);
+          }
+        } catch (fmErr) {
+          console.warn("ApprovalService: could not fetch from FunctionMaster:", fmErr);
+        }
+      }
+
+      let wfType = String(item.WorkflowType || item.workflow || "").trim();
+      if (!wfType) {
+        try {
+          const nfaItem = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
+            .select("WorkflowType")();
+          if (nfaItem && nfaItem.WorkflowType) {
+            wfType = String(nfaItem.WorkflowType).trim();
+          }
+        } catch { }
+      }
+      if (!wfType) {
+        wfType = "MANUAL";
+      }
+      const finalWfType = wfType.toUpperCase();
 
       // Add records to QueryMgt list (one record per user)
       for (const uid of userIds) {
@@ -419,9 +637,13 @@ export class ApprovalService {
           Title: item.Title || "NFA",
           WFID: String(itemId),
           Project: item.Project || "",
+          SubEntity: item.ProjectSubEntity || "",
           DOA: item.DOAClause || "",
-          Function: item.Dept || "",
-          WorkflowType: "NFA",
+          FunctionID: String(functionId || ""),
+          Function: functionName || "",
+          Department: functionName || "",
+          DOAClause: item.DOAClause || "",
+          WorkflowType: finalWfType,
           Amount: String(item.ApprovalAmount || "0.00"),
           QueryToId: uid,
           QueryById: currentUserId,
@@ -429,17 +651,64 @@ export class ApprovalService {
           Status: "Pending",
           QueriedOn: new Date().toLocaleString("en-IN"),
           WFLevel: String(item.WFLevel || item.Level || 1),
-          FunctionID: item.Dept || "",
-          NFAType: "NFA"
+          Location: item.Location || "",
+          NFAType:"",
         };
 
         try {
           await this.sp.web.lists.getByTitle(this.queryMgtListName).items.add(queryMgtBody);
         } catch (listErr) {
-          console.error(`ApprovalService: Failed to write to ${this.queryMgtListName} for user ${uid}:`, listErr);
+          console.warn(`ApprovalService: Initial write to ${this.queryMgtListName} failed, trying safe schema:`, listErr);
+          try {
+            await this.sp.web.lists.getByTitle(this.queryMgtListName).items.add({
+              Title: item.Title || "NFA",
+              WFID: String(itemId),
+              Department: functionName || "",
+              Function: functionName || "",
+              FunctionID: String(functionId || ""),
+              Project: item.Project || "",
+              SubEntity: item.ProjectSubEntity || "",
+              Amount: String(item.ApprovalAmount || "0.00"),
+              QueryToId: uid,
+              QueryById: currentUserId,
+              Query: remarks || "",
+              Status: "Pending",
+              QueriedOn: new Date().toLocaleString("en-IN"),
+              WFLevel: String(item.WFLevel || item.Level || 1),
+            WorkflowType: finalWfType,
+            });
+          } catch (retryErr) {
+            console.error(`ApprovalService: Failed safe write to ${this.queryMgtListName}:`, retryErr);
+          }
         }
       }
-      
+
+      // Update DashboardList with Query status
+      try {
+        let queryToName = "";
+        try {
+          const targetUser = await this.sp.web.siteUsers.getById(primaryQueryUserId)();
+          queryToName = targetUser.Title || "";
+        } catch { }
+
+        const now = new Date();
+        const dashItems = await this.sp.web.lists.getByTitle("DashboardList").items
+          .filter(`WFID eq '${itemId}'`)
+          .select("Id")();
+        if (dashItems.length > 0) {
+          await this.sp.web.lists.getByTitle("DashboardList").items.getById(dashItems[0].Id).update({
+            Status: "Query",
+            QueryPendingOn: now.toLocaleString("en-IN"),
+            QueryById: String(currentUserId),
+            QueryPendingToID: String(primaryQueryUserId),
+            QueryPendingToName: queryToName,
+            PendingFrom: queryToName
+          });
+        }
+      } catch (dashErr) {
+        console.warn("ApprovalService: Failed to update DashboardList on query:", dashErr);
+      }
+
       return { success: true, message: "Query sent successfully." };
     } catch (error) {
       console.error("ApprovalService: queryNFA failed:", error);
@@ -459,15 +728,15 @@ export class ApprovalService {
       const updateBody: Record<string, any> = {
         PendingAtId: delegateUserId
       };
-      
+
       if (currentLevel >= 1 && currentLevel <= 12) {
         updateBody[`ApprovalLevel${currentLevel}Id`] = delegateUserId;
       }
-      
+
       const item = await this.getAndUpdateCommentHistory(itemId, "Delegate", remarks, currentUserId, updateBody);
 
       await this.writeWFLog(item, itemId, remarks, "Delegate", currentLevel, delegateUserId, currentUserId);
-      
+
       return { success: true, message: "NFA delegated successfully." };
     } catch (error) {
       console.error("ApprovalService: delegateNFA failed:", error);
@@ -488,11 +757,11 @@ export class ApprovalService {
         PendingAtId: initiatorId,
         WFLevel: "0"
       };
-      
+
       const item = await this.getAndUpdateCommentHistory(itemId, "Returned", remarks, currentUserId, updateBody);
 
       await this.writeWFLog(item, itemId, remarks, "Returned", 0, initiatorId, currentUserId);
-      
+
       return { success: true, message: "NFA returned to initiator." };
     } catch (error) {
       console.error("ApprovalService: returnNFA failed:", error);
@@ -536,8 +805,42 @@ export class ApprovalService {
     files: File[]
   ): Promise<{ success: boolean; message: string }> {
     try {
-      // 1. Get the active query record from QueryMgt list (with robust fallback)
-      let queryItems = await this.sp.web.lists.getByTitle(this.queryMgtListName).items
+      // 1. Fetch the NFA item from DigitalApprovalNotes first
+      const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
+        .select("Status", "WorkflowHistory", "Title", "Project", "ProjectSubEntity", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause", "WorkflowType")
+        .expand("Author")();
+
+      // 2. Get the active query record from QueryMgt list (with robust fallback)
+      let queryItems: any[] = [];
+      try {
+        queryItems = await this.sp.web.lists.getByTitle(this.queryMgtListName).items
+          .filter(`WFID eq '${itemId}' and QueryToId eq ${currentUserId} and Status eq 'Pending'`)
+          .orderBy("ID", false)
+          .select("Id", "QueryById", "QueryBy/Title")
+          .expand("QueryBy")();
+      } catch { }
+
+      if (queryItems.length === 0) {
+        try {
+          queryItems = await this.sp.web.lists.getByTitle(this.queryMgtListName).items
+            .filter(`(WFID eq '${itemId}' or Title eq '${item.Title}') and Status eq 'Pending'`)
+            .orderBy("ID", false)
+            .select("Id", "QueryById", "QueryBy/Title")
+            .expand("QueryBy")();
+        } catch { }
+      }
+
+      if (queryItems.length === 0) {
+        try {
+          queryItems = await this.sp.web.lists.getByTitle(this.queryMgtListName).items
+            .filter(`WFID eq '${itemId}' or Title eq '${item.Title}'`)
+            .orderBy("ID", false)
+            .select("Id", "QueryById", "QueryBy/Title")
+            .expand("QueryBy")();
+        } catch { }
+      }
+      const activeQuery = queryItems.length > 0 ? queryItems[0] : null;
+      if (false) { (this.sp.web.lists as any)
         .filter(`WFID eq '${itemId}' and QueryToId eq ${currentUserId} and Status eq 'Pending'`)
         .orderBy("ID", false)
         .select("Id", "QueryById", "QueryBy/Title")
@@ -565,20 +868,56 @@ export class ApprovalService {
         return { success: false, message: "No active query found for this item." };
       }
 
-      const activeQuery = queryItems[0];
-      const queryById = activeQuery.QueryById;
-      const queryByName = activeQuery.QueryBy ? activeQuery.QueryBy.Title : "";
+      }
+      let queryById: number | undefined = activeQuery ? activeQuery.QueryById : undefined;
+      let queryByName: string = activeQuery ? (activeQuery.QueryBy?.Title || "") : "";
 
       if (!queryById) {
-        return { success: false, message: "Could not find who queried this NFA." };
+        try {
+          const queryLogs = await this.sp.web.lists.getByTitle("WFLogList").items
+            .filter(`WFID eq '${itemId}' and Status eq 'Query'`)
+            .orderBy("Created", false)
+            .select("Author/Id", "Author/Title")
+            .expand("Author")();
+          if (queryLogs.length > 0 && queryLogs[0].Author) {
+            queryById = queryLogs[0].Author.Id;
+            queryByName = queryLogs[0].Author.Title || "";
+          }
+        } catch { }
+        if (!queryById) {
+          try {
+            const dashItems = await this.sp.web.lists.getByTitle("DashboardList").items
+              .filter(`WFID eq '${itemId}'`)
+              .select("CurrentApproverId", "CurrentApprovalName")();
+            if (dashItems.length > 0) {
+              queryById = dashItems[0].CurrentApproverId;
+              queryByName = dashItems[0].CurrentApprovalName || "";
+            }
+          } catch { }
+        }
+
+        if (!queryById) {
+          return { success: false, message: "Could not find who queried this NFA." };
+        }
+        if (queryById && !queryByName) {
+          try {
+            const user = await this.sp.web.siteUsers.getById(queryById)();
+            queryByName = user.Title || "";
+          } catch { }
+        }
       }
 
-      // 2. Fetch the NFA item from DigitalApprovalNotes
-      const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-        .select("Status", "WorkflowHistory", "Title", "Project", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause")
+      if (false) (this.sp.web.lists as any)
+
+        .select("Status", "WorkflowHistory", "Title", "Project", "ProjectSubEntity", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause", "WorkflowType")
         .expand("Author")();
 
       // 3. Get current user details
+      let isApproved = false;
+      let isQuery = true;
+      let actionTakerName = "";
+      let pendingAtName = "";
+      let newPendingAtId: number | null = null;
       let userName = "Unknown User";
       if (currentUserId) {
         try {
@@ -590,20 +929,50 @@ export class ApprovalService {
       }
 
       const now = new Date();
+      pendingAtName = userName;
       const dateStr = formatHistoryDate(now);
 
-      // 4. Update the active query in QueryMgt list
+      // 4. Update or create record in QueryMgt
+      let queryMgtId = activeQuery ? activeQuery.Id : null;
+      if (activeQuery) {
+        try {
+          await this.sp.web.lists.getByTitle(this.queryMgtListName).items.getById(activeQuery.Id).update({
+            Response: remarks || "",
+            Status: "Responded",
+            RespondedOn: now.toLocaleString("en-IN")
+          });
+        } catch (uErr) {
+          console.warn("ApprovalService: Error updating QueryMgt item:", uErr);
+        }
+      } else {
+        try {
+          const addRes = await this.sp.web.lists.getByTitle(this.queryMgtListName).items.add({
+            Title: item.Title || "NFA",
+            WFID: String(itemId),
+            QueryToId: currentUserId,
+            QueryById: queryById,
+            Response: remarks || "",
+            Status: "Responded",
+            RespondedOn: now.toLocaleString("en-IN"),
+            WFLevel: String(item.WFLevel || item.Level || 1)
+          });
+          queryMgtId = addRes.data.Id;
+        } catch (addErr) {
+          console.warn("ApprovalService: Error creating QueryMgt record on respond:", addErr);
+        }
+      }
+      if (false) {
       await this.sp.web.lists.getByTitle(this.queryMgtListName).items.getById(activeQuery.Id).update({
         Response: remarks || "",
         Status: "Responded",
         RespondedOn: now.toLocaleString("en-IN")
       });
 
-      // 5. Upload files directly to this QueryMgt list item (no popup)
-      if (files && files.length > 0) {
+      } // 5. Upload files directly to this QueryMgt list item (no popup)
+      if (queryMgtId && files && files.length > 0) {
         for (const file of files) {
           try {
-            await this.attachFileToQueryMgtItem(activeQuery.Id, file);
+            await this.attachFileToQueryMgtItem(queryMgtId, file);
           } catch (fileErr) {
             console.error(`ApprovalService: Error attaching file ${file.name} to QueryMgt:`, fileErr);
           }
@@ -619,20 +988,48 @@ export class ApprovalService {
 
       await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
         Status: "Pending",
-        PendingAtId: queryById,
+        PendingAt: queryByName,
         WorkflowHistory: updatedWorkflowHistory
       });
 
       // 7. Write Log (Responded Log) in WFLogList (only one log)
+      let respFunctionId = "";
+      let respFunctionName = item.Dept || "";
+      try {
+        const existingLogs = await this.sp.web.lists.getByTitle("WFLogList").items
+          .filter(`WFID eq '${itemId}' and FunctionID ne null`)
+          .select("FunctionID", "FunctionName")
+          .top(1)();
+        if (existingLogs.length > 0) {
+          respFunctionId = String(existingLogs[0].FunctionID || "");
+          if (existingLogs[0].FunctionName) respFunctionName = String(existingLogs[0].FunctionName);
+        }
+      } catch { }
+
+      if (!respFunctionId && respFunctionName) {
+        try {
+          const fItems = await this.sp.web.lists.getByTitle("FunctionMaster").items
+            .filter(`Title eq '${respFunctionName}'`)
+            .select("Id", "Title")
+            .top(1)();
+          if (fItems.length > 0) {
+            respFunctionId = String(fItems[0].Id);
+          }
+        } catch { }
+      }
+      const pendingAtValue = queryByName || userName;
+      const pplPendingAtValue = queryById || currentUserId;
+
       const logBody: Record<string, any> = {
         Title: item.Title || "NFA",
         WFID: String(itemId),
-        FunctionID: item.Dept || "",
-        FunctionName: item.Dept || "",
+        FunctionID: respFunctionId || item.Dept || "",
+        FunctionName: respFunctionName || item.Dept || "",
         Project: item.Project || "",
         Amount: String(item.ApprovalAmount || "0.00"),
         Status: "Responded",
-        PendingAt: "",
+        PendingAt: pendingAtValue,
+        PPLPendingAtId: pplPendingAtValue,
         WFLevel: String(item.WFLevel || item.Level || 1),
         Remarks: remarks || ""
       };
@@ -660,9 +1057,12 @@ export class ApprovalService {
         const dashboardBody: Record<string, any> = {
           Title: item.Title || "NFA",
           Function: item.Dept || "",
+          Entity: item.Project || "",
+          SubEntity: item.ProjectSubEntity || "",
+
           Project: item.Project || "",
           Amount: String(item.ApprovalAmount || "0.00"),
-          FunctionID: item.Dept || "",
+          FunctionID: respFunctionId || item.Dept || "",
           WFID: String(itemId),
           WFLevel: String(item.WFLevel || item.Level || 1),
           Status: "Pending",
@@ -677,8 +1077,8 @@ export class ApprovalService {
           DueDate: getDueDate(),
           QueryPendingToID: "",
           QueryPendingToName: "",
-          QueryPendingOn: null,
-          QueryById: null,
+          QueryPendingOn: "",
+          QueryById: "0",
           QueryBy: "",
           DelegatedToID: "",
           DelegatedToName: ""

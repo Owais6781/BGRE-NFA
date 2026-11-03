@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, ArrowLeft,
-  History, MessageSquare, ChevronRight
+  History, MessageSquare, ChevronRight, Download
 } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton'; 
 import 'primereact/resources/primereact.min.css';
@@ -18,6 +18,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
 import ExcelDataViewer from '../../../../../Share/Components/ExcelDataViewer';
 import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
+import { downloadNfaPdf } from '../../../../../Share/utils/nfaPdfGenerator';
 
 interface IViewNFAProps {
   context: WebPartContext;
@@ -39,7 +40,8 @@ const UserAvatar: React.FC<{ email?: string; initials: string; className: string
         src={photoUrl} 
         alt={initials}
         onError={() => setImgFailed(true)}
-        className={`${className} object-cover rounded-full`}
+          className={`${className} object-cover rounded-full`}
+        
       />
     );
   }
@@ -62,6 +64,20 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+
+  const handleDownloadPdf = async () => {
+    if (!form) return;
+    try {
+      setIsGeneratingPdf(true);
+      await downloadNfaPdf({ form, users, history, comments });
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const currentStepRef = useRef<HTMLDivElement>(null);
   const stepperContainerRef = useRef<HTMLDivElement>(null);
@@ -295,6 +311,40 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   return (
     <div className="pageContainer">
       
+      {/* Top Action Bar */}
+      <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-2.5 px-4 mb-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-extrabold text-[#4A081E] tracking-tight">
+            {form.requestNo || 'Note for Approval'}
+          </span>
+          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            Level {form.level || '1'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Download PDF"
+          >
+            <Download size={14} />
+            <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              forceScrollToTop();
+              navigate(-1);
+            }}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs transition-all border border-slate-300 active:scale-95 cursor-pointer"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+
       {/* Approval Chain Card */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm py-2 px-4 mb-3.5">
         <div 
@@ -345,7 +395,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                     <UserAvatar 
                       email={user?.email} 
                       initials={initials} 
-                      className={`w-5.5 h-5.5 rounded-full shadow-inner shrink-0 text-[10px] ${avatarClass}`} 
+                      className={`w-6 h-6 rounded-full shadow-inner shrink-0 ${avatarClass}`} 
                     />
                     <span className="text-[10px] font-extrabold text-slate-700 text-left leading-tight line-clamp-2 flex-1">
                       {userLabel}
@@ -617,14 +667,20 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                         target="_blank" 
                         rel="noopener noreferrer" 
                         data-interception="off"
-                        className="group flex items-center gap-2 p-1.5 px-2 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
+                        className="group flex items-center justify-between gap-2 p-1.5 px-2 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
                       >
+                        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                         <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
-                          <FileText size={12} />
+                            <FileText size={12} />
+                          </div>
+                          <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
+                            {doc.fileName}
+                          </span>
                         </div>
-                        <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
-                          {doc.fileName}
+                        <span className="shrink-0 text-[9.5px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-emerald-50 group-hover:text-emerald-700 group-hover:border-emerald-200 transition-colors">
+                          {doc.documentType || 'Attachment'}
                         </span>
+
                       </a>
                     );
                   })}
@@ -672,6 +728,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                         <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-amber-600 transition-colors" title={doc.fileName}>
                           {doc.fileName}
                         </span>
+
                       </a>
                     );
                   })}
@@ -803,8 +860,17 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         </div>
       </div>
 
-      {/* Back Button */}
-      <div className="flex justify-center gap-4 py-4">
+      {/* Bottom Action Buttons */}
+      <div className="flex justify-center items-center gap-4 py-4">
+        <button
+          type="button"
+          onClick={handleDownloadPdf}
+          disabled={isGeneratingPdf}
+          className="flex items-center gap-2 px-6 h-[38px] bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-extrabold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 disabled:opacity-50 cursor-pointer"
+        >
+          <Download size={15} />
+          <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+        </button>
         <button 
           onClick={() => {
             forceScrollToTop();

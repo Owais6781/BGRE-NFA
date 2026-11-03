@@ -191,6 +191,11 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           </div>
         </div>
       )}
+      {error && (
+        <span className="text-red-500 text-[11px] font-medium mt-1 block">
+          {error}
+        </span>
+      )}
     </div>
   );
 };

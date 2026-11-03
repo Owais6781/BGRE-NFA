@@ -39,6 +39,11 @@ const DropdownField: React.FC<DropdownFieldProps> = ({
           <option key={item.value} value={item.value}>{item.label}</option>
         ))}
       </select>
+      {error && (
+        <span className="text-red-500 text-[11px] font-medium mt-1 block">
+          {error}
+        </span>
+      )}
     </div>
   );
 };

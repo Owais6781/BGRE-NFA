@@ -1,45 +1,50 @@
 import * as React from 'react';
-import { useState }      from 'react';
-import { CommonTable }   from '../../../../../Share/Components/CommonTable';
-import { SearchInput }   from '../../../../../Share/Components/SearchInput';
-import { Pagination }    from '../../../../../Share/Components/Pagination';
-import ExportToExcel     from '../../../../../Share/Components/ExportToExcel';
+import { useState } from 'react';
+import { CommonTable } from '../../../../../Share/Components/CommonTable';
+import { SearchInput } from '../../../../../Share/Components/SearchInput';
+import { Pagination } from '../../../../../Share/Components/Pagination';
+import ExportToExcel from '../../../../../Share/Components/ExportToExcel';
 import "../../../../../Share/styles/global.scss";
 
 interface ApprovalRecord {
-  id:           number;
-  nfa:          string;
-  subject:      string;
-  function:     string;
-  createdBy:    string;
-  createdOn:    string;
-  status:       string;
-  approvedOn:   string;
-  pendingAt:    string;
-  pendingFrom:  string;
-  project:      string;
-  packageCost:  string;
+  id: number;
+  nfa: string;
+  subject: string;
+  function: string;
+  createdBy: string;
+  createdOn: string;
+  status: string;
+  approvedOn: string;
+  pendingAt: string;
+  pendingFrom: string;
+  project: string;
+  packageCost: string;
 }
 
 interface ApprovalDetailsTableProps {
-  data:           ApprovalRecord[];
+  data: ApprovalRecord[];
   onRecordClick?: (id: number) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const exportColumns = [
-  { key: 'nfa',         label: 'NFA'           },
-  { key: 'subject',     label: 'Subject'        },
-  { key: 'function',    label: 'Function'       },
-  { key: 'createdBy',   label: 'Created By'     },
-  { key: 'createdOn',   label: 'Created On'     },
-  { key: 'status',      label: 'Status'         },
-  { key: 'approvedOn',  label: 'Approved On'    },
-  { key: 'pendingAt',   label: 'Pending At'     },
-  { key: 'pendingFrom', label: 'Pending From'   },
-  { key: 'project',     label: 'Project'        },
-  { key: 'packageCost', label: 'Package Cost'   },
+  { key: 'nfa', label: 'NFA' },
+  { key: 'subject', label: 'Subject' },
+  { key: 'status', label: 'Status' },
+  { key: 'project', label: 'Entity' },
+  { key: 'packageCost', label: 'Package Cost' },
+  { key: 'createdBy', label: 'Created By' },
+  { key: 'createdOn', label: 'Created On' },
+  { key: 'pendingAt', label: 'Pending At' },
+  { key: 'pendingFrom', label: 'Pending From' },
+  { key: 'function', label: 'Function' },
+
+
+
+  { key: 'approvedOn', label: 'Approved On' },
+
+
 ];
 
 const formatDateFriendly = (dateStr: string) => {
@@ -57,8 +62,8 @@ const ApprovalDetailsTable: React.FC<ApprovalDetailsTableProps> = ({
   data,
   onRecordClick,
 }) => {
-  const [pageSize,    setPageSize]    = useState(10);
-  const [search,      setSearch]      = useState('');
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── Column definitions ──
@@ -75,36 +80,35 @@ const ApprovalDetailsTable: React.FC<ApprovalDetailsTableProps> = ({
         </button>
       ),
     },
-    { key: 'subject',     label: 'Subject'      },
-    { key: 'function',    label: 'Function'     },
-    { key: 'createdBy',   label: 'Created By'   },
-    {
-      key: 'createdOn',
-      label: 'Created On',
-      render: (val: string) => formatDateFriendly(val)
-    },
+    { key: 'subject', label: 'Subject' },
     {
       key: 'status',
       label: 'Status',
       render: (val: string) => (
-        <span className={`statusBadge ${
-          val === 'Approved' ? 'statusApproved' :
+        <span className={`statusBadge ${val === 'Approved' || val === 'Completed' ? 'statusApproved' :
           val === 'Rejected' ? 'statusRejected' :
-          'statusPending'
-        }`}>
+            'statusPending'
+          }`}>
           {val}
         </span>
       ),
     },
+    { key: 'project', label: 'Entity' },
+    { key: 'packageCost', label: 'Package Cost' },
+    { key: 'createdBy', label: 'Created By' },
+    { key: 'pendingAt', label: 'Pending At' },
+    { key: 'pendingFrom', label: 'Pending From' },
+
+
+    { key: 'createdOn', label: 'Created On', render: (val: string) => formatDateFriendly(val) },
+    { key: 'function', label: 'Function' },
     {
       key: 'approvedOn',
       label: 'Approved On',
       render: (val: string) => formatDateFriendly(val)
     },
-    { key: 'pendingAt',   label: 'Pending At'   },
-    { key: 'pendingFrom', label: 'Pending From' },
-    { key: 'project',     label: 'Project'      },
-    { key: 'packageCost', label: 'Package Cost' },
+
+
   ];
 
   // ── Filter ──
@@ -116,13 +120,13 @@ const ApprovalDetailsTable: React.FC<ApprovalDetailsTableProps> = ({
 
   // ── Paginate ──
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated  = filtered.slice(
+  const paginated = filtered.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
 
-  const handleSearch         = (val: string) => { setSearch(val);         setCurrentPage(1); };
-  const handlePageSizeChange = (size: number) => { setPageSize(size);     setCurrentPage(1); };
+  const handleSearch = (val: string) => { setSearch(val); setCurrentPage(1); };
+  const handlePageSizeChange = (size: number) => { setPageSize(size); setCurrentPage(1); };
 
   return (
     <div className="contentCard mt-3">

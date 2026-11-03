@@ -141,7 +141,7 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
   // --- Stats Calculation ---
   const stats = useMemo(() => {
     const total = displayData.length;
-    const approved = displayData.filter(item => item.status === 'Approved').length;
+    const approved = displayData.filter(item => item.status === 'Approved' || item.status === 'Completed').length;
     const rejected = displayData.filter(item => item.status === 'Rejected').length;
     const projects = new Set(displayData.map(item => item.project).filter(p => p)).size;
     const functions = new Set(displayData.map(item => item.function).filter(f => f)).size;
@@ -297,7 +297,7 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
     { key: 'createdOn', label: 'Created On' },
     { key: 'status',    label: 'Status',
       render: (val: string) => (
-        <span className={`statusBadge ${val === 'Approved' ? 'statusApproved' : val === 'Rejected' ? 'statusRejected' : 'statusPending'}`}>{val}</span>
+        <span className={`statusBadge ${val === 'Approved' || val === 'Completed' ? 'statusApproved' : val === 'Rejected' ? 'statusRejected' : 'statusPending'}`}>{val}</span>
       ) },
     { key: 'level',                label: 'Level'                     },
     { key: 'approvedRejectedBy',   label: 'Approved/Rejected By'      },

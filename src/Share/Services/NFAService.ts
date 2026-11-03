@@ -1,6 +1,7 @@
 import { stripHtml } from "../utils";
 export { stripHtml } from "../utils";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { NFADocService } from "./NFADocService";
 import { spfi, SPFx, SPFI } from "@pnp/sp";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -32,11 +33,15 @@ export interface INFAFormData {
   referenceSubject: string;
   requestNo?: string;
   introduction: string;
+  location?: string;
+  natureOfApproval?: string;
 
   completeIndentPRReceivedFromDate: string;
   boqSpecificationsRevisionsByDate: string;
   RFQRefNo: string;
   remark: string;
+  Approvedrejectedby: string;
+  Approvedrejectdatetime: string;
 
   chronology: string;
   commercialProposal: string;
@@ -64,6 +69,7 @@ export interface INFAFormData {
   uniqId: string;
   level: number;
   pendingAtId: number | null;
+  PendingFrom : string;
   initiatorId?: number;
   commentHistory?: string;
   workflowHistory?: string;
@@ -75,6 +81,7 @@ export interface INFASaveResponse {
   success: boolean;
   itemId: number | null;
   message: string;
+  requestNo?: string;
 }
 
 export interface IValidationError {
@@ -111,26 +118,35 @@ export class NFAService {
 
   public validateForm(form: INFAFormData, status: NFAStatus): IValidationResult {
     const errors: IValidationError[] = [];
-    if (!form.project.trim()) errors.push({ field: "project", message: "Project is required." });
+    if (!form.project.trim()) errors.push({ field: "project", message: "Entity  is required." });
     if (status === "Draft") return { isValid: errors.length === 0, errors };
-
-    if (!form.originatorDept.trim()) errors.push({ field: "originatorDept", message: "Dept is required." });
-    if (!stripHtml(form.referenceSubject)) errors.push({ field: "referenceSubject", message: "Subject is required." });
     if (!form.projectSubEntity || form.projectSubEntity.length === 0) errors.push({ field: "projectSubEntity", message: "Sub-Entity is required." });
 
-    if (!stripHtml(form.introduction)) errors.push({ field: "introduction", message: "Introduction is required." });
-    if (!stripHtml(form.chronology)) errors.push({ field: "chronology", message: "Chronology is required." });
-    if (!stripHtml(form.commercialProposal)) errors.push({ field: "commercialProposal", message: "Commercial Proposals is required." });
+    if (!form.originatorDept.trim()) errors.push({ field: "originatorDept", message: "Function is required." });
+    if (!stripHtml(form.referenceSubject)) errors.push({ field: "referenceSubject", message: "Subject is required." });
 
+    // if (!stripHtml(form.introduction)) errors.push({ field: "introduction", message: "Introduction is required." });
+    // if (!stripHtml(form.chronology)) errors.push({ field: "chronology", message: "Chronology is required." });
+    // if (!stripHtml(form.commercialProposal)) errors.push({ field: "commercialProposal", message: "Commercial Proposals is required." });
+ if (!form.liquidatedDamage || !form.liquidatedDamage.trim()) {
+      errors.push({ field: "liquidatedDamage", message: "Liquidated Damage is required." });
+    }
+    if (!form.contractPerf || !form.contractPerf.trim()) {
+      errors.push({ field: "contractPerf", message: "Contract Performance Guarantee is required." });
+    }
+    if (!form.defectLiability || !form.defectLiability.trim()) {
+      errors.push({ field: "defectLiability", message: "Defect Liability Period is required." });
+    }
+    if (!form.workCompletion || !form.workCompletion.trim()) {
+      errors.push({ field: "workCompletion", message: "Work Completion is required." });
+    }
+
+    
     if (!form.approvers[0]) errors.push({ field: "approvers", message: "Approver Level-1 is required." });
 
-    const cost = parseFloat(String(form.packageAwardedCost || "").replace(/,/g, ''));
-    if (isNaN(cost) || cost <= 0) {
-      errors.push({ field: "packageAwardedCost", message: "Awarded Cost is required and must be greater than 0." });
-    }
-    const budgetVal = parseFloat(String(form.budget || "").replace(/,/g, ''));
-    if (isNaN(budgetVal) || budgetVal <= 0) {
-      errors.push({ field: "budget", message: "Budget is required and must be greater than 0." });
+   
+    if (form.workflow === 'AUTO' && (!form.doaMatrix || !form.doaMatrix.trim())) {
+      errors.push({ field: "doaMatrix", message: "DOA Matrix is required for Auto workflow." });
     }
 
     return { isValid: errors.length === 0, errors };
@@ -180,6 +196,9 @@ export class NFAService {
       ProjectSubEntity: subEntityNames,
       FunctionName: functionName,
       FunctionID: String(functionId || ""),
+      Dept: functionName || "",
+      Location: form.location || "",
+      NatureofApproval: form.natureOfApproval || "",
 
       Status: status,
       SubjectMatter: cleanSubject,
@@ -217,6 +236,12 @@ export class NFAService {
       PendingAt: status === "Pending" ? (pendingAtName || "") : "",
     };
 
+    for (let i = 0; i < 12; i++) {
+      const app = resolvedApprovers[i];
+      const appVal = (typeof app === 'number') ? app : (app && !isNaN(parseInt(String(app), 10))) ? parseInt(String(app), 10) : null;
+      body[`ApprovalLevel${i + 1}Id`] = appVal;
+    }
+
     const prDate = this.toSharePointDate(form.completeIndentPRReceivedFromDate);
     if (prDate) {
       body.PRreceivedDate = prDate;
@@ -229,46 +254,123 @@ export class NFAService {
     return body;
   }
 
-  private generateRequestNo(project: string, dateStr: string, status: NFAStatus, itemId: number): string {
-    let projectInitials = "NFA";
-    if (project) {
-      const clean = project.trim();
-      if (clean.includes(" ")) {
-        projectInitials = clean.split(/\s+/).map(w => w[0]).join("").toUpperCase();
-      } else {
-        projectInitials = clean.toUpperCase();
+  private async generateRequestNoLegacy(
+    projectIdOrName: string,
+    functionId: string,
+    status: NFAStatus
+  ): Promise<string> {
+    const dtt = new Date();
+    const yyyy = dtt.getFullYear();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const mName = months[dtt.getMonth()];
+
+    // Draft Request Number format: Draft/YYYY/Month/Counter
+    if (status === "Draft") {
+      try {
+        const draftCounters = await this.sp.web.lists.getByTitle("CounterMaster").items
+          .select("ID", "Title", "Counter", "FunctionAbbr", "FunctionID")
+          .filter("FunctionID eq '99'")();
+
+        if (draftCounters.length > 0) {
+          const item = draftCounters[0];
+          const counterVal = item.Counter || "1";
+          const reqNo = `Draft/${yyyy}/${mName}/${counterVal}`;
+          const nextCounter = String(parseInt(String(counterVal), 10) + 1);
+          try {
+            await this.sp.web.lists.getByTitle("CounterMaster").items.getById(item.ID).update({
+              Counter: nextCounter
+            });
+          } catch (updateErr) {
+            console.warn("NFAService: Error updating CounterMaster for draft:", updateErr);
+          }
+          return reqNo;
+        }
+      } catch (err) {
+        console.warn("NFAService: Error reading CounterMaster for draft:", err);
+      }
+      return `Draft/${yyyy}/${mName}/1`;
+    }
+
+    // Pending (Submit) Request Number format: [NFASeries]/[FunctionAbbr]/[YYYY]/[Month]/[Counter]
+    let projSeries = "";
+    if (projectIdOrName) {
+      try {
+        let projItem: any = null;
+        if (/^\d+$/.test(projectIdOrName)) {
+          const pId = parseInt(projectIdOrName, 10);
+          try {
+            projItem = await this.sp.web.lists.getByTitle("Project Master").items.getById(pId).select("ID", "Title", "ProjectName", "NFASeries")();
+          } catch {
+            projItem = await this.sp.web.lists.getByTitle("ProjectMaster").items.getById(pId).select("ID", "Title", "ProjectName", "NFASeries")();
+          }
+        } else {
+          try {
+            const res = await this.sp.web.lists.getByTitle("Project Master").items
+              .filter(`ProjectName eq '${projectIdOrName}' or Title eq '${projectIdOrName}'`)
+              .select("ID", "Title", "ProjectName", "NFASeries")();
+            if (res.length > 0) projItem = res[0];
+          } catch {
+            const res = await this.sp.web.lists.getByTitle("ProjectMaster").items
+              .filter(`ProjectName eq '${projectIdOrName}' or Title eq '${projectIdOrName}'`)
+              .select("ID", "Title", "ProjectName", "NFASeries")();
+            if (res.length > 0) projItem = res[0];
+          }
+        }
+        if (projItem && projItem.NFASeries) {
+          projSeries = String(projItem.NFASeries).trim();
+        }
+      } catch (projErr) {
+        console.warn("NFAService: Error resolving NFASeries from Project Master:", projErr);
       }
     }
-    projectInitials = projectInitials.replace(/[^A-Z0-9]/g, "");
 
-    let dateObj = new Date();
-    if (dateStr && dateStr.includes("/")) {
-      const parts = dateStr.split("/");
-      if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const year = parseInt(parts[2], 10);
-        const parsedDate = new Date(year, month, day);
-        if (!isNaN(parsedDate.getTime())) {
-          dateObj = parsedDate;
+    if (!projSeries) {
+      const clean = (projectIdOrName || "NFA").trim();
+      projSeries = clean.includes(" ") ? clean.split(/\s+/).map(w => w[0]).join("").toUpperCase() : clean.toUpperCase();
+      projSeries = projSeries.replace(/[^A-Z0-9]/g, "");
+    }
+
+    let functionAbbr = "";
+    let counterVal = "1";
+    let counterItemId: number | null = null;
+
+    try {
+      const counterItems = await this.sp.web.lists.getByTitle("CounterMaster").items
+        .select("ID", "Title", "Counter", "FunctionAbbr", "FunctionID")
+        .top(500)();
+
+      for (const c of counterItems) {
+        if (String(c.FunctionID) === String(functionId)) {
+          functionAbbr = c.FunctionAbbr || "";
+        }
+        if (String(c.FunctionID) === "0") {
+          counterVal = c.Counter || "1";
+          counterItemId = c.ID;
         }
       }
+    } catch (cErr) {
+      console.warn("NFAService: Error fetching CounterMaster items:", cErr);
     }
 
-    const year = dateObj.getFullYear().toString();
-    const month = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    let reqNo = "";
+    if (functionAbbr) {
+      reqNo = `${projSeries}/${functionAbbr}/${yyyy}/${mName}/${counterVal}`;
+    } else {
+      reqNo = `${projSeries}/${yyyy}/${mName}/${counterVal}`;
+    }
 
-    let suffix = "Draf";
-    if (status !== "Draft") {
-      if (itemId < 10) {
-        suffix = "00" + itemId;
-      } else if (itemId < 100) {
-        suffix = "0" + itemId;
-      } else {
-        suffix = String(itemId);
+    if (counterItemId) {
+      try {
+        const nextCounter = String(parseInt(String(counterVal), 10) + 1);
+        await this.sp.web.lists.getByTitle("CounterMaster").items.getById(counterItemId).update({
+          Counter: nextCounter
+        });
+      } catch (updErr) {
+        console.warn("NFAService: Error updating CounterMaster Counter:", updErr);
       }
     }
-    return `${projectInitials}-${year}-${month}-${suffix}`;
+
+    return reqNo;
   }
 
   private async writeWFLog(
@@ -277,7 +379,8 @@ export class NFAService {
     form: INFAFormData,
     resolvedApprovers: (number | null)[],
     projectName: string,
-    functionOptions: { label: string, value: string }[]
+    functionOptions: { label: string, value: string }[],
+    subEntityNames: string = ""
   ): Promise<void> {
     try {
       const funcObj = functionOptions.find(f => f.value === String(form.originatorDept) || f.label === form.originatorDept);
@@ -296,21 +399,8 @@ export class NFAService {
         }
       }
 
-      // Log 1: Completed Action Log (Submitted)
-      const logBody1: Record<string, any> = {
-        Title: requestNo,
-        WFID: String(itemId),
-        FunctionID: String(functionId),
-        FunctionName: functionName,
-        Project: projectName,
-        Amount: form.packageAwardedCost,
-        Status: "Submitted",
-        PendingAt: "",
-        WFLevel: "0",
-        Remarks: form.budgetRemarks || ""
-      };
 
-      await this.sp.web.lists.getByTitle("WFLogList").items.add(logBody1);
+      // Only 1 row created on submission (see logBody2 below)
 
       // Log 2: Next Pending Task Log (Pending)
       const logBody2: Record<string, any> = {
@@ -318,12 +408,16 @@ export class NFAService {
         WFID: String(itemId),
         FunctionID: String(functionId),
         FunctionName: functionName,
+        DOAClause: form.doaMatrix || "",
         Project: projectName,
         Amount: form.packageAwardedCost,
         Status: "Pending",
-        PendingAt: pendingAtName,
+        PendingAt: pendingAtName || "",
         WFLevel: "1",
-        Remarks: form.budgetRemarks || ""
+        Location: form.location || "",
+        Department: functionName || "",
+        Remarks: form.budgetRemarks || "",
+        PartyName:form.contractorName||""
       };
 
       if (pendingAtId) {
@@ -348,26 +442,32 @@ export class NFAService {
         };
 
         const now = new Date();
+        const formattedDateTime = formatHistoryDate(now);
         const initiatorName = this.context.pageContext.user.displayName || "Initiator";
 
         // Dashboard Log: Current State (Pending)
         const dashboardBody: Record<string, any> = {
           Title: requestNo,
           Project: projectName,
-           Function: functionName,
+          Entity:projectName,
+          SubEntity:subEntityNames,
+          Function: functionName,
           FunctionID: String(functionId),
           Amount: form.packageAwardedCost,
           WFID: String(itemId),
           WFLevel: "1",
           Status: "Pending",
           DOA: form.doaMatrix || "",
+          WorkflowType: form.workflow || "",
           CurrentApproverId: pendingAtId,
           CurrentApprovalName: pendingAtName,
           CurrentApprovalID: pendingAtId ? String(pendingAtId) : "",
-          PendingFrom: initiatorName,
+          PendingFrom: formattedDateTime,
           InitiatedBy: initiatorName,
-          InitiatedOn: form.date || formatHistoryDate(now),
+          InitiatedOn: form.date || formattedDateTime,
           PendingFromDate: now,
+          Location: form.location || "",
+          Department: functionName || "",
           DueDate: getDueDate()
         };
 
@@ -413,6 +513,11 @@ export class NFAService {
       const projectName = projectObj ? projectObj.label : form.project;
       const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
 
+      const funcObj = functionOptions.find(
+        f => f.value === String(form.originatorDept) || f.label === form.originatorDept
+      );
+      const functionId = funcObj ? funcObj.value : form.originatorDept;
+
       const pendingAtId = resolvedApprovers[0] || null;
       let pendingAtName = "";
       if (pendingAtId) {
@@ -431,17 +536,10 @@ export class NFAService {
 
       const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames, pendingAtName, functionOptions);
 
-      if (status === "Draft") {
-        body.Title = this.generateRequestNo(projectName, form.date, "Draft", 0);
-      }
-
-      const result = await this.sp.web.lists.getByTitle(this.listName).items.add(body);
-      const itemId = result.Id;
-
-      let requestNo = body.Title;
+      const requestNo = await this.generateRequestNoLegacy(form.project, String(functionId), status);
+      body.Title = requestNo;
 
       if (status === "Pending") {
-        requestNo = this.generateRequestNo(projectName, form.date, "Pending", itemId);
         const initiatorName = this.context.pageContext.user.displayName || "Initiator";
         const dateStr = formatHistoryDate(new Date());
 
@@ -451,14 +549,27 @@ export class NFAService {
           : "";
         const fullWorkflowHistory = initWorkflowHistory + pendingWorkflowHistory;
 
-        await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
-          Title: requestNo,
-          WorkflowHistory: fullWorkflowHistory
-        });
-        await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions);
+        body.WorkflowHistory = fullWorkflowHistory;
+        body.WorkflowApprovalHistory = fullWorkflowHistory;
       }
 
-      return { success: true, itemId: itemId, message: "Saved successfully!" };
+      const result = await this.sp.web.lists.getByTitle(this.listName).items.add(body);
+      const itemId = result.Id;
+
+      if (status === "Pending") {
+        await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions, subEntityNames);
+      }
+
+      if (form.uniqId) {
+        try {
+          const docService = new NFADocService(this.context);
+          await docService.updateDocumentsRequestNo(form.uniqId, requestNo);
+        } catch (docErr) {
+          console.error("NFAService: Error updating NFADocs Title with requestNo:", docErr);
+        }
+      }
+
+      return { success: true, itemId: itemId, requestNo: requestNo, message: "Saved successfully!" };
     } catch (error) {
       console.error("NFAService: Error in saveNFA:", error);
       const errMsg = error instanceof Error ? error.message : "Error occurred during save.";
@@ -490,6 +601,11 @@ export class NFAService {
       const projectName = projectObj ? projectObj.label : form.project;
       const subEntityNames = form.projectSubEntity.map(id => subEntityOptions.find(o => o.value === id)?.label || id).join("; ");
 
+      const funcObj = functionOptions.find(
+        f => f.value === String(form.originatorDept) || f.label === form.originatorDept
+      );
+      const functionId = funcObj ? funcObj.value : form.originatorDept;
+
       const pendingAtId = resolvedApprovers[0] || null;
       let pendingAtName = "";
       if (pendingAtId) {
@@ -508,13 +624,18 @@ export class NFAService {
 
       const body = this.buildRequestBody(form, status, resolvedApprovers, projectName, subEntityNames, pendingAtName, functionOptions);
 
-      const requestNo = this.generateRequestNo(projectName, form.date, status, itemId);
+      let requestNo = form.requestNo || "";
+      if (status === "Pending" && (!requestNo || requestNo.startsWith("Draft"))) {
+        requestNo = await this.generateRequestNoLegacy(form.project, String(functionId), "Pending");
+      } else if (!requestNo) {
+        requestNo = await this.generateRequestNoLegacy(form.project, String(functionId), status);
+      }
       body.Title = requestNo;
 
       if (status === "Pending") {
         try {
-          const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).select("WorkflowHistory")();
-          const currentWorkflowHistory = item.WorkflowHistory || "";
+          const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).select("WorkflowHistory", "WorkflowApprovalHistory")();
+          const currentWorkflowHistory = item.WorkflowHistory || item.WorkflowApprovalHistory || "";
           const initiatorName = this.context.pageContext.user.displayName || "Initiator";
           const dateStr = formatHistoryDate(new Date());
 
@@ -524,9 +645,12 @@ export class NFAService {
             : "";
           const newWorkflowEntry = initWorkflowHistory + pendingWorkflowHistory;
 
-          body.WorkflowHistory = currentWorkflowHistory
+          const updatedWorkflowHistory = currentWorkflowHistory
             ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
             : newWorkflowEntry;
+
+          body.WorkflowHistory = updatedWorkflowHistory;
+          body.WorkflowApprovalHistory = updatedWorkflowHistory;
         } catch (hErr) {
           console.warn("NFAService: Error reading WorkflowHistory in updateNFA:", hErr);
         }
@@ -535,10 +659,19 @@ export class NFAService {
       await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update(body);
 
       if (status === "Pending") {
-        await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions);
+        await this.writeWFLog(itemId, requestNo, form, resolvedApprovers, projectName, functionOptions, subEntityNames);
       }
 
-      return { success: true, itemId, message: "Updated successfully!" };
+      if (form.uniqId) {
+        try {
+          const docService = new NFADocService(this.context);
+          await docService.updateDocumentsRequestNo(form.uniqId, requestNo);
+        } catch (docErr) {
+          console.error("NFAService: Error updating NFADocs Title with requestNo:", docErr);
+        }
+      }
+
+      return { success: true, itemId, requestNo: requestNo, message: "Updated successfully!" };
     } catch (error) {
       console.error("NFAService: Error in updateNFA:", error);
       const errMsg = error instanceof Error ? error.message : "Error occurred during update.";
@@ -555,12 +688,16 @@ export class NFAService {
 
         const item = await this.sp.web.lists
       .getByTitle(this.listName)
-      .items.getById(itemId)();
+      .items.getById(itemId)
+      .select("*","Author/Id", "Author/Title", "Author/EMail")
+      .expand("Author")();
+
+      
       console.log("Raw SharePoint Item:", item);
       return {
         project: item.Project || "",
         projectSubEntity: item.ProjectSubEntity ? item.ProjectSubEntity.split("; ") : [],
-        originatorDept: item.FunctionID || item.FunctionName || "",
+        originatorDept:item.FunctionName || "",
         date: item.RequestedOn || "",
         referenceSubject: stripHtml(item.SubjectMatter || item.Title || ""),
         requestNo: item.Title || "",
@@ -570,6 +707,9 @@ export class NFAService {
         boqSpecificationsRevisionsByDate: item.BOQRevisionsDate ? item.BOQRevisionsDate.substring(0, 10) : "",
         RFQRefNo: item.RFQRefNo || "",
         remark: item.Remark || "",
+          
+        Approvedrejectedby: item.Approvedrejectedby || "",
+        Approvedrejectdatetime: item.Approvedrejectdatetime || "",
 
         chronology: item.Chronology || "",
         commercialProposal: item.CommercialProposal || "",
@@ -592,7 +732,9 @@ export class NFAService {
         note4: item.AdditionalText4 || "",
         workflow: item.WorkflowType || "",
         doaMatrix: item.DOAClause || "",
-        approvers: levels.map(l => item[l]?.Id || ""),
+        location: item.Location || "",
+        natureOfApproval: item.NatureofApproval || "",
+        approvers: levels.map(l => item[l]?.Id || item[`${l}Id`] || ""),
         uniqId: item.UniqID || item.UniqId || "",
         level: parseInt(item.WFLevel || item.Level || "0", 10),
         pendingAtId: (() => { const lvl = parseInt(item.WFLevel || item.Level || "1", 10); return (lvl >= 1 && lvl <= 12) ? (item[levels[lvl - 1]]?.Id || item[`ApprovalLevel${lvl}Id`] || null) : null; })(),
@@ -600,7 +742,8 @@ export class NFAService {
         commentHistory: item.CommentHistory || "",
         workflowHistory: item.WorkflowHistory || "",
         workflowHistoryHTML: item.WorkflowHistoryHTML || "",
-        status: item.Status || ""
+        status: item.Status || "",
+        PendingFrom:item.PendingFrom || ""
       };
     } catch (error) {
       console.error("NFAService: Exception in getNFA:", error);
@@ -616,7 +759,7 @@ export class NFAService {
       const currentUserId = currentUser.Id;
 
       const items = await this.sp.web.lists.getByTitle(this.listName).items
-        .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "WFLevel", "ApprovalLevel1/Title")
+        .select("*","Id", "Title", "Dept","ContractorName","ApprovalAmount","PendingFrom", "Approvedrejectedby","Approvedrejectdatetime","Project", "RequestedOn", "Status", "WFLevel", "ApprovalLevel1/Title")
         .expand("ApprovalLevel1")
         .filter(`AuthorId eq ${currentUserId}`)();
 
@@ -624,11 +767,17 @@ export class NFAService {
         id: item.Id,
         requestNo: item.Title,
         function: item.Dept,
+        contractorName: item.ContractorName || "",
         project: item.Project,
         createdOn: item.RequestedOn,
         status: item.Status,
-        pendingAt: item.ApprovalLevel1 ? item.ApprovalLevel1.Title : "",
-        level: parseInt(item.WFLevel || item.Level || "0", 10)
+        Approvedrejectedby: item.Approvedrejectedby,
+        Approvedrejectdatetime : item.Approvedrejectdatetime,
+        pendingAt: item.PendingAt || (item.ApprovalLevel1 ? item.ApprovalLevel1.Title : ""),
+        level: parseInt(item.WFLevel || item.Level || "0", 10),
+        PendingFrom:item.PendingFrom ,
+        doaMatrix: item.DOAClause || "",
+        packageAwardedCost: item.ApprovalAmount || "0.00",
       }));
     } catch (error) {
       console.error("Error fetching NFA list:", error);
@@ -640,33 +789,199 @@ export class NFAService {
     try {
       const currentUser = await this.sp.web.currentUser();
       const currentUserId = currentUser.Id;
+      const currentUserName = (currentUser.Title || "").trim().toLowerCase();
 
-      const items = await this.sp.web.lists.getByTitle(this.listName).items
-        .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "PendingAt/Id", "PendingAt/Title", "Level", "ApprovalAmount", "Author/Title", "Created")
-        .expand("PendingAt", "Author")
-        .filter(`(Status eq 'Pending' or Status eq 'Query') and PendingAt/Id eq ${currentUserId}`)();
+      const resultMap = new Map<number, any>();
 
-      return items.map((item: any) => {
-        const createdDate = new Date(item.Created);
-        const today = new Date();
-        const diffTime = Math.abs(today.getTime() - createdDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // 1. Check DashboardList for active tasks pending for current user
+      try {
+        const dashboardItems = await this.sp.web.lists.getByTitle("DashboardList").items
+          .filter(`Status eq 'Pending' and (CurrentApproverId eq ${currentUserId} or CurrentApprovalID eq '${currentUserId}')`)
+          .top(500)();
 
-        return {
-          id: item.Id,
-          requestNo: item.Title,
-          function: item.Dept,
-          project: item.Project,
-          createdDate: item.RequestedOn || createdDate.toLocaleDateString('en-IN'),
-          status: item.Status,
-          pendingAt: item.ApprovalLevel1 ? item.ApprovalLevel1.Title : "",
-          pendingAtId: item.PendingAt ? item.PendingAt.Id : null,
-          level: parseInt(item.WFLevel || item.Level || "0", 10),
-          amount: item.ApprovalAmount || "0.00",
-          initiator: item.Author ? item.Author.Title : "",
-          agingDays: diffDays
-        };
-      });
+        for (const d of dashboardItems) {
+          const wfid = parseInt(d.WFID || d.Id, 10);
+          if (!wfid || isNaN(wfid)) continue;
+
+          const createdDate = d.Created ? new Date(d.Created) : new Date();
+          const today = new Date();
+          const diffTime = Math.abs(today.getTime() - createdDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          resultMap.set(wfid, {
+            id: wfid,
+            requestNo: d.Title || "",
+            function: d.Function || d.Department || "",
+            project: d.Project || "",
+            createdDate: d.InitiatedOn || d.PendingFrom || createdDate.toLocaleDateString('en-IN'),
+            status: d.Status || "Pending",
+            pendingAt: d.CurrentApprovalName || currentUser.Title || "",
+            pendingAtId: currentUserId,
+            level: parseInt(d.WFLevel || "1", 10),
+            amount: d.Amount || "0.00",
+            initiator: d.InitiatedBy || "",
+            agingDays: diffDays
+          });
+        }
+      } catch (dashErr) {
+        console.warn("NFAService: Error fetching from DashboardList:", dashErr);
+      }
+
+      // 2. Fetch active queries pending for current user from QueryMgt
+      try {
+        let queryMgtItems: any[] = [];
+        try {
+          try {
+            queryMgtItems = await this.sp.web.lists.getByTitle("QueryMgtList").items
+              .filter(`Status eq 'Pending' and QueryToId eq ${currentUserId}`)
+              .select("Id", "Title", "WFID", "Function", "Project", "Amount", "WFLevel", "QueriedOn", "Created", "QueryById", "QueryBy/Title")
+              .expand("QueryBy")
+              .top(500)();
+          } catch { }
+          if (queryMgtItems.length === 0) {
+            queryMgtItems = await this.sp.web.lists.getByTitle("QueryMgt").items
+            .filter(`Status eq 'Pending' and QueryToId eq ${currentUserId}`)
+            .select("Id", "Title", "WFID", "Function", "Project", "Amount", "WFLevel", "QueriedOn", "Created", "QueryById", "QueryBy/Title")
+            .expand("QueryBy")
+            .top(500)();
+        } }catch {
+          try {
+          
+            queryMgtItems = await this.sp.web.lists.getByTitle("QueryMgtList").items
+              .filter(`Status eq 'Pending' and QueryToId eq ${currentUserId}`)
+              .select("Id", "Title", "WFID", "Function", "Project", "Amount", "WFLevel", "QueriedOn", "Created", "QueryById", "QueryBy/Title")
+              .expand("QueryBy")
+              .top(500)();
+          } catch { }
+          if (queryMgtItems.length === 0) {
+            queryMgtItems = await this.sp.web.lists.getByTitle("QueryMgt").items
+              .filter(`Status eq 'Pending' and QueryToId eq ${currentUserId}`)
+              .select("Id", "Title", "WFID", "Function", "Project", "Amount", "WFLevel", "QueriedOn", "Created", "QueryById")
+              .top(500)();
+          } 
+        }
+      
+        for (const q of queryMgtItems) {
+          const wfid = parseInt(q.WFID || q.Id, 10);
+          if (!wfid || isNaN(wfid)) continue;
+
+          const createdDate = q.Created ? new Date(q.Created) : new Date();
+          const today = new Date();
+          const diffTime = Math.abs(today.getTime() - createdDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          const queryByName = q.QueryBy ? q.QueryBy.Title : "Approver";
+
+          resultMap.set(wfid, {
+            id: wfid,
+            requestNo: q.Title || "",
+            function: q.Function || "",
+            project: q.Project || "",
+            createdDate: q.QueriedOn || createdDate.toLocaleDateString('en-IN'),
+            status: "Query",
+            pendingAt: currentUser.Title,
+            pendingAtId: currentUserId,
+            level: parseInt(q.WFLevel || "1", 10),
+            amount: q.Amount || "0.00",
+            initiator: queryByName,
+            agingDays: diffDays
+          });
+        
+      } }catch (qErr) {
+        console.warn("NFAService: Error fetching queries from QueryMgt:", qErr);
+      }
+
+      // 3. Fetch active queries from DashboardList (QueryPendingToID eq current user)
+      try {
+        const queryDashItems = await this.sp.web.lists.getByTitle("DashboardList").items
+          .filter(`Status eq 'Query' and (QueryPendingToID eq '${currentUserId}' or QueryPendingToID eq ${currentUserId})`)
+          .top(500)();
+
+        for (const d of queryDashItems) {
+          const wfid = parseInt(d.WFID || d.Id, 10);
+          if (!wfid || isNaN(wfid)) continue;
+
+          if (!resultMap.has(wfid)) {
+            const createdDate = d.Created ? new Date(d.Created) : new Date();
+            const today = new Date();
+            const diffTime = Math.abs(today.getTime() - createdDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            resultMap.set(wfid, {
+              id: wfid,
+              requestNo: d.Title || "",
+              function: d.Function || d.Department || "",
+              project: d.Project || "",
+              createdDate: d.QueryPendingOn || d.PendingFrom || createdDate.toLocaleDateString('en-IN'),
+              status: "Query",
+              pendingAt: currentUser.Title,
+              pendingAtId: currentUserId,
+              level: parseInt(d.WFLevel || "1", 10),
+              amount: d.Amount || "0.00",
+              initiator: d.CurrentApprovalName || "Approver",
+              agingDays: diffDays
+            });
+          }
+        }
+      } catch (qDashErr) {
+        console.warn("NFAService: Error fetching queries from DashboardList:", qDashErr);
+      }
+
+      // 4. Also check DigitalApprovalNotes directly
+      try {
+        const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}Id`);
+        const items = await this.sp.web.lists.getByTitle(this.listName).items
+          .select("Id", "Title", "Dept", "Project", "RequestedOn", "Status", "PendingAt", "WFLevel", "ApprovalAmount", "Author/Title", "Created", ...levels)
+          .expand("Author")
+          .filter("(Status eq 'Pending' or Status eq 'Query')")
+          .top(1000)();
+
+        for (const item of items) {
+          const wfid = item.Id;
+          const status = item.Status || "";
+          const levelNum = parseInt(item.WFLevel || "1", 10);
+          const currentLevelKey = `ApprovalLevel${levelNum}Id`;
+          const currentApproverAtLevelId = item[currentLevelKey];
+
+          const pendingAtText = (item.PendingAt || "").trim().toLowerCase();
+
+          // Check if user matches by ID at current level, or Level 1 ID, or PendingAt display name
+          const isUserMatch =
+            ((status || "").toLowerCase() === "pending" &&
+             ((currentApproverAtLevelId && currentApproverAtLevelId === currentUserId) ||
+              (levelNum === 1 && item.ApprovalLevel1Id === currentUserId) ||
+              (pendingAtText && pendingAtText === currentUserName))) ||
+            ((status || "").toLowerCase() === "query" &&
+             (pendingAtText && pendingAtText === currentUserName));
+
+
+          if (isUserMatch && !resultMap.has(wfid)) {
+            const createdDate = new Date(item.Created);
+            const today = new Date();
+            const diffTime = Math.abs(today.getTime() - createdDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            resultMap.set(wfid, {
+              id: wfid,
+              requestNo: item.Title,
+              function: item.Dept,
+              project: item.Project,
+              createdDate: item.RequestedOn || createdDate.toLocaleDateString('en-IN'),
+              status: status,
+              pendingAt: item.PendingAt || currentUser.Title,
+              pendingAtId: currentUserId,
+              level: levelNum,
+              amount: item.ApprovalAmount || "0.00",
+              initiator: item.Author ? item.Author.Title : "",
+              agingDays: diffDays
+            });
+          }
+        }
+      } catch (nfaErr) {
+        console.error("NFAService: Error fetching from DigitalApprovalNotes:", nfaErr);
+      }
+
+      return Array.from(resultMap.values());
     } catch (error) {
       console.error("Error fetching Inbox data:", error);
       return [];

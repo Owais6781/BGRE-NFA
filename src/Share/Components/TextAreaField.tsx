@@ -36,6 +36,11 @@ export const TextAreaField: React.FC<TextAreaFieldProps> = ({
         onChange={(e) => onChange(e.target.value)}
         className={`formInput resize-y${error ? ' border-red-400' : ''}`}
       />
+      {error && (
+        <span className="text-red-500 text-[11px] font-medium mt-1 block">
+          {error}
+        </span>
+      )}
     </div>
   );
 };

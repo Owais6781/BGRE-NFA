@@ -89,7 +89,7 @@ const ApprovedRejectedFilter: React.FC<ApprovedRejectedFilterProps> = ({ filters
               <DropdownField label="Status"   value={statusVal}  onChange={setStatusVal}  options={statusOptions}   required />
             </div>
             <div className="flex-[1.2] min-w-[120px]">
-              <DropdownField label="Project" value={projectVal} onChange={setProjectVal} options={projectOptions} required />
+              <DropdownField label="Entity" value={projectVal} onChange={setProjectVal} options={projectOptions} required />
             </div>
             <div className="flex-[1.2] min-w-[120px]">
               <DropdownField label="Function" value={funcVal}    onChange={setFuncVal}    options={functionOptions} required />

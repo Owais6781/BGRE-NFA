@@ -2,7 +2,7 @@ import * as React from 'react';
 import { SPHttpClient } from "@microsoft/sp-http";
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2, History, MessageSquare
+  Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2, History, MessageSquare, Info
 } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton';
 import { InputField } from '../../../../../Share/Components/InputField';
@@ -16,6 +16,10 @@ import { SPFI } from "@pnp/sp";
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import MultiSelectDropdown from '../../../../../Share/Components/MultiSelectDropdown';
 import AttachmentPopup, { IAttachmentEntry } from '../../../../../Share/Components/AttachmentPopup';
+import AttachmentValidationModal, {
+  validateAttachmentFiles,
+  IAttachmentValidationError
+} from '../../../../../Share/Components/AttachmentValidationModal';
 import { NFADocService, ISavedDocument } from '../../../../../Share/Services/NFADocService';
 import ValidationErrors from '../../../../../Share/Components/ValidationErrors';
 import MessagePopup, { MessageType } from '../../../../../Share/Components/MessagePopup';
@@ -130,6 +134,8 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   const [pendingAttachments, setPendingAttachments] = useState<IAttachmentEntry[]>([]);
   const [errors, setErrors] = useState<IValidationError[]>([]);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [attachmentValidationErrors, setAttachmentValidationErrors] = useState<IAttachmentValidationError[]>([]);
+  const [showAttachmentValidationModal, setShowAttachmentValidationModal] = useState<boolean>(false);
   const [manualSlotsCount, setManualSlotsCount] = useState(4);
   const [matrixApproverOptions, setMatrixApproverOptions] = useState<IDropdownOption[]>([]);
   const [doaMatrixOptions, setDoaMatrixOptions] = useState<IDropdownOption[]>([]);
@@ -150,18 +156,21 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     RFQRefNo: '',
     remark: '',
     commercialProposal: '', paymentTerms: '',
-    liquidatedDamage: 'NA', contractPerf: 'NA',
-    defectLiability: 'NA', workCompletion: 'Work must be completed and handed over to the satisfaction of Owner on or before -------',
+    liquidatedDamage: '', contractPerf: '',
+    defectLiability: '', workCompletion: 'Work must be completed and handed over to the satisfaction of Owner on or before -------',
     budgetRemarks: '', packageAwardedCost: '0.00', budget: '0.00',
     budgetedNonBudgeted: "",
     capexSerialNo: '',
     recommendation: '', contractorName: '',
-    annexure: ' Enter Annexure/ Enclosur (if any)', note1: 'Enter Note-1 ', note2: 'Enter Note-2 ', note3: 'Enter Note-3 ', note4: 'Enter Note-4 ',
+    annexure: ' ', note1: '', note2: ' ', note3: ' ', note4: ' ',
     workflow: 'MANUAL', doaMatrix: '',
     approvers: Array(12).fill(null),
     uniqId: '',
     level: 0,
     pendingAtId: null,
+    Approvedrejectedby: "",
+    Approvedrejectdatetime: "",
+    PendingFrom: "",
   });
 
   const handlePopupClose = () => {
@@ -169,6 +178,26 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     setDoaAlert(prev => ({ ...prev, show: false }));
     if (redirect) {
       navigate('/');
+    }
+  };
+
+  const handleAttachmentPasteOrDrop = (files: File[]): void => {
+    if (!files || files.length === 0) return;
+    const existingNames = [
+      ...savedDocuments.map(d => d.fileName),
+      ...pendingAttachments.map(p => p.file.name)
+    ];
+    const { validFiles, errors: valErrors } = validateAttachmentFiles(files, existingNames);
+    if (valErrors.length > 0) {
+      setAttachmentValidationErrors(valErrors);
+      setShowAttachmentValidationModal(true);
+    }
+    if (validFiles.length > 0) {
+      const newEntries: IAttachmentEntry[] = validFiles.map(file => ({
+        documentType: 'Supporting Document',
+        file
+      }));
+      setPendingAttachments(prev => [...prev, ...newEntries]);
     }
   };
 
@@ -625,10 +654,10 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
       <CollapsibleSection icon={<FileText size={13} />} title="NFA Details" defaultOpen={false} hasError={hasSectionErrors(['referenceSubject', 'introduction', 'chronology', 'commercialProposal', 'paymentTerms'])}>
         <div className="mb-4"><TextAreaField label="Subject" value={form.referenceSubject} onChange={v => updateField('referenceSubject', v)} rows={2} required error={getFieldError('referenceSubject')} /></div>
-        <div className="mb-4"><RichTextEditor label="Introduction" value={form.introduction} onChange={v => updateField('introduction', v)} required error={getFieldError('introduction')} /></div>
+        <div className="mb-4"><RichTextEditor label="Introduction" value={form.introduction} onChange={v => updateField('introduction', v)}  error={getFieldError('introduction')} /></div>
         <div className="flex gap-4 mb-4">
           <div className="flex-1 min-w-0">
-            <InputField label="Complete Indent/PR received from & Date" type="date" value={form.completeIndentPRReceivedFromDate || ''} onChange={(v) => updateField('completeIndentPRReceivedFromDate', v)}    required error={getFieldError('completeIndentPRReceivedFromDate')}/>
+            <InputField label="Complete Indent/PR received from & Date" type="date" value={form.completeIndentPRReceivedFromDate || ''} onChange={(v) => updateField('completeIndentPRReceivedFromDate', v)}  error={getFieldError('completeIndentPRReceivedFromDate')} />
 
           </div>
           <div className="flex-1 min-w-0">
@@ -640,16 +669,16 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         </div>
         <div className="mb-4"><InputField label="Remarks" value={form.remark || ''} onChange={(v) => updateField('remark', v)} /></div>
 
-        <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)} required error={getFieldError('chronology')} /></div>
-        <div className="mb-4"><RichTextEditor label="Commercial Proposals" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)} required error={getFieldError('commercialProposal')} /></div>
+        <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)}  error={getFieldError('chronology')} /></div>
+        <div className="mb-4"><RichTextEditor label="Commercial Proposals" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)}  error={getFieldError('commercialProposal')} /></div>
         <RichTextEditor label="Payment Terms" value={form.paymentTerms} onChange={v => updateField('paymentTerms', v)} />
       </CollapsibleSection>
 
       <CollapsibleSection icon={<Wrench size={13} />} title="Contract Terms" defaultOpen={false} hasError={hasSectionErrors(['liquidatedDamage', 'contractPerf', 'defectLiability', 'workCompletion'])}>
-        <div className="mb-4"><TextAreaField label="Liquidated Damage" value={form.liquidatedDamage} onChange={v => updateField('liquidatedDamage', v)} rows={3} /></div>
-        <div className="mb-4"><TextAreaField label="Contract Performance Gurantee" value={form.contractPerf} onChange={v => updateField('contractPerf', v)} rows={3} /></div>
-        <div className="mb-4"><TextAreaField label="Defect Liability Period" value={form.defectLiability} onChange={v => updateField('defectLiability', v)} rows={3} /></div>
-        <TextAreaField label="Work Completion" value={form.workCompletion} onChange={v => updateField('workCompletion', v)} rows={3} />
+        <div className="mb-4"><TextAreaField label="Liquidated Damage" value={form.liquidatedDamage} onChange={v => updateField('liquidatedDamage', v)} required rows={3} /></div>
+        <div className="mb-4"><TextAreaField label="Contract Performance Gurantee" value={form.contractPerf} onChange={v => updateField('contractPerf', v)} required rows={3} /></div>
+        <div className="mb-4"><TextAreaField label="Defect Liability Period" value={form.defectLiability} onChange={v => updateField('defectLiability', v)} required rows={3} /></div>
+        <TextAreaField label="Work Completion" value={form.workCompletion} onChange={v => updateField('workCompletion', v)} required rows={3} />
       </CollapsibleSection>
 
       <CollapsibleSection icon={<DollarSign size={13} />} title="Financials" defaultOpen={false} hasError={hasSectionErrors(['budgetRemarks', 'packageAwardedCost', 'budget'])}>
@@ -657,24 +686,25 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         <div className="flex gap-x-6 mb-4">
           <div className="flex-1"><NumberInput label="Packeage Awarded Cost" value={form.packageAwardedCost} onChange={v => updateField('packageAwardedCost', v)} onBlur={v => fetchMatchingMatrix(true, v)} required error={getFieldError('packageAwardedCost')} /></div>
           <div className="flex-1"><NumberInput label="Budget" value={form.budget} onChange={v => updateField('budget', v)} required error={getFieldError('budget')} /></div>
-        <div className="flex-1">
-  <DropdownField
-    label="Budgeted/ Non Budgeted"
-    value={form.budgetedNonBudgeted}
-    options={[
-      { label: "Budgeted", value: "Budgeted" },
-      { label: "Non Budgeted", value: "Non Budgeted" }
-    ]}
-    onChange={(value) =>
-      setForm((prev) => ({
-        ...prev,
-        budgetedNonBudgeted: value
-      }))
-    }
-    emptyLabel="Select Budget Type..."
-    error={getFieldError("budgetedNonBudgeted")}
-  />
-</div>
+          <div className="flex-1">
+            <DropdownField
+              label="Budgeted/ Non Budgeted"
+              value={form.budgetedNonBudgeted}
+              options={[
+                { label: "Budgeted", value: "Budgeted" },
+                { label: "Non Budgeted", value: "Non Budgeted" }
+              ]}
+              onChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  budgetedNonBudgeted: value
+                }))
+              }
+              emptyLabel="Select Budget Type..."
+              error={getFieldError("budgetedNonBudgeted")}
+              required 
+            />
+          </div>
         </div>
         {/* <div className="mb-4"><TextAreaField label="Capex No" value={form.capexSerialNo} onChange={v => updateField('capexSerialNo', v)} rows={3} /></div> */}
         {financialsSummary.budget > 0 && (
@@ -704,12 +734,12 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
       <CollapsibleSection icon={<Star size={13} />} title="Recommendation" defaultOpen={false} hasError={hasSectionErrors(['recommendation', 'contractorName'])}>
         <div className="mb-4"><RichTextEditor label="Recommendation with Justification" value={form.recommendation} onChange={v => updateField('recommendation', v)} /></div>
-        <InputField label="Contractor Name" value={form.contractorName} onChange={v => updateField('contractorName', v)} />
-      <div className="mb-4"><TextAreaField label="Annexure/ Enclosur(if any)" value={form.annexure} onChange={v => updateField('annexure', v)} rows={3} /></div>
-      <div className="mb-4"><TextAreaField label="Note 1" value={form.note1} onChange={v => updateField('note1', v)} rows={2} /></div>
-      <div className="mb-4"><TextAreaField label="Note 2" value={form.note2} onChange={v => updateField('note2', v)} rows={2} /></div>
-      <div className="mb-4"><TextAreaField label="Note 3" value={form.note3} onChange={v => updateField('note3', v)} rows={2} /></div>
-      <div className="mb-4"><TextAreaField label="Note 4" value={form.note4} onChange={v => updateField('note4', v)} rows={2} /></div>
+        <InputField label="Contractor Name" value={form.contractorName} placeholder='Enter Contractor Name' onChange={v => updateField('contractorName', v)} />
+        <div className="mb-4"><TextAreaField label="Annexure/ Enclosur(if any)" placeholder='Enter Annexure/ Enclosur (if any)' value={form.annexure} onChange={v => updateField('annexure', v)} rows={3} /></div>
+        <div className="mb-4"><TextAreaField label="Note 1" placeholder='Enter Note 1' value={form.note1} onChange={v => updateField('note1', v)} rows={2} /></div>
+        <div className="mb-4"><TextAreaField label="Note 2" placeholder='Enter Note 2' value={form.note2} onChange={v => updateField('note2', v)} rows={2} /></div>
+        <div className="mb-4"><TextAreaField label="Note 3" placeholder='Enter Note 3' value={form.note3} onChange={v => updateField('note3', v)} rows={2} /></div>
+        <div className="mb-4"><TextAreaField label="Note 4" placeholder='Enter Note 4' value={form.note4} onChange={v => updateField('note4', v)} rows={2} /></div>
 
       </CollapsibleSection>
 
@@ -819,65 +849,120 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection icon={<Paperclip size={13} />} title="Attachments" defaultOpen={false}>
-        <div className="flex justify-end mb-4"><CommonButton text="+ Add Attachment" variant="primary" onClick={() => setIsPopupOpen(true)} /></div>
-        {(savedDocuments.length > 0 || pendingAttachments.length > 0) ? (
-          <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <table className="savedDocsTable w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500">
-                  <th className="p-3">#</th>
-                  <th className="p-3">Type</th>
-                  <th className="p-3">File Name</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {savedDocuments.map((doc, i) => (
-                  <tr key={doc.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
-                    <td className="p-3 font-semibold text-slate-500">{i + 1}</td>
-                    <td className="p-3 flex items-center gap-2">
-                      {getFileBadge(doc.fileName)}
-                      <span className="text-xs font-bold text-slate-600">{doc.documentType}</span>
-                    </td>
-                    <td className="p-3 font-semibold text-blue-600 hover:underline cursor-pointer">{doc.fileName}</td>
-                    <td className="p-3">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                        Saved
-                      </span>
-                    </td>
-                    <td className="p-3 text-center">
-                      <button onClick={async () => { if (confirm("Are you sure you want to delete this document?")) { const s = new NFADocService(context); await s.deleteDocument(doc.id); setSavedDocuments(prev => prev.filter(d => d.id !== doc.id)); } }} className="text-red-500 hover:text-red-700 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {pendingAttachments.map((entry, i) => (
-                  <tr key={`pending-${i}`} className="border-t border-slate-100 bg-blue-50/10 hover:bg-blue-50/20 transition-colors text-sm">
-                    <td className="p-3 font-semibold text-slate-500">{savedDocuments.length + i + 1}</td>
-                    <td className="p-3 flex items-center gap-2">
-                      {getFileBadge(entry.file.name)}
-                      <span className="text-xs font-bold text-slate-600">{entry.documentType}</span>
-                    </td>
-                    <td className="p-3 font-medium text-slate-500 italic">{entry.file.name}</td>
-                    <td className="p-3">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100 animate-pulse">
-                        Pending
-                      </span>
-                    </td>
-                    <td className="p-3 text-center">
-                      <button onClick={() => setPendingAttachments(prev => prev.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-700 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <CollapsibleSection icon={<Paperclip size={13} />} title="Attachments" >
+        {/* Attachment Guidelines Banner */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+            padding: '10px 14px',
+            backgroundColor: 'rgba(254, 242, 242, 0.7)',
+            border: '1px solid #fee2e2',
+            borderRadius: '10px',
+            fontSize: '12px',
+            color: '#334155',
+            marginBottom: '16px'
+          }}
+        >
+          <Info size={15} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ lineHeight: '1.45' }}>
+            <strong style={{ color: '#0f172a' }}>Attachment Guidelines:</strong> Max 10 MB per file · File names cannot contain:{' '}
+            <span
+              style={{
+                fontFamily: 'monospace',
+                color: '#b91c1c',
+                backgroundColor: '#fff',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                border: '1px solid #fecaca',
+                fontSize: '11px'
+              }}
+            >
+         ~ &quot; # % &amp; * : &lt; &gt; ? / \ &#123; | &#125; +
+            </span>
           </div>
-        ) : <p className="noDocsMessage px-2">No documents attached.</p>}
+        </div>
+
+        <div
+          onPaste={(e) => {
+            if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+              e.preventDefault();
+              e.stopPropagation();
+              handleAttachmentPasteOrDrop(Array.from(e.clipboardData.files));
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+              handleAttachmentPasteOrDrop(Array.from(e.dataTransfer.files));
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <div className="flex justify-end mb-4"><CommonButton text="+ Add Attachment" variant="primary" onClick={() => setIsPopupOpen(true)} /></div>
+          {(savedDocuments.length > 0 || pendingAttachments.length > 0) ? (
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <table className="savedDocsTable w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500">
+                    <th className="p-3">#</th>
+                    <th className="p-3">Type</th>
+                    <th className="p-3">File Name</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savedDocuments.map((doc, i) => (
+                    <tr key={doc.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors text-sm">
+                      <td className="p-3 font-semibold text-slate-500">{i + 1}</td>
+                      <td className="p-3 flex items-center gap-2">
+                        {getFileBadge(doc.fileName)}
+                        <span className="text-xs font-bold text-slate-600">{doc.documentType}</span>
+                      </td>
+                      <td className="p-3 font-semibold text-blue-600 hover:underline cursor-pointer">{doc.fileName}</td>
+                      <td className="p-3">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          Saved
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button onClick={async () => { if (confirm("Are you sure you want to delete this document?")) { const s = new NFADocService(context); await s.deleteDocument(doc.id); setSavedDocuments(prev => prev.filter(d => d.id !== doc.id)); } }} className="text-red-500 hover:text-red-700 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {pendingAttachments.map((entry, i) => (
+                    <tr key={`pending-${i}`} className="border-t border-slate-100 bg-blue-50/10 hover:bg-blue-50/20 transition-colors text-sm">
+                      <td className="p-3 font-semibold text-slate-500">{savedDocuments.length + i + 1}</td>
+                      <td className="p-3 flex items-center gap-2">
+                        {getFileBadge(entry.file.name)}
+                        <span className="text-xs font-bold text-slate-600">{entry.documentType}</span>
+                      </td>
+                      <td className="p-3 font-medium text-slate-500 italic">{entry.file.name}</td>
+                      <td className="p-3">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100 animate-pulse">
+                          Pending
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button onClick={() => setPendingAttachments(prev => prev.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-700 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="noDocsMessage px-2">No documents attached.</p>}
+        </div>
       </CollapsibleSection>
 
       {id && history.length > 0 && (
@@ -935,7 +1020,18 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         </CollapsibleSection>
       )}
 
-      <AttachmentPopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} onSave={(entries) => { setPendingAttachments(prev => [...prev, ...entries]); setIsPopupOpen(false); }} />
+      <AttachmentPopup
+        isOpen={isPopupOpen}
+        onClose={() => setIsPopupOpen(false)}
+        onSave={(entries) => {
+          setPendingAttachments(prev => [...prev, ...entries]);
+          setIsPopupOpen(false);
+        }}
+        existingFileNames={[
+          ...savedDocuments.map(d => d.fileName),
+          ...pendingAttachments.map(p => p.file.name)
+        ]}
+      />
 
       {isSaving && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1042,7 +1138,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           try {
             const docService = new NFADocService(context);
             if (pendingAttachments.length > 0) {
-              await docService.saveDocuments(pendingAttachments, form.uniqId, (current, total, fileName) => {
+              await docService.saveDocuments(pendingAttachments, form.uniqId,undefined, (current: number, total: number, fileName: string) => {
                 const percent = Math.round((current / total) * 100);
                 setSavingProgress({
                   step: 'attachments',
@@ -1105,7 +1201,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           try {
             const docService = new NFADocService(context);
             if (pendingAttachments.length > 0) {
-              await docService.saveDocuments(pendingAttachments, form.uniqId, (current, total, fileName) => {
+              await docService.saveDocuments(pendingAttachments, form.uniqId,undefined, (current, total, fileName) => {
                 const percent = Math.round((current / total) * 100);
                 setSavingProgress({
                   step: 'attachments',

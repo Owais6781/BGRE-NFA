@@ -46,47 +46,166 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
       try {
         setLoading(true);
         const dropdownService = new DropdownService(context);
-        
-        const [projects, funcs, nfaItems, dashboardItems] = await Promise.all([
-          dropdownService.getProjects(),
-          dropdownService.getFunctionMaster(),
-          sp.web.lists.getByTitle("DigitalApprovalNotes").items
-            .select("Id", "Title", "SubjectMatter", "Dept", "Project", "RequestedOn", "Status", "ApprovalAmount", "Author/Title", "PendingAt/Title", "Modified", "Created")
-            .expand("Author", "PendingAt")
-            .top(5000)(),
-          sp.web.lists.getByTitle("DashboardList").items
-            .select("WFID", "PendingFrom")
-            .top(5000)()
-        ]);
 
-        setProjectOptions(projects);
-        setFunctionOptions(funcs);
+        // 1. Get current logged-in user
+        const currentUser = await sp.web.currentUser();
+        const currentUserId = currentUser.Id;
+        const currentUserName = (currentUser.Title || "").trim().toLowerCase();
 
+        // 2. Fetch master dropdowns with fallback
+        let projects: IDropdownOption[] = [];
+        let funcs: IDropdownOption[] = [];
+        try {
+          projects = await dropdownService.getProjects();
+        } catch (pErr) {
+          console.warn("ApprovalDetailsView: Failed to load projects from ProjectMaster:", pErr);
+        }
+        if (!projects || projects.length === 0) {
+          try {
+            const pItems = await sp.web.lists.getByTitle("Project Master").items
+              .select("Id", "ProjectName", "Title")
+              .top(500)();
+            projects = pItems.map((p: any) => ({
+              label: p.ProjectName || p.Title,
+              value: String(p.Id || p.ProjectName || p.Title)
+            }));
+          } catch { }
+        }
+
+        try {
+          funcs = await dropdownService.getFunctionMaster();
+        } catch (fErr) {
+          console.warn("ApprovalDetailsView: Failed to load functions from FunctionMaster:", fErr);
+        }
+
+        // 3. Query WFLogList for note IDs where user acted or was assigned as approver
+        const userWfLogIds = new Set<string>();
+        try {
+          const logItems = await sp.web.lists.getByTitle("WFLogList").items
+            .filter(`AuthorId eq ${currentUserId} or PPLPendingAtId eq ${currentUserId}`)
+            .select("WFID")
+            .top(5000)();
+          logItems.forEach((l: any) => {
+            if (l.WFID) userWfLogIds.add(String(l.WFID));
+          });
+        } catch (logErr) {
+          console.warn("ApprovalDetailsView: Failed to query WFLogList:", logErr);
+        }
+
+        // 4. Fetch dashboard items
+        let dashboardItems: any[] = [];
         const dashMap: Record<string, any> = {};
-        dashboardItems.forEach((d: any) => {
-          if (d.WFID) {
-            dashMap[d.WFID] = d;
+        try {
+          dashboardItems = await sp.web.lists.getByTitle("DashboardList").items
+            .select("WFID", "PendingFrom", "CurrentApproverId", "CurrentApprovalID", "CurrentApprovalName", "Status")
+            .top(5000)();
+          dashboardItems.forEach((d: any) => {
+            if (d.WFID) {
+              dashMap[d.WFID] = d;
+            }
+          });
+        } catch (dashErr) {
+          console.warn("ApprovalDetailsView: Error fetching DashboardList:", dashErr);
+        }
+
+        // 5. Fetch approval notes from DigitalApprovalNotes including all 12 approver levels
+        let nfaItems: any[] = [];
+        try {
+          const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}Id`);
+          nfaItems = await sp.web.lists.getByTitle("DigitalApprovalNotes").items
+            .select(
+              "Id", "Title", "SubjectMatter", "Dept", "FunctionName", "Project",
+              "RequestedOn", "Status", "ApprovalAmount", "Author/Title", "Author/Id",
+              "PendingAt", "Modified", "Created", "PendingFrom", "WFLevel",
+              ...levels
+            )
+            .expand("Author")
+            .top(5000)();
+        } catch (nfaErr) {
+          console.error("ApprovalDetailsView: Error fetching DigitalApprovalNotes:", nfaErr);
+        }
+
+        // 6. Filter notes assigned to the currently logged-in user
+        const userNfaItems = nfaItems.filter((item: any) => {
+          // Check if user is configured in any ApprovalLevel1..12
+          for (let i = 1; i <= 12; i++) {
+            const lvlVal = item[`ApprovalLevel${i}Id`];
+            if (lvlVal && (lvlVal === currentUserId || String(lvlVal) === String(currentUserId))) {
+              return true;
+            }
           }
+
+          // Check if PendingAt text matches current user's name
+          const pendingAt = (typeof item.PendingAt === 'string' ? item.PendingAt : (item.PendingAt?.Title || "")).trim().toLowerCase();
+          if (pendingAt && (pendingAt === currentUserName || pendingAt.includes(currentUserName))) {
+            return true;
+          }
+
+          // Check DashboardList for active assignment
+          const dash = dashMap[item.Id.toString()];
+          if (dash) {
+            if (dash.CurrentApproverId === currentUserId || String(dash.CurrentApprovalID) === String(currentUserId)) {
+              return true;
+            }
+            const dashApprover = (dash.CurrentApprovalName || "").trim().toLowerCase();
+            if (dashApprover && (dashApprover === currentUserName || dashApprover.includes(currentUserName))) {
+              return true;
+            }
+          }
+
+          // Check if recorded in WFLogList for this user
+          if (userWfLogIds.has(String(item.Id))) {
+            return true;
+          }
+
+          return false;
         });
 
-        const mapped: ApprovalRecord[] = nfaItems.map((item: any) => {
+        // 7. Fallback dropdown options from user-assigned notes if master lists were empty
+        if ((!projects || projects.length === 0) && userNfaItems.length > 0) {
+          const uniqueProjects = Array.from(new Set(userNfaItems.map((it: any) => it.Project).filter(Boolean)));
+          projects = uniqueProjects.map((p: any) => ({ label: String(p), value: String(p) }));
+        }
+
+        if ((!funcs || funcs.length === 0) && userNfaItems.length > 0) {
+          const uniqueDepts = Array.from(new Set(userNfaItems.map((it: any) => it.Dept || it.FunctionName).filter(Boolean)));
+          funcs = uniqueDepts.map((d: any) => ({ label: String(d), value: String(d) }));
+        }
+
+        setProjectOptions(projects || []);
+        setFunctionOptions(funcs || []);
+
+        // 8. Map to ApprovalRecord
+        const mapped: ApprovalRecord[] = userNfaItems.map((item: any) => {
           const dash = dashMap[item.Id.toString()];
           let approvedOnVal = "";
-          if (item.Status === "Approved" || item.Status === "Rejected") {
+          if (item.Status === "Approved" || item.Status === "Completed" || item.Status === "Rejected") {
             approvedOnVal = item.Modified || "";
           }
+
+          let pendingAtVal = "";
+          if (typeof item.PendingAt === 'object' && item.PendingAt) {
+            pendingAtVal = item.PendingAt.Title || "";
+          } else if (typeof item.PendingAt === 'string') {
+            pendingAtVal = item.PendingAt;
+          }
+          if (!pendingAtVal && dash && dash.CurrentApprovalName) {
+            pendingAtVal = dash.CurrentApprovalName;
+          }
+
+          const pendingFromVal = (dash && dash.PendingFrom) ? dash.PendingFrom : (item.PendingFrom || "");
 
           return {
             id: item.Id,
             nfa: item.Title || "",
             subject: stripHtml(item.SubjectMatter || item.Title || ""),
-            function: item.Dept || "",
+            function: item.Dept || item.FunctionName || "",
             createdBy: item.Author ? item.Author.Title : "",
             createdOn: item.RequestedOn || item.Created || "",
             status: item.Status || "",
             approvedOn: approvedOnVal,
-            pendingAt: item.PendingAt ? item.PendingAt.Title : "",
-            pendingFrom: dash ? (dash.PendingFrom || "") : "",
+            pendingAt: pendingAtVal,
+            pendingFrom: pendingFromVal,
             project: item.Project || "",
             packageCost: item.ApprovalAmount || "0.00"
           };
@@ -113,18 +232,30 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
     return tableData.filter(item => {
       // Date Filter
       if (filters.fromDate || filters.toDate) {
-        const itemDate = new Date(item.createdOn);
-        itemDate.setHours(0, 0, 0, 0);
+        const parseDate = (dStr: string) => {
+          if (!dStr) return null;
+          if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(dStr)) {
+            const parts = dStr.split(/[\/\s]/);
+            return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+          }
+          const d = new Date(dStr);
+          return isNaN(d.getTime()) ? null : d;
+        };
 
-        if (filters.fromDate) {
-          const from = new Date(filters.fromDate);
-          from.setHours(0, 0, 0, 0);
-          if (itemDate < from) return false;
-        }
-        if (filters.toDate) {
-          const to = new Date(filters.toDate);
-          to.setHours(0, 0, 0, 0);
-          if (itemDate > to) return false;
+        const itemDate = parseDate(item.createdOn);
+        if (itemDate) {
+          itemDate.setHours(0, 0, 0, 0);
+
+          if (filters.fromDate) {
+            const from = new Date(filters.fromDate);
+            from.setHours(0, 0, 0, 0);
+            if (itemDate < from) return false;
+          }
+          if (filters.toDate) {
+            const to = new Date(filters.toDate);
+            to.setHours(0, 0, 0, 0);
+            if (itemDate > to) return false;
+          }
         }
       }
 
@@ -132,13 +263,13 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
       if (filters.status && item.status !== filters.status) return false;
 
       if (filters.function) {
-        const funcObj = functionOptions.find(f => f.value === filters.function);
+        const funcObj = functionOptions.find(f => f.value === filters.function || f.label === filters.function);
         const funcName = funcObj ? funcObj.label : filters.function;
         if (item.function !== funcName) return false;
       }
 
       if (filters.project) {
-        const projObj = projectOptions.find(p => p.value === filters.project);
+        const projObj = projectOptions.find(p => p.value === filters.project || p.label === filters.project);
         const projName = projObj ? projObj.label : filters.project;
         if (item.project !== projName) return false;
       }

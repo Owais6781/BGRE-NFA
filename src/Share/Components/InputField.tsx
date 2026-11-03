@@ -36,6 +36,11 @@ export const InputField: React.FC<IInputFieldProps> = ({
         onChange={(e) => onChange(e.target.value)}
         className={`formInput${error ? ' border-red-400 focus:border-red-500' : ''}`}
       />
+      {error && (
+        <span className="text-red-500 text-[11px] font-medium mt-1 block">
+          {error}
+        </span>
+      )}
     </div>
   );
 };
