@@ -15,6 +15,7 @@ import ApproverPage from "./ApprovalNotes/ApproverPage/ApproverPage";
 import QueryRespond from "./ApprovalNotes/QueryRespond/QueryRespond";
 import ApprovalDetailsView from "./ApprovalNotes/ApprovalDetailsView/ApprovalDetailsView";
 import ApprovedRejectedByMe from "./ApprovalNotes/ApprovedRejectedByMe/ApprovedRejectedByMe";
+import ApprovedForFinanceView from "./ApprovalNotes/ApprovedForFinance/ApprovedForFinanceView"
 import DetailView from "./AdminSection/DetailView/DetailView";
 import Masters from "./AdminSection/Masters/Masters";
 import FunctionWiseStatus from "./Reports/FunctionWiseStatus/FunctionWiseStatus";
@@ -78,6 +79,7 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
               <Route path="/inbox"               element={<Inbox context={context} sp={sp}/>} />
               <Route path="/approver-detail"     element={<ApprovalDetailsView context={context} sp={sp}/>} />
               <Route path="/approved-rejected"   element={<ApprovedRejectedByMe context={context} sp={sp}/>} />
+              <Route path="/approved-nfa-finance" element={<ApprovedForFinanceView context={context} sp={sp}/>} />
               <Route path="/detail-view"         element={<DetailView context={context} sp={sp}/>} />
               <Route path="/masters"             element={<Masters />} />
               <Route path="/function-wise-status"    element={<FunctionWiseStatus context={context} sp={sp}/>} />

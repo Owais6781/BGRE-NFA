@@ -81,7 +81,7 @@ export class ApprovalService {
     const isUnderQuery = item.Status === "Query";
 
     const bodyToUpdate = { ...updateBody };
-    bodyToUpdate.PendingFrom = (action === "Query" ? (queryUserName && queryUserName !== "Unknown User" ? queryUserName : userName) : userName);
+    bodyToUpdate.PendingFrom = dateStr;
     delete bodyToUpdate.PendingAtId;
 
     if (action === "Approved") {
@@ -105,6 +105,15 @@ export class ApprovalService {
     bodyToUpdate.WorkflowHistory = currentWorkflowHistory
       ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
       : newWorkflowEntry;
+
+    if ((!userName || userName === "Unknown User") && this.context?.pageContext?.user?.displayName) {
+      userName = this.context.pageContext.user.displayName;
+    }
+
+    if (bodyToUpdate.Status === "Approved" || bodyToUpdate.Status === "Rejected") {
+      bodyToUpdate.Approvedrejectedby = userName;
+      bodyToUpdate.Approvedrejectdatetime = dateStr;
+    }
 
     await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update(bodyToUpdate);
 
@@ -340,7 +349,7 @@ const dashboardWFLevel = isQueryAction
           CurrentApproverId: isTerminal ? null : (isQueryAction ? currentUserId : newPendingAtId),
           CurrentApprovalName: isTerminal ? "" : (isQueryAction ? actionTakerName : pendingAtName),
           CurrentApprovalID: isTerminal ? "" : (isQueryAction ? String(currentUserId) : (newPendingAtId ? String(newPendingAtId) : "")),
-          PendingFrom: actionTakerName,
+          PendingFrom: formatHistoryDate(now),
           InitiatedBy: initiatorName,
           InitiatedOn: initiatedOn,
           PendingFromDate: now,
@@ -437,7 +446,7 @@ const dashboardWFLevel = isQueryAction
               CurrentApproverId: isTerminal ? null : (isQueryAction ? currentUserId : newPendingAtId),
               CurrentApprovalName: isTerminal ? "" : (isQueryAction ? actionTakerName : pendingAtName),
               CurrentApprovalID: isTerminal ? "" : (isQueryAction ? String(currentUserId) : (newPendingAtId ? String(newPendingAtId) : "")),
-              PendingFrom: actionTakerName
+              PendingFrom: formatHistoryDate(new Date())
             });
           }
         } catch (coreErr) {
@@ -703,7 +712,7 @@ const dashboardWFLevel = isQueryAction
             QueryById: String(currentUserId),
             QueryPendingToID: String(primaryQueryUserId),
             QueryPendingToName: queryToName,
-            PendingFrom: queryToName
+            PendingFrom: formatHistoryDate(now)
           });
         }
       } catch (dashErr) {
@@ -990,7 +999,7 @@ const dashboardWFLevel = isQueryAction
       await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
         Status: "Pending",
         PendingAt: queryByName,
-        PendingFrom: userName,
+        PendingFrom: dateStr,
         WorkflowHistory: updatedWorkflowHistory
       });
 
@@ -1072,7 +1081,7 @@ const dashboardWFLevel = isQueryAction
           CurrentApproverId: queryById,
           CurrentApprovalName: queryByName,
           CurrentApprovalID: String(queryById),
-          PendingFrom: userName,
+          PendingFrom: dateStr,
           InitiatedBy: initiatorName,
           InitiatedOn: initiatedOn,
           PendingFromDate: now,

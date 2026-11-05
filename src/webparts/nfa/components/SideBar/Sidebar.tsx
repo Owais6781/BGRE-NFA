@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, FilePlus, Inbox, Eye, CheckCheck,
+  Home, FilePlus, Inbox, Eye, CheckCheck, FileCheck,
   List, Settings2, BarChart2, Clock, TrendingUp,
   CalendarDays, FileText, ChevronLeft, ChevronRight, Headphones
 } from 'lucide-react';
@@ -17,12 +17,14 @@ type NavItem =
   | { kind: 'link'; to: string; label: string; icon: React.ElementType; badge?: string; end?: boolean };
 
 const NAV: NavItem[] = [
-  { kind: 'section', label: 'Navigation' },
+  { kind: 'section', label: 'Approver Notes' },
   { kind: 'link', to: '/',                    label: 'Home',                      icon: Home,          end: true },
   { kind: 'link', to: '/new-nfa',             label: 'New NFA',                   icon: FilePlus },
   { kind: 'link', to: '/inbox',               label: 'My Inbox',                  icon: Inbox },
   { kind: 'link', to: '/approver-detail',     label: "Approver's Detail View",    icon: Eye },
   { kind: 'link', to: '/approved-rejected',   label: 'Approved / Rejected by Me', icon: CheckCheck },
+  { kind: 'link', to: '/approved-nfa-finance', label: 'Approved NFA (for Finance)', icon: FileCheck },
+  
   { kind: 'section', label: 'Admin Section' },
   { kind: 'link', to: '/detail-view',         label: 'Detail View',               icon: List },
   { kind: 'link', to: '/masters',             label: 'Masters',                   icon: Settings2 },

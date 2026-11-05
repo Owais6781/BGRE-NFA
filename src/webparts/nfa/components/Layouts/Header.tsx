@@ -36,10 +36,13 @@ const Header: React.FC<HeaderProps> = ({ context }) => {
 
   return (
     <header 
-      className="appHeader flex items-center justify-between !shadow-none !border-b !rounded-none !h-[64px] px-4 sm:px-6 w-full shrink-0"
+      className="appHeader sticky top-0 z-[1000] flex items-center justify-between !border-b !rounded-none !h-[64px] px-4 sm:px-6 w-full shrink-0 shadow-sm"
       style={{
         background: 'var(--header-background, #F7EBEF)',
-        borderColor: '#EFDDE3'
+        borderColor: '#EFDDE3',
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000
       }}
     >
       {/* Left — COMM-IT Logo + Application Title */}
