@@ -1,5 +1,6 @@
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
+import { parseDateSafe } from "../utils/dateUtils";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
@@ -89,8 +90,8 @@ export class CommonService {
         let createdOnFormatted = "";
         if (noteMeta && noteMeta.createdOn) {
           try {
-            const d = new Date(noteMeta.createdOn);
-            if (!isNaN(d.getTime())) {
+            const d = parseDateSafe(noteMeta.createdOn);
+            if (d && !isNaN(d.getTime())) {
               createdOnFormatted = d.toLocaleDateString('en-IN');
             } else {
               createdOnFormatted = noteMeta.createdOn;

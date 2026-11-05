@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { 
+import {
   Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, ArrowLeft,
   History, MessageSquare, ChevronRight, Download
 } from 'lucide-react';
-import { Skeleton } from 'primereact/skeleton'; 
+import { Skeleton } from 'primereact/skeleton';
 import 'primereact/resources/primereact.min.css';
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
@@ -36,12 +36,12 @@ const UserAvatar: React.FC<{ email?: string; initials: string; className: string
 
   if (photoUrl && !imgFailed) {
     return (
-      <img 
-        src={photoUrl} 
+      <img
+        src={photoUrl}
         alt={initials}
         onError={() => setImgFailed(true)}
-          className={`${className} object-cover rounded-full`}
-        
+        className={`${className} object-cover rounded-full`}
+
       />
     );
   }
@@ -60,7 +60,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [form, setForm] = useState<INFAFormData | null>(null);
   const [savedDocuments, setSavedDocuments] = useState<ISavedDocument[]>([]);
-  const [users, setUsers] = useState<{label: string, value: string, email?: string}[]>([]);
+  const [users, setUsers] = useState<{ label: string, value: string, email?: string }[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
@@ -97,6 +97,10 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         console.log("ViewNFA: NFA Data found:", !!nfaData);
 
         if (nfaData) {
+          if ((nfaData.status || "").toLowerCase() === 'draft') {
+            navigate(`/new-nfa/${id}`, { replace: true });
+            return;
+          }
           const commonService = new CommonService(context, sp);
           const [docs, siteUsers, historyData, qHistory] = await Promise.all([
             docService.getDocumentsByUniqId(nfaData.uniqId),
@@ -106,9 +110,9 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             commonService.getQueryHistory(id)
           ]);
 
-           setSavedDocuments(docs);
+          setSavedDocuments(docs);
           setUsers(siteUsers);
-          
+
           const parseCommentHistory = (commentHistoryText: string): any[] => {
             if (!commentHistoryText) return [];
             const lines = commentHistoryText.split("\n");
@@ -213,8 +217,8 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
           if (nfaData.commentHistory) {
             finalComments = parseCommentHistory(nfaData.commentHistory);
           }
-           setComments(finalComments);
-           setQueryHistory(qHistory);
+          setComments(finalComments);
+          setQueryHistory(qHistory);
 
           setForm(nfaData);
           console.log("ViewNFA: State binding complete.");
@@ -244,7 +248,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
           const containerWidth = container.offsetWidth;
           const elementOffset = element.offsetLeft;
           const elementWidth = element.offsetWidth;
-          
+
           container.scrollTo({
             left: elementOffset - (containerWidth / 2) + (elementWidth / 2),
             behavior: 'smooth'
@@ -258,7 +262,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   const workflowSteps = useMemo(() => {
     if (!form) return [];
     const steps = [{ label: 'Initiator', id: form.initiatorId, type: 'initiator' }];
-    
+
     form.approvers.forEach((appId, idx) => {
       if (appId) {
         steps.push({ label: `Level ${idx + 1}`, id: Number(appId), type: 'approver' });
@@ -310,9 +314,9 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
-      
+
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-2.5 px-4 mb-3.5">
+      {/* <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-2.5 px-4 mb-3.5">
         <div className="flex items-center gap-2.5">
           <span className="text-xs font-extrabold text-[#4A081E] tracking-tight">
             {form.requestNo || 'Note for Approval'}
@@ -343,11 +347,11 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             Back
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Approval Chain Card */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm py-2 px-4 mb-3.5">
-        <div 
+        <div
           ref={stepperContainerRef}
           className="relative flex items-center justify-start gap-1 overflow-x-auto pb-1 pt-0.5 no-scrollbar"
         >
@@ -358,12 +362,12 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             const isInitiator = idx === 0;
             const userLabel = user?.label || 'Pending';
             const initials = getInitials(userLabel);
-            
+
             let borderClass = 'border-slate-200 bg-white';
             let avatarClass = 'bg-slate-100 text-slate-400';
             let dotClass = 'bg-slate-300';
             let labelColor = 'text-slate-400';
-            
+
             if (isInitiator) {
               borderClass = 'border-blue-500 bg-blue-50/10 shadow-sm shadow-blue-50';
               avatarClass = 'bg-blue-500 text-white';
@@ -380,31 +384,31 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
               dotClass = 'bg-amber-500';
               labelColor = 'text-amber-600 font-extrabold';
             }
-            
+
             return (
               <React.Fragment key={idx}>
-                <div 
+                <div
                   ref={isCurrent ? currentStepRef : undefined}
                   className="flex flex-col items-center shrink-0"
                 >
                   <span className={`text-[9px] font-extrabold uppercase tracking-wider mb-0.5 ${labelColor}`}>
                     {step.label}
                   </span>
-                  
+
                   <div className={`w-[140px] h-[38px] rounded-lg border flex flex-row items-center gap-1.5 px-2 py-0.5 transition-all duration-350 ${borderClass}`}>
-                    <UserAvatar 
-                      email={user?.email} 
-                      initials={initials} 
-                      className={`w-6 h-6 rounded-full shadow-inner shrink-0 ${avatarClass}`} 
+                    <UserAvatar
+                      email={user?.email}
+                      initials={initials}
+                      className={`w-6 h-6 rounded-full shadow-inner shrink-0 ${avatarClass}`}
                     />
                     <span className="text-[10px] font-extrabold text-slate-700 text-left leading-tight line-clamp-2 flex-1">
                       {userLabel}
                     </span>
                   </div>
-                  
+
                   <div className={`w-1.5 h-1.5 rounded-full mt-1 ${dotClass}`} />
                 </div>
-                
+
                 {idx < workflowSteps.length - 1 && (
                   <div className="flex items-center justify-center text-slate-400 shrink-0 mt-3">
                     <ChevronRight size={14} strokeWidth={2.5} />
@@ -427,12 +431,12 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
               Request No: {form.requestNo || '-'} (Level {form.level || '1'})
             </span>
           </div>
-          
+
           <div className="flex flex-col gap-2">
             {/* Row 1: Project | Sub-Entity | Date */}
             <div className="flex flex-col md:flex-row gap-3">
               <div className="w-full md:w-[35%] flex flex-col gap-0.5">
-                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Project</span>
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Entity</span>
                 <span className="text-xs font-medium text-slate-700 bg-slate-50/60 p-1.5 px-2.5 rounded-lg border border-slate-100">{form.project || '-'}</span>
               </div>
               <div className="w-full md:w-[35%] flex flex-col gap-0.5">
@@ -471,17 +475,67 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
             <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">NFA Details</span>
           </div>
-          
+
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Subject</span>
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Refrence / Subject</span>
               <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">{stripHtml(form.referenceSubject) || '-'}</span>
             </div>
-            
+
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Introduction / Preamble / Background</span>
               <ExcelDataViewer html={form.introduction} label="Introduction" />
             </div>
+
+
+            <div className="flex flex-nowrap w-full  gap-3 items-start">
+              <div className="flex flex-col gap-1 flex-1 min-w-0 ">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
+                  Complete Indent/PR received from & Date
+                </span>
+                <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">
+                  {form.completeIndentPRReceivedFromDate
+                    ? (() => {
+                      const [year, month, day] =
+                        form.completeIndentPRReceivedFromDate.split("T")[0].split("-");
+                      return `${day.slice(-1)}/${month}/${year}`;
+                    })()
+                    : "-"}
+                </span>
+              </div>
+
+              {/* BOQ / Specifications Revisions */}
+              <div className="flex flex-col gap-1 flex-1 min-w-0">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
+                  BOQ/Specifications Revisions by & Date
+                </span>
+                <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">
+                  {form.boqSpecificationsRevisionsByDate
+                    ? (() => {
+                      const [year, month, day] =
+                        form.boqSpecificationsRevisionsByDate.split("T")[0].split("-");
+                      return `${day.slice(-1)}/${month}/${year}`;
+                    })()
+                    : "-"}
+                </span>
+              </div>
+
+              {/* RFQ Reference Number */}
+              <div className="flex flex-col gap-1 flex-1 min-w-0">
+                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
+                  RFQ Ref No
+                </span>
+                <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">
+                  {form.RFQRefNo || "-"}
+                </span>
+              </div>
+
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
+              <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">{stripHtml(form.remark) || '-'}</span>
+            </div>
+
 
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
@@ -506,11 +560,11 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
             <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Financial Details</span>
           </div>
-          
+
           <div className="space-y-3">
             <div className="flex flex-col md:flex-row gap-3">
               <div className="flex-1 flex flex-col gap-0.5 p-2.5 bg-emerald-50/30 rounded-lg border border-emerald-100/50">
-                <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider">Awarded Cost</span>
+                <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider">Packeage Awarded Cost</span>
                 <span className="text-sm font-black text-emerald-700">₹ {Number(form.packageAwardedCost || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex-1 flex flex-col gap-0.5 p-2.5 bg-blue-50/30 rounded-lg border border-blue-100/50">
@@ -518,11 +572,11 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                 <span className="text-sm font-black text-blue-700">₹ {Number(form.budget || 0).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex-1 flex flex-col gap-0.5 p-2.5 bg-purple-50/30 rounded-lg border border-purple-100/50">
-                <span className="text-[9px] font-extrabold text-purple-600 uppercase tracking-wider">Capex No</span>
-                <span className="text-xs font-extrabold text-purple-700 truncate">{form.capexSerialNo || '-'}</span>
+                <span className="text-[9px] font-extrabold text-purple-600 uppercase tracking-wider">Budgeted/ Non Budgeted</span>
+                <span className="text-xs font-extrabold text-purple-700 truncate">{form.budgetedNonBudgeted || '-'}</span>
               </div>
             </div>
-            
+
             <div className="flex flex-col gap-0.5">
               <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
               <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.budgetRemarks || '-'}</div>
@@ -536,10 +590,10 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
             <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Recommendation</span>
           </div>
-          
+
           <div className="flex flex-col gap-2.5">
             <div className="flex flex-col gap-1">
-              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Justification</span>
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Recommendation with Justification</span>
               <ExcelDataViewer html={form.recommendation} label="Justification" />
             </div>
 
@@ -556,18 +610,19 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
             <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Contract Terms</span>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+
+          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5"> */}
+          <div className="grid grid-cols-4 gap-2.5">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">LD</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Liquidated Damage</span>
               <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.liquidatedDamage || '-'}</div>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">CPG</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Contract Performance Gurantee</span>
               <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.contractPerf || '-'}</div>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">DLP</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Defect Liability Period</span>
               <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.defectLiability || '-'}</div>
             </div>
             <div className="flex flex-col gap-0.5">
@@ -583,13 +638,13 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             <div className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
             <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Annexures & Notes</span>
           </div>
-          
+
           <div className="flex flex-col gap-2.5">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Annexures</span>
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Annexure/ Enclosur(if any)</span>
               <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.annexure || '-'}</div>
             </div>
-            
+
             {/* Note 1 & Note 2 in 2 columns */}
             <div className="flex flex-col md:flex-row gap-2.5">
               <div className="flex-1 flex flex-col gap-0.5">
@@ -627,24 +682,24 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
           </span>
         </div>
 
-        <div 
+        <div
           className="w-full"
-          style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
             gap: '16px',
             alignItems: 'start'
           }}
         >
-          
+
           {/* Left Column: Documents (Attachments & Query Documents) */}
           <div className="flex flex-col gap-3.5 w-full">
-            
+
             {/* Attachments */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
               <div className="flex items-center justify-between mb-2.5 border-b border-slate-100 pb-2">
                 <div className="flex items-center gap-2">
-                  <Paperclip size={14} className="text-emerald-500 shrink-0"/> 
+                  <Paperclip size={14} className="text-emerald-500 shrink-0" />
                   <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Attachments</span>
                 </div>
                 <span className="bg-emerald-50 text-emerald-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
@@ -659,18 +714,18 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                     if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
                     else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
                     else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                    
+
                     return (
-                      <a 
+                      <a
                         key={doc.id}
-                        href={doc.serverRelativeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+                        href={doc.serverRelativeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         data-interception="off"
                         className="group flex items-center justify-between gap-2 p-1.5 px-2 bg-slate-50/50 hover:bg-emerald-50/15 rounded-lg border border-slate-100 hover:border-emerald-150 transition-all min-w-0"
                       >
                         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                        <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
+                          <div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
                             <FileText size={12} />
                           </div>
                           <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>
@@ -698,7 +753,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
               <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
                 <div className="flex items-center justify-between mb-2.5 border-b border-slate-100 pb-2">
                   <div className="flex items-center gap-2">
-                    <Paperclip size={14} className="text-amber-500 shrink-0"/> 
+                    <Paperclip size={14} className="text-amber-500 shrink-0" />
                     <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Query Documents</span>
                   </div>
                   <span className="bg-amber-50 text-amber-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-amber-100">
@@ -712,13 +767,13 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                     if (ext === 'pdf') iconColor = 'text-rose-500 bg-rose-50 border-rose-100';
                     else if (['xlsx', 'xls', 'csv'].indexOf(ext || '') > -1) iconColor = 'text-emerald-500 bg-emerald-50 border-emerald-100';
                     else if (['docx', 'doc'].indexOf(ext || '') > -1) iconColor = 'text-blue-500 bg-blue-50 border-blue-100';
-                    
+
                     return (
-                      <a 
+                      <a
                         key={idx}
-                        href={doc.serverRelativeUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+                        href={doc.serverRelativeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         data-interception="off"
                         className="group flex items-center gap-2 p-1.5 px-2 bg-slate-50/50 hover:bg-amber-50/15 rounded-lg border border-slate-100 hover:border-amber-150 transition-all min-w-0"
                       >
@@ -740,22 +795,22 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
 
           {/* Right Column: Workflow History & Comments */}
           <div className="flex flex-col gap-3.5 w-full">
-            
+
             {/* Workflow History */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
               <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
-                <History size={15} className="text-blue-500 shrink-0"/> 
+                <History size={15} className="text-blue-500 shrink-0" />
                 <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
               </div>
-              
+
               <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
                 {history.length > 0 ? history.map((item, idx) => {
                   const isApproved = item.action === 'Approved';
                   const isRejected = item.action === 'Rejected';
                   const isQuery = item.action === 'Query';
-                  
+
                   let dotClass = 'bg-blue-500';
-                  
+
                   if (isApproved) {
                     dotClass = 'bg-emerald-500';
                   } else if (isRejected) {
@@ -763,7 +818,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                   } else if (isQuery) {
                     dotClass = 'bg-amber-500';
                   }
-                  
+
                   return (
                     <div key={item.id || idx} className="relative pl-6 pb-0.5 last:pb-0">
                       {idx < history.length - 1 && (
@@ -789,10 +844,10 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").length > 0 && (
               <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
                 <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
-                  <MessageSquare size={14} className="text-indigo-500 shrink-0"/> 
+                  <MessageSquare size={14} className="text-indigo-500 shrink-0" />
                   <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Comments History</span>
                 </div>
-                
+
                 <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
                   {comments.filter(item => item.remarks && item.remarks !== "No remarks" && item.remarks.trim() !== "").map((item, idx) => (
                     <div key={item.id || idx} className="flex flex-col gap-1 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-lg border border-slate-100 transition-colors">
@@ -815,10 +870,10 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             {queryHistory.length > 0 && (
               <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
                 <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
-                  <MessageSquare size={14} className="text-amber-500 shrink-0"/> 
+                  <MessageSquare size={14} className="text-amber-500 shrink-0" />
                   <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Query Remarks History</span>
                 </div>
-                
+
                 <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
                   {queryHistory.map((item, idx) => (
                     <div key={item.id || idx} className="flex flex-col gap-1.5 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-lg border border-slate-100 transition-colors">
@@ -862,20 +917,27 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
 
       {/* Bottom Action Buttons */}
       <div className="flex justify-center items-center gap-4 py-4">
+
         <button
           type="button"
           onClick={handleDownloadPdf}
           disabled={isGeneratingPdf}
-          className="flex items-center gap-2 px-6 h-[38px] bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-extrabold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 disabled:opacity-50 cursor-pointer"
+          style={{
+            backgroundColor: isGeneratingPdf ? "#4A081E" : "#4A081E",
+            color: "#FFFFFF",
+          }}
+          className="flex items-center gap-2 px-6 h-[38px] hover:!bg-[#380617] rounded-lg font-extrabold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 disabled:opacity-50 cursor-pointer"
         >
           <Download size={15} />
-          <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+          <span>
+            {isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
+          </span>
         </button>
-        <button 
+        <button
           onClick={() => {
             forceScrollToTop();
             navigate(-1);
-          }} 
+          }}
           className="px-6 h-[38px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-extrabold text-xs uppercase tracking-wider transition-all border border-slate-300 active:scale-98 shadow-sm"
         >
           Back

@@ -65,6 +65,7 @@ export interface INFAFormData {
   workflow: string;
   doaMatrix: string;
   approvers: (string | number | null)[];
+  approverDetails?: ({ id: number; name: string; designation: string; email?: string } | null)[];
   attachments?: FileList | null;
   uniqId: string;
   level: number;
@@ -234,6 +235,7 @@ export class NFAService {
       WFLevel: status === "Draft" ? "0" : "1",
       UniqID: form.uniqId || "",
       PendingAt: status === "Pending" ? (pendingAtName || "") : "",
+      PendingFrom: status === "Pending" ? formatHistoryDate(now) : (form.PendingFrom || ""),
     };
 
     for (let i = 0; i < 12; i++) {
@@ -481,6 +483,14 @@ export class NFAService {
         } else {
           await this.sp.web.lists.getByTitle("DashboardList").items.add(dashboardBody);
         }
+
+        try {
+          await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
+            PendingFrom: formattedDateTime
+          });
+        } catch (updateErr) {
+          console.warn("NFAService: Error updating PendingFrom in DigitalApprovalNotes:", updateErr);
+        }
       } catch (dashError) {
         console.error("NFAService: Error writing to DashboardList:", dashError);
       }
@@ -686,11 +696,28 @@ export class NFAService {
       //   .select("*", "PendingAt/Id", "PendingAt/Title", "Author/Id", "Author/Title", "CommentHistory", "WorkflowHistory", ...levels.map(l => `${l}/Id`), ...levels.map(l => `${l}/Title`))
       //   .expand("PendingAt", "Author", ...levels)();
 
-        const item = await this.sp.web.lists
-      .getByTitle(this.listName)
-      .items.getById(itemId)
-      .select("*","Author/Id", "Author/Title", "Author/EMail")
-      .expand("Author")();
+      let item: any;
+      try {
+        item = await this.sp.web.lists
+          .getByTitle(this.listName)
+          .items.getById(itemId)
+          .select(
+            "*", "Author/Id", "Author/Title", "Author/EMail",
+            ...levels.map(l => `${l}/Id`),
+            ...levels.map(l => `${l}/Title`),
+            ...levels.map(l => `${l}/EMail`),
+            ...levels.map(l => `${l}/JobTitle`),
+            ...levels.map(l => `${l}/Department`)
+          )
+          .expand("Author", ...levels)();
+      } catch (expandErr) {
+        console.warn("NFAService: Failed to expand ApprovalLevels, falling back:", expandErr);
+        item = await this.sp.web.lists
+          .getByTitle(this.listName)
+          .items.getById(itemId)
+          .select("*", "Author/Id", "Author/Title", "Author/EMail")
+          .expand("Author")();
+      }
 
       
       console.log("Raw SharePoint Item:", item);
@@ -699,7 +726,13 @@ export class NFAService {
         projectSubEntity: item.ProjectSubEntity ? item.ProjectSubEntity.split("; ") : [],
         originatorDept:item.FunctionName || "",
         date: item.RequestedOn || "",
-        referenceSubject: stripHtml(item.SubjectMatter || item.Title || ""),
+        referenceSubject: (() => {
+          const subj = stripHtml(item.SubjectMatter || "");
+          if (subj && !/^Draft\//i.test(subj.trim())) return subj;
+          const title = stripHtml(item.Title || "");
+          if (title && !/^Draft\//i.test(title.trim())) return title;
+          return "";
+        })(),
         requestNo: item.Title || "",
         introduction: item.BriefDesc || "",
 
@@ -735,6 +768,18 @@ export class NFAService {
         location: item.Location || "",
         natureOfApproval: item.NatureofApproval || "",
         approvers: levels.map(l => item[l]?.Id || item[`${l}Id`] || ""),
+        approverDetails: levels.map(l => {
+          const app = item[l];
+          if (app && app.Id) {
+            return {
+              id: app.Id,
+              name: app.Title || "",
+              designation: app.JobTitle || app.Department || "",
+              email: app.EMail || ""
+            };
+          }
+          return null;
+        }),
         uniqId: item.UniqID || item.UniqId || "",
         level: parseInt(item.WFLevel || item.Level || "0", 10),
         pendingAtId: (() => { const lvl = parseInt(item.WFLevel || item.Level || "1", 10); return (lvl >= 1 && lvl <= 12) ? (item[levels[lvl - 1]]?.Id || item[`ApprovalLevel${lvl}Id`] || null) : null; })(),
@@ -769,7 +814,7 @@ export class NFAService {
         function: item.Dept,
         contractorName: item.ContractorName || "",
         project: item.Project,
-        createdOn: item.RequestedOn,
+        createdOn: item.RequestedOn || item.Created || "",
         status: item.Status,
         Approvedrejectedby: item.Approvedrejectedby,
         Approvedrejectdatetime : item.Approvedrejectdatetime,

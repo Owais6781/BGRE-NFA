@@ -13,6 +13,7 @@ import { SPFI } from "@pnp/sp";
 import { CommonService, ApprovedRejectedRecord } from '../../../../../Share/Services/CommonService';
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
 import ApprovedRejectedFilter from './ApprovedRejectedFilter';
+import { formatDateFriendly, parseDateSafe } from '../../../../../Share/utils/dateUtils';
 import "../../../../../Share/styles/global.scss";
 import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
@@ -99,20 +100,26 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
     return result.filter(item => {
       // Date Filter
       if (filters.fromDate || filters.toDate) {
-        const dateStr = item.createdOnRaw || item.createdOn;
+                const dateStr = item.createdOnRaw || item.createdOn;
         if (dateStr) {
-          const itemDate = new Date(dateStr);
-          itemDate.setHours(0, 0, 0, 0);
+          const itemDate = parseDateSafe(dateStr);
+          if (itemDate) {
+            itemDate.setHours(0, 0, 0, 0);
 
-          if (filters.fromDate) {
-            const from = new Date(filters.fromDate);
-            from.setHours(0, 0, 0, 0);
-            if (itemDate < from) return false;
-          }
-          if (filters.toDate) {
-            const to = new Date(filters.toDate);
-            to.setHours(0, 0, 0, 0);
-            if (itemDate > to) return false;
+            if (filters.fromDate) {
+              const from = parseDateSafe(filters.fromDate);
+              if (from) {
+                from.setHours(0, 0, 0, 0);
+                if (itemDate < from) return false;
+              }
+            }
+            if (filters.toDate) {
+              const to = parseDateSafe(filters.toDate);
+              if (to) {
+                to.setHours(0, 0, 0, 0);
+                if (itemDate > to) return false;
+              }
+            }
           }
         }
       }
@@ -133,9 +140,8 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
         const funcName = funcObj ? funcObj.label : filters.function;
         if (item.function !== funcName) return false;
       }
-
       return true;
-    });
+  });
   }, [data, search, filters, projectOptions, functionOptions]);
 
   // --- Stats Calculation ---
@@ -178,7 +184,7 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
 
   const activeFiltersList = useMemo(() => {
     if (!filters) return [];
-    const list = [];
+  const list: { key: string; label: string }[] = [];
     if (filters.fromDate && filters.fromDate !== minus11) {
       list.push({ key: 'fromDate', label: `From: ${filters.fromDate}` });
     }
@@ -294,7 +300,9 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
     { key: 'function',  label: 'Function'   },
     { key: 'project',   label: 'Project'    },
     { key: 'createdBy', label: 'Created By' },
-    { key: 'createdOn', label: 'Created On' },
+    { key: 'createdOn', label: 'Created On',
+      render: (val: string, row: ApprovedRejectedRecord) => formatDateFriendly(row.createdOnRaw || val)
+    },
     { key: 'status',    label: 'Status',
       render: (val: string) => (
         <span className={`statusBadge ${val === 'Approved' || val === 'Completed' ? 'statusApproved' : val === 'Rejected' ? 'statusRejected' : 'statusPending'}`}>{val}</span>

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import HomeFilter from './HomeFilter';
 import HomeTable  from './HomeTable';
+import { parseDateSafe } from '../../../../../Share/utils/dateUtils';
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
@@ -63,16 +64,19 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
     return tableData.filter(item => {
       // Date Filter
       if (filters.fromDate || filters.toDate) {
-        const itemDate = new Date(item.createdOn);
+        const itemDate = parseDateSafe(item.createdOn);
+        if (!itemDate) return false;
         itemDate.setHours(0, 0, 0, 0);
 
         if (filters.fromDate) {
-          const from = new Date(filters.fromDate);
+          const from = parseDateSafe(filters.fromDate);
+        if (!from) return false;
           from.setHours(0, 0, 0, 0);
           if (itemDate < from) return false;
         }
         if (filters.toDate) {
-          const to = new Date(filters.toDate);
+          const to = parseDateSafe(filters.toDate);
+        if (!to) return false;
           to.setHours(0, 0, 0, 0);
           if (itemDate > to) return false;
         }
@@ -336,14 +340,12 @@ const Home: React.FC<IHomeProps> = ({ context, sp }) => {
         loading={loading}
         onClearFilters={() => setFilters(null)}
         onRowClick={(record) => {
-          //  const status = (record.status || "").toLowerCase();
-          //  if (status === 'draft') {
-          //    navigate(`/new-nfa/${record.id}`);
-          //  } else if (status === 'pending') {
-          //    navigate(`/view-nfa/${record.id}`);
-          //  } else {
-             navigate(`/view-nfa/${record.id}`);
-          //  }
+          const status = (record.status || "").toLowerCase();
+          if (status === 'draft') {
+            navigate(`/new-nfa/${record.id}`);
+          } else {
+            navigate(`/view-nfa/${record.id}`);
+          }
         }}
          
       />

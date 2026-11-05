@@ -5,6 +5,7 @@ import { Pagination }  from '../../../../../Share/Components/Pagination';
 import TableToolbar    from '../../../../../Share/Components/TableToolbar';
 import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
 import { SearchInput } from '../../../../../Share/Components/SearchInput';
+import { formatDateFriendly } from '../../../../../Share/utils/dateUtils';
 import "../../../../../Share/styles/global.scss";
 
 interface NFARecord {
@@ -49,16 +50,6 @@ const exportColumns = [
    { key: 'packageAwardedCost',     label: 'Amount'},
 ];
 
-const formatDateFriendly = (dateStr: string) => {
-  if (!dateStr) return '—';
-  const dateObj = new Date(dateStr);
-  if (isNaN(dateObj.getTime())) return dateStr;
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-};
 
 const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false, onClearFilters }) => {
   const [pageSize,     setPageSize]    = useState(10);

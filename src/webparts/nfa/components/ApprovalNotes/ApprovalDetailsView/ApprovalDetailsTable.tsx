@@ -4,6 +4,7 @@ import { CommonTable } from '../../../../../Share/Components/CommonTable';
 import { SearchInput } from '../../../../../Share/Components/SearchInput';
 import { Pagination } from '../../../../../Share/Components/Pagination';
 import ExportToExcel from '../../../../../Share/Components/ExportToExcel';
+import { formatDateFriendly } from '../../../../../Share/utils/dateUtils';
 import "../../../../../Share/styles/global.scss";
 
 interface ApprovalRecord {
@@ -47,16 +48,6 @@ const exportColumns = [
 
 ];
 
-const formatDateFriendly = (dateStr: string) => {
-  if (!dateStr) return '—';
-  const dateObj = new Date(dateStr);
-  if (isNaN(dateObj.getTime())) return dateStr;
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-};
 
 const ApprovalDetailsTable: React.FC<ApprovalDetailsTableProps> = ({
   data,

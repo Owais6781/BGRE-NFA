@@ -5,8 +5,9 @@ import {
   Building2, FileText, Wrench, DollarSign, Paperclip, 
   Settings, Star, ChevronDown, ArrowLeft, History, 
   MessageSquare, User, CheckCircle2, Clock, Circle,
-  ChevronRight, Trash2, Upload
+  ChevronRight, Trash2, Upload, Download
 } from 'lucide-react';
+import { downloadNfaPdf } from '../../../../../Share/utils/nfaPdfGenerator';
 import { Skeleton } from 'primereact/skeleton';
 import 'primereact/resources/primereact.min.css';
 import { WebPartContext } from "@microsoft/sp-webpart-base";
@@ -65,6 +66,20 @@ const QueryRespond: React.FC<IQueryRespondProps> = ({ context, sp }) => {
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+
+  const handleDownloadPdf = async () => {
+    if (!nfa) return;
+    try {
+      setIsGeneratingPdf(true);
+      await downloadNfaPdf({ form: nfa, users, history, comments });
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
   const [activeQuery, setActiveQuery] = useState<any | null>(null);
   
   // Action State
@@ -406,6 +421,40 @@ const QueryRespond: React.FC<IQueryRespondProps> = ({ context, sp }) => {
   return (
     <div className="pageContainer">
       
+      {/* Top Action Bar */}
+      <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-2.5 px-4 mb-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-extrabold text-[#4A081E] tracking-tight">
+            {nfa.requestNo || 'Note for Approval'}
+          </span>
+          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            Level {nfa.level || '1'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Download PDF"
+          >
+            <Download size={14} />
+            <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              forceScrollToTop();
+              navigate('/inbox');
+            }}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs transition-all border border-slate-300 active:scale-95 cursor-pointer"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+
       {/* Approval Chain Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-3 px-6 mb-6">
         <div 
@@ -1009,6 +1058,15 @@ const QueryRespond: React.FC<IQueryRespondProps> = ({ context, sp }) => {
             className="px-6 h-[38px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md shadow-emerald-100 hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
           >
             {isActionLoading ? 'Submitting...' : 'Respond'}
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="px-6 h-[38px] bg-[#4A081E] hover:bg-[#380617] text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all shadow-md hover:shadow-lg active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+          >
+            <Download size={14} />
+            <span>{isGeneratingPdf ? 'Generating...' : 'Download PDF'}</span>
           </button>
           <button 
             onClick={() => {

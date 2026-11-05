@@ -235,7 +235,7 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
         const parseDate = (dStr: string) => {
           if (!dStr) return null;
           if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(dStr)) {
-            const parts = dStr.split(/[\/\s]/);
+            const parts = dStr.split(/[/\s]/);
             return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
           }
           const d = new Date(dStr);
@@ -308,7 +308,14 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
               <span className="text-slate-500 font-medium">Loading approval details...</span>
             </div>
           ) : (
-            <ApprovalDetailsTable  data={displayData} onRecordClick={(id) => navigate(`/view-nfa/${id}`)} />
+            <ApprovalDetailsTable data={displayData} onRecordClick={(id) => {
+              const rec = displayData.find(d => d.id === id);
+              if ((rec?.status || "").toLowerCase() === 'draft') {
+                navigate(`/new-nfa/${id}`);
+              } else {
+                navigate(`/view-nfa/${id}`);
+              }
+            }} />
           )}
         </>
       )}

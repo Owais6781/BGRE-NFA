@@ -9,6 +9,7 @@ import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { NFAService } from '../../../../../Share/Services/NFAService';
+import { formatDateFriendly } from '../../../../../Share/utils/dateUtils';
 import "../../../../../Share/styles/global.scss";
 import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
@@ -124,7 +125,7 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
     { key: 'function',    label: 'Function'    },
     { key: 'project',     label: 'Project'      },
     { key: 'initiator',   label: 'Initiator'   },
-    { key: 'createdDate', label: 'Created Date' },
+    { key: 'createdDate', label: 'Created On', render: (val: string) => formatDateFriendly(val) },
     { key: 'agingDays',   label: 'Aging (Days)' },
     { key: 'level',       label: 'Level'        },
     { key: 'amount',      label: 'Amount'       },
@@ -136,7 +137,7 @@ const Inbox: React.FC<IInboxProps> = ({ context, sp }) => {
     { key: 'function',    label: 'Function'    },
     { key: 'project',     label: 'Project'      },
     { key: 'initiator',   label: 'Query By'    },
-    { key: 'createdDate', label: 'Query On'    },
+    { key: 'createdDate', label: 'Query On', render: (val: string) => formatDateFriendly(val) },
     { key: 'agingDays',   label: 'Aging (Days)' },
     { key: 'level',       label: 'Level'        },
     { key: 'amount',      label: 'Amount'       },

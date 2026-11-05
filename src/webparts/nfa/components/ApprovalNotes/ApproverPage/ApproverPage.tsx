@@ -27,6 +27,7 @@ import DropdownField from '../../../../../Share/Components/DropdownField';
 import CommonButton from '../../../../../Share/Components/CommonButton';
 import "../../../../../Share/styles/global.scss";
 import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
+import { downloadNfaPdf } from '../../../../../Share/utils/nfaPdfGenerator';
 
 interface IApproverPageProps {
   context: WebPartContext;
@@ -130,6 +131,20 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+
+  const handleDownloadPdf = async () => {
+    if (!nfa) return;
+    try {
+      setIsGeneratingPdf(true);
+      await downloadNfaPdf({ form: nfa, users, history, comments });
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // Action State
   const [remarks, setRemarks] = useState('');
@@ -621,6 +636,40 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         }
       `}</style>
 
+      {/* Top Action Bar */}
+      {/* <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-2.5 px-4 mb-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-extrabold text-[#4A081E] tracking-tight">
+            {nfa.requestNo || 'Note for Approval'}
+          </span>
+          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            Level {nfa.level || '1'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Download PDF"
+          >
+            <Download size={14} />
+            <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              forceScrollToTop();
+              navigate('/inbox');
+            }}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs transition-all border border-slate-300 active:scale-95 cursor-pointer"
+          >
+            Back
+          </button>
+        </div>
+      </div> */}
+
       {/* Approval Chain Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-4 px-6 mb-6">
         <div
@@ -946,39 +995,57 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                     </button>
                   )}
                 </div>
+                <div className="flex flex-row flex-nowrap items-stretch gap-3 w-full border-t border-slate-100 pt-4">
 
-                <div className="flex flex-row items-start gap-4 w-full border-t border-slate-100 pt-4">
-              
-                  <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">   Complete Indent/PR received from & Date</span>
-                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap"> 
-                             {nfa.completeIndentPRReceivedFromDate
-                    ? (() => {
-                      const [year, month, day] =
-                        nfa.completeIndentPRReceivedFromDate.split("T")[0].split("-");
-                      return `${day}/${month}/${year.slice(-2)}`;
-                    })()
-                    : "-"}
+                  {/* Complete Indent / PR Received */}
+                  <div className="flex flex-col flex-1 min-w-0 p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                    <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-5">
+                      Complete Indent/PR received from & Date
+                    </span>
+                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap break-words">
+                      {nfa.completeIndentPRReceivedFromDate
+                        ? (() => {
+                          const [year, month, day] =
+                            nfa.completeIndentPRReceivedFromDate.split("T")[0].split("-");
+                          return `${day.slice(-1)}/${month}/${year}`;
+                        })()
+                        : "-"}
                     </div>
                   </div>
-                  <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">BOQ/Specifications Revisions by & Date</span>
-                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">                 
+
+                  {/* BOQ / Specifications Revisions */}
+                  <div className="flex flex-col flex-1 min-w-0 p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                    <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-5">
+                      BOQ/Specifications Revisions by & Date
+                    </span>
+                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap break-words">
                       {nfa.boqSpecificationsRevisionsByDate
-                    ? (() => {
-                      const [year, month, day] =
-                        nfa.boqSpecificationsRevisionsByDate.split("T")[0].split("-");
-                      return `${day}/${month}/${year.slice(-2)}`;
-                    })()
-                    : "-"}
+                        ? (() => {
+                          const [year, month, day] =
+                            nfa.boqSpecificationsRevisionsByDate.split("T")[0].split("-");
+                          return `${day.slice(-1)}/${month}/${year}`;
+                        })()
+                        : "-"}
                     </div>
                   </div>
-               
-                  <div className="p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">RFQ Ref No</span>
-                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap">{nfa.RFQRefNo || '-'}</div>
+
+                  {/* RFQ Ref No */}
+                  <div className="flex flex-col flex-1 min-w-0 p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                    <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-5">
+                      RFQ Ref No
+                    </span>
+                    <div className="text-[13px] text-slate-700 font-semibold leading-relaxed mt-1.5 whitespace-pre-wrap break-words">
+                      {nfa.RFQRefNo || "-"}
+                    </div>
                   </div>
+
                 </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Remarks</span>
+                  <span className="text-xs font-semibold text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">{stripHtml(nfa.remark) || '-'}</span>
+                </div>
+
                 <div className="border-t border-slate-100 pt-4">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Chronology</span>
                   <div
@@ -1158,7 +1225,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                               <div className="flex items-center gap-2 min-w-0 overflow-hidden"><div className={`p-1 rounded border transition-colors shrink-0 ${iconColor}`}>
                                 <FileText size={13} />
                               </div>
-                              <span className="text-[13px] font-semibold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>{doc.fileName}</span></div><span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-emerald-50 group-hover:text-emerald-700 group-hover:border-emerald-200 transition-colors">{doc.documentType || 'Attachment'}</span><span style={{ display: 'none' }}>
+                                <span className="text-[13px] font-semibold text-slate-700 truncate group-hover:text-emerald-600 transition-colors" title={doc.fileName}>{doc.fileName}</span></div><span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-emerald-50 group-hover:text-emerald-700 group-hover:border-emerald-200 transition-colors">{doc.documentType || 'Attachment'}</span><span style={{ display: 'none' }}>
                                 {doc.fileName}
                               </span>
                             </a>
@@ -1574,6 +1641,19 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
               <UserCheck size={14} strokeWidth={2.5} /> Delegate
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              style={{
+                backgroundColor: isGeneratingPdf ? "#4A081E" : "#4A081E",
+                color: "#FFFFFF",
+              }}
+              className="px-5 h-[38px] bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+            >
+              <Download size={14} strokeWidth={2.5} />
+              <span>{isGeneratingPdf ? 'Generating...' : 'Download PDF'}</span>
             </button>
             <button
               type="button"

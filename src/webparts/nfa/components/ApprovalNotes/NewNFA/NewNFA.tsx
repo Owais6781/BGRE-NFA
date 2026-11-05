@@ -2,7 +2,7 @@ import * as React from 'react';
 import { SPHttpClient } from "@microsoft/sp-http";
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2, History, MessageSquare, Info
+  Building2, FileText, Wrench, DollarSign, Paperclip, Settings, Star, ChevronDown, Trash2, History, MessageSquare, Info, Download
 } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton';
 import { InputField } from '../../../../../Share/Components/InputField';
@@ -28,6 +28,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import "../../../../../Share/styles/global.scss";
 import PageTitle from '../../../../../Share/Components/PageTitle';
 import { forceScrollToTop } from '../../../../../Share/utils';
+import { downloadNfaPdf } from '../../../../../Share/utils/nfaPdfGenerator';
 
 // Options
 const workflowOptions = [{ label: 'MANUAL', value: 'MANUAL' }, { label: 'AUTO', value: 'AUTO' }];
@@ -147,22 +148,30 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   });
   const [history, setHistory] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
+  const [users, setUsers] = useState<{ label: string; value: string; email?: string }[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [form, setForm] = useState<INFAFormData>({
     originatorDept: '', date: today, project: '', projectSubEntity: [],
-    referenceSubject: '', introduction: '', chronology: '',
+    referenceSubject: '', introduction: '',
+    chronology: '<p>1. Inquiry floated on:-</p><p>2. Initial Quote received on:-</p>',
     completeIndentPRReceivedFromDate: '',
     boqSpecificationsRevisionsByDate: '',
     RFQRefNo: '',
     remark: '',
-    commercialProposal: '', paymentTerms: '',
-    liquidatedDamage: '', contractPerf: '',
-    defectLiability: '', workCompletion: 'Work must be completed and handed over to the satisfaction of Owner on or before -------',
+    commercialProposal: '',
+    paymentTerms: '<p>1. Payment Terms :-</p><p>2. Adhoc Amount :-</p><p>3. Retention :-</p><p>4. Release Retention :-</p>',
+    liquidatedDamage: 'NA', contractPerf: 'NA',
+    defectLiability: 'NA', workCompletion: 'Work must be completed and handed over to the satisfaction of Owner on or before -------',
     budgetRemarks: '', packageAwardedCost: '0.00', budget: '0.00',
     budgetedNonBudgeted: "",
     capexSerialNo: '',
     recommendation: '', contractorName: '',
-    annexure: ' ', note1: '', note2: ' ', note3: ' ', note4: ' ',
+    annexure: '',
+    note1: '',
+    note2: '',
+    note3: '',
+    note4: '',
     workflow: 'MANUAL', doaMatrix: '',
     approvers: Array(12).fill(null),
     uniqId: '',
@@ -254,12 +263,14 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       const docService = new NFADocService(context);
 
       try {
-        const [projects, dpts] = await Promise.all([
+        const [projects, dpts, siteUsers] = await Promise.all([
           dropdownService.getProjects(),
-          dropdownService.getFunctionMaster()
+          dropdownService.getFunctionMaster(),
+          sp.web.siteUserInfoList.items.select("Id", "Title", "EMail", "JobTitle").top(5000)().then(res => res.map((u: any) => ({ label: u.Title, value: String(u.Id), email: u.EMail, designation: u.JobTitle || u.Department || '' }))).catch(() => sp.web.siteUsers.filter("PrincipalType eq 1").select("Id", "Title", "Email")().then(res => res.map(u => ({ label: u.Title, value: String(u.Id), email: u.Email, designation: '' }))))
         ]);
         setProjectOptions(projects);
         setFunctionOptions(dpts);
+        setUsers(siteUsers);
 
         if (id) {
           console.log("URL ID:", id);
@@ -267,9 +278,12 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
           const nfaData = await nfaService.getNFA(parseInt(id));
 
-
-
           if (nfaData) {
+            if ((nfaData.status || "").toLowerCase() !== 'draft') {
+              // Already submitted records should open in View Mode
+              navigate(`/view-nfa/${id}`, { replace: true });
+              return;
+            }
             const matchedProject = projects.find(p => p.label === nfaData.project);
             if (matchedProject) nfaData.project = matchedProject.value;
             const matchedFunc = dpts.find(d => d.value === String(nfaData.originatorDept) || d.label === nfaData.originatorDept);
@@ -559,6 +573,33 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
   }, [form.doaMatrix, form.workflow]);
 
   // --- HELPERS ---
+  const handleDownloadPdf = async () => {
+    if (!form) return;
+    try {
+      setIsGeneratingPdf(true);
+      const matchedProj = projectOptions.find(p => p.value === form.project);
+      const matchedDept = functionOptions.find(f => f.value === form.originatorDept);
+      const resolvedSubEntities = (form.projectSubEntity || []).map(idOrName => {
+        const match = subEntityOptions.find(s => s.value === idOrName);
+        return match ? match.label : idOrName;
+      });
+
+      const pdfForm: INFAFormData = {
+        ...form,
+        project: matchedProj ? matchedProj.label : form.project,
+        originatorDept: matchedDept ? matchedDept.label : form.originatorDept,
+        projectSubEntity: resolvedSubEntities
+      };
+
+      await downloadNfaPdf({ form: pdfForm, users, history, comments });
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const clearFieldError = (field: string) => {
     setErrors(prev => prev.filter(e => e.field !== field));
   };
@@ -631,12 +672,29 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       <PageTitle
         title={id ? "Edit NFA" : "New NFA"}
         subtitle={id ? "Modify existing Note for Approval details." : "Create a new Note for Approval."}
+        // action={(form.status || '').toLowerCase() === 'draft' ? (
+        //   // <button
+        //   //   type="button"
+        //   //   onClick={handleDownloadPdf}
+        //   //   disabled={isGeneratingPdf || isSaving}
+        //   //   style={{
+        //   //     backgroundColor: "#4A081E",
+        //   //     color: "#ffffff",
+        //   //   }}
+        //   //   className="flex items-center gap-2 px-4 h-[36px] hover:!bg-[#380617] rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 disabled:opacity-50 cursor-pointer"
+        //   // >
+        //   //   <Download size={14} />
+        //   //   <span>
+        //   //     {isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
+        //   //   </span>
+        //   // </button>
+        // ) : undefined}
       />
 
       <CollapsibleSection icon={<Building2 size={13} />} title="Basic Information" hasError={hasSectionErrors(['project', 'projectSubEntity', 'originatorDept'])}>
         <div className="flex flex-wrap gap-x-6 gap-y-4 mb-4">
           <div className="flex-1 min-w-[220px]">
-            <DropdownField label="Entity" value={form.project} options={projectOptions} onChange={handleProjectChange} emptyLabel="Select Entity..." error={getFieldError('project')} />
+            <DropdownField label="Entity" value={form.project} options={projectOptions} required onChange={handleProjectChange} emptyLabel="Select Entity..." error={getFieldError('project')} />
           </div>
           <div className="flex-1 min-w-[220px]">
             <MultiSelectDropdown label="Sub-Entity" options={subEntityOptions} selectedValues={form.projectSubEntity} onChange={v => updateField('projectSubEntity', v)} disabled={loadingSubEntity || !form.project} required error={getFieldError('projectSubEntity')} />
@@ -644,7 +702,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
           <div className="flex-1 min-w-[220px]">
-            <DropdownField label="Function" value={form.originatorDept} options={functionOptions} onChange={v => updateField('originatorDept', v)} emptyLabel="Select Function..." error={getFieldError('originatorDept')} />
+            <DropdownField label="Function" value={form.originatorDept} options={functionOptions} required onChange={v => updateField('originatorDept', v)} emptyLabel="Select Function..." error={getFieldError('originatorDept')} />
           </div>
           <div className="flex-1 min-w-[220px]">
             <InputField label="Date" value={form.date} onChange={() => { }} disabled />
@@ -653,11 +711,11 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       </CollapsibleSection>
 
       <CollapsibleSection icon={<FileText size={13} />} title="NFA Details" defaultOpen={false} hasError={hasSectionErrors(['referenceSubject', 'introduction', 'chronology', 'commercialProposal', 'paymentTerms'])}>
-        <div className="mb-4"><TextAreaField label="Subject" value={form.referenceSubject} onChange={v => updateField('referenceSubject', v)} rows={2} required error={getFieldError('referenceSubject')} /></div>
-        <div className="mb-4"><RichTextEditor label="Introduction" value={form.introduction} onChange={v => updateField('introduction', v)}  error={getFieldError('introduction')} /></div>
+        <div className="mb-4"><TextAreaField label="Refrence / Subject" value={form.referenceSubject} placeholder='Refrence / Subject' onChange={v => updateField('referenceSubject', v)} rows={2} required error={getFieldError('referenceSubject')} /></div>
+        <div className="mb-4"><RichTextEditor label="Introduction / Preamble / Background" value={form.introduction} onChange={v => updateField('introduction', v)} error={getFieldError('introduction')} /></div>
         <div className="flex gap-4 mb-4">
           <div className="flex-1 min-w-0">
-            <InputField label="Complete Indent/PR received from & Date" type="date" value={form.completeIndentPRReceivedFromDate || ''} onChange={(v) => updateField('completeIndentPRReceivedFromDate', v)}  error={getFieldError('completeIndentPRReceivedFromDate')} />
+            <InputField label="Complete Indent/PR received from & Date" type="date" value={form.completeIndentPRReceivedFromDate || ''} onChange={(v) => updateField('completeIndentPRReceivedFromDate', v)} error={getFieldError('completeIndentPRReceivedFromDate')} />
 
           </div>
           <div className="flex-1 min-w-0">
@@ -669,8 +727,8 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         </div>
         <div className="mb-4"><InputField label="Remarks" value={form.remark || ''} onChange={(v) => updateField('remark', v)} /></div>
 
-        <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)}  error={getFieldError('chronology')} /></div>
-        <div className="mb-4"><RichTextEditor label="Commercial Proposals" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)}  error={getFieldError('commercialProposal')} /></div>
+        <div className="mb-4"><RichTextEditor label="Chronology" value={form.chronology} onChange={v => updateField('chronology', v)} error={getFieldError('chronology')} /></div>
+        <div className="mb-4"><RichTextEditor label="Commercial Proposal/s" value={form.commercialProposal} onChange={v => updateField('commercialProposal', v)} error={getFieldError('commercialProposal')} /></div>
         <RichTextEditor label="Payment Terms" value={form.paymentTerms} onChange={v => updateField('paymentTerms', v)} />
       </CollapsibleSection>
 
@@ -702,7 +760,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
               }
               emptyLabel="Select Budget Type..."
               error={getFieldError("budgetedNonBudgeted")}
-              required 
+              required
             />
           </div>
         </div>
@@ -735,11 +793,11 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       <CollapsibleSection icon={<Star size={13} />} title="Recommendation" defaultOpen={false} hasError={hasSectionErrors(['recommendation', 'contractorName'])}>
         <div className="mb-4"><RichTextEditor label="Recommendation with Justification" value={form.recommendation} onChange={v => updateField('recommendation', v)} /></div>
         <InputField label="Contractor Name" value={form.contractorName} placeholder='Enter Contractor Name' onChange={v => updateField('contractorName', v)} />
-        <div className="mb-4"><TextAreaField label="Annexure/ Enclosur(if any)" placeholder='Enter Annexure/ Enclosur (if any)' value={form.annexure} onChange={v => updateField('annexure', v)} rows={3} /></div>
-        <div className="mb-4"><TextAreaField label="Note 1" placeholder='Enter Note 1' value={form.note1} onChange={v => updateField('note1', v)} rows={2} /></div>
-        <div className="mb-4"><TextAreaField label="Note 2" placeholder='Enter Note 2' value={form.note2} onChange={v => updateField('note2', v)} rows={2} /></div>
-        <div className="mb-4"><TextAreaField label="Note 3" placeholder='Enter Note 3' value={form.note3} onChange={v => updateField('note3', v)} rows={2} /></div>
-        <div className="mb-4"><TextAreaField label="Note 4" placeholder='Enter Note 4' value={form.note4} onChange={v => updateField('note4', v)} rows={2} /></div>
+        <div className="mb-4"><TextAreaField label="Annexure/ Enclosur(if any)" placeholder="Enter Annexure/ Enclosure (if any)" value={form.annexure ?? ""} onChange={v => updateField('annexure', v)} rows={3} /></div>
+        <div className="mb-4"><TextAreaField label="Note 1" placeholder="Enter Note 1" value={form.note1} onChange={v => updateField('note1', v)} rows={2} /></div>
+        <div className="mb-4"><TextAreaField label="Note 2" placeholder="Enter Note 2" value={form.note2} onChange={v => updateField('note2', v)} rows={2} /></div>
+        <div className="mb-4"><TextAreaField label="Note 3" placeholder="Enter Note 3" value={form.note3} onChange={v => updateField('note3', v)} rows={2} /></div>
+        <div className="mb-4"><TextAreaField label="Note 4" placeholder="Enter Note 4" value={form.note4} onChange={v => updateField('note4', v)} rows={2} /></div>
 
       </CollapsibleSection>
 
@@ -879,7 +937,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
                 fontSize: '11px'
               }}
             >
-         ~ &quot; # % &amp; * : &lt; &gt; ? / \ &#123; | &#125; +
+              ~ &quot; # % &amp; * : &lt; &gt; ? / \ &#123; | &#125; +
             </span>
           </div>
         </div>
@@ -1138,7 +1196,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           try {
             const docService = new NFADocService(context);
             if (pendingAttachments.length > 0) {
-              await docService.saveDocuments(pendingAttachments, form.uniqId,undefined, (current: number, total: number, fileName: string) => {
+              await docService.saveDocuments(pendingAttachments, form.uniqId, undefined, (current: number, total: number, fileName: string) => {
                 const percent = Math.round((current / total) * 100);
                 setSavingProgress({
                   step: 'attachments',
@@ -1201,7 +1259,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           try {
             const docService = new NFADocService(context);
             if (pendingAttachments.length > 0) {
-              await docService.saveDocuments(pendingAttachments, form.uniqId,undefined, (current, total, fileName) => {
+              await docService.saveDocuments(pendingAttachments, form.uniqId, undefined, (current, total, fileName) => {
                 const percent = Math.round((current / total) * 100);
                 setSavingProgress({
                   step: 'attachments',
@@ -1251,6 +1309,23 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             setSavingProgress(null);
           }
         }} />
+        {(form.status || '').toLowerCase() === 'draft' && (
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf || isSaving}
+            style={{
+              backgroundColor: "#4A081E",
+              color: "#ffffff",
+            }}
+            className="flex items-center gap-2 px-6 h-[40px] hover:!bg-[#380617] rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 disabled:opacity-50 cursor-pointer"
+          >
+            <Download size={15} />
+            <span>
+              {isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
+            </span>
+          </button>
+        )}
         <CommonButton text="Cancel" variant="danger" onClick={() => {
           forceScrollToTop();
           navigate('/');

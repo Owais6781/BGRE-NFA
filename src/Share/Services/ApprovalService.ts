@@ -81,6 +81,7 @@ export class ApprovalService {
     const isUnderQuery = item.Status === "Query";
 
     const bodyToUpdate = { ...updateBody };
+    bodyToUpdate.PendingFrom = (action === "Query" ? (queryUserName && queryUserName !== "Unknown User" ? queryUserName : userName) : userName);
     delete bodyToUpdate.PendingAtId;
 
     if (action === "Approved") {
@@ -989,6 +990,7 @@ const dashboardWFLevel = isQueryAction
       await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId).update({
         Status: "Pending",
         PendingAt: queryByName,
+        PendingFrom: userName,
         WorkflowHistory: updatedWorkflowHistory
       });
 
