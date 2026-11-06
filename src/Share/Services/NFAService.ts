@@ -129,7 +129,8 @@ export class NFAService {
     // if (!stripHtml(form.introduction)) errors.push({ field: "introduction", message: "Introduction is required." });
     // if (!stripHtml(form.chronology)) errors.push({ field: "chronology", message: "Chronology is required." });
     // if (!stripHtml(form.commercialProposal)) errors.push({ field: "commercialProposal", message: "Commercial Proposals is required." });
- if (!form.liquidatedDamage || !form.liquidatedDamage.trim()) {
+
+    if (!form.liquidatedDamage || !form.liquidatedDamage.trim()) {
       errors.push({ field: "liquidatedDamage", message: "Liquidated Damage is required." });
     }
     if (!form.contractPerf || !form.contractPerf.trim()) {
@@ -141,6 +142,17 @@ export class NFAService {
     if (!form.workCompletion || !form.workCompletion.trim()) {
       errors.push({ field: "workCompletion", message: "Work Completion is required." });
     }
+
+ const cost = parseFloat(String(form.packageAwardedCost || "").replace(/,/g, ''));
+    if (isNaN(cost) || cost <= 0) {
+      errors.push({ field: "packageAwardedCost", message: "Awarded Cost is required and must be greater than 0." });
+    }
+    const budgetVal = parseFloat(String(form.budget || "").replace(/,/g, ''));
+    if (isNaN(budgetVal) || budgetVal <= 0) {
+      errors.push({ field: "budget", message: "Budget is required and must be greater than 0." });
+    }
+   
+
 
     
     if (!form.approvers[0]) errors.push({ field: "approvers", message: "Approver Level-1 is required." });

@@ -19,6 +19,7 @@ import "../../../../../Share/styles/global.scss";
 import ExcelDataViewer from '../../../../../Share/Components/ExcelDataViewer';
 import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
 import { downloadNfaPdf } from '../../../../../Share/utils/nfaPdfGenerator';
+import { downloadFilesAsZip } from '../../../../../Share/utils/zipUtils';
 
 interface IViewNFAProps {
   context: WebPartContext;
@@ -65,6 +66,8 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   const [comments, setComments] = useState<any[]>([]);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [isZippingDocs, setIsZippingDocs] = useState<boolean>(false);
+  const [isZippingQueryDocs, setIsZippingQueryDocs] = useState<boolean>(false);
 
   const handleDownloadPdf = async () => {
     if (!form) return;
@@ -76,6 +79,34 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
       alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadAttachmentsZip = async () => {
+    if (savedDocuments.length === 0) return;
+    try {
+      setIsZippingDocs(true);
+      const prefix = form?.requestNo ? `${form.requestNo}_Attachments` : 'NFA_Attachments';
+      await downloadFilesAsZip(savedDocuments, `${prefix}.zip`);
+    } catch (err) {
+      console.error('Error downloading attachments as ZIP:', err);
+      alert('Failed to download attachments as ZIP. Please try again.');
+    } finally {
+      setIsZippingDocs(false);
+    }
+  };
+
+  const handleDownloadQueryDocsZip = async () => {
+    if (queryDocuments.length === 0) return;
+    try {
+      setIsZippingQueryDocs(true);
+      const prefix = form?.requestNo ? `${form.requestNo}_Query_Documents` : 'NFA_Query_Documents';
+      await downloadFilesAsZip(queryDocuments, `${prefix}.zip`);
+    } catch (err) {
+      console.error('Error downloading query documents as ZIP:', err);
+      alert('Failed to download query documents as ZIP. Please try again.');
+    } finally {
+      setIsZippingQueryDocs(false);
     }
   };
 
@@ -702,9 +733,23 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                   <Paperclip size={14} className="text-emerald-500 shrink-0" />
                   <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Attachments</span>
                 </div>
-                <span className="bg-emerald-50 text-emerald-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
-                  {savedDocuments.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  {savedDocuments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadAttachmentsZip}
+                      disabled={isZippingDocs}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Download all attachments as ZIP"
+                    >
+                      <Download size={11} className={isZippingDocs ? "animate-spin" : ""} />
+                      <span>{isZippingDocs ? "Zipping..." : "Download ZIP"}</span>
+                    </button>
+                  )}
+                  <span className="bg-emerald-50 text-emerald-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-100">
+                    {savedDocuments.length}
+                  </span>
+                </div>
               </div>
               {savedDocuments.length > 0 ? (
                 <div className="space-y-1.5 max-h-[190px] overflow-y-auto pr-1">
@@ -756,9 +801,21 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                     <Paperclip size={14} className="text-amber-500 shrink-0" />
                     <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Query Documents</span>
                   </div>
-                  <span className="bg-amber-50 text-amber-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-amber-100">
-                    {queryDocuments.length}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDownloadQueryDocsZip}
+                      disabled={isZippingQueryDocs}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Download all query documents as ZIP"
+                    >
+                      <Download size={11} className={isZippingQueryDocs ? "animate-spin" : ""} />
+                      <span>{isZippingQueryDocs ? "Zipping..." : "Download ZIP"}</span>
+                    </button>
+                    <span className="bg-amber-50 text-amber-600 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-amber-100">
+                      {queryDocuments.length}
+                    </span>
+                  </div>
                 </div>
                 <div className="space-y-1.5 max-h-[190px] overflow-y-auto pr-1">
                   {queryDocuments.map((doc, idx) => {

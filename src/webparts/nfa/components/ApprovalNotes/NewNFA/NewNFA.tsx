@@ -792,7 +792,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
       <CollapsibleSection icon={<Star size={13} />} title="Recommendation" defaultOpen={false} hasError={hasSectionErrors(['recommendation', 'contractorName'])}>
         <div className="mb-4"><RichTextEditor label="Recommendation with Justification" value={form.recommendation} onChange={v => updateField('recommendation', v)} /></div>
-        <InputField label="Contractor Name" value={form.contractorName} placeholder='Enter Contractor Name' onChange={v => updateField('contractorName', v)} />
+        <InputField label="Contractor Name" value={form.contractorName} placeholder='Enter Contractor Name'required onChange={v => updateField('contractorName', v)} />
         <div className="mb-4"><TextAreaField label="Annexure/ Enclosur(if any)" placeholder="Enter Annexure/ Enclosure (if any)" value={form.annexure ?? ""} onChange={v => updateField('annexure', v)} rows={3} /></div>
         <div className="mb-4"><TextAreaField label="Note 1" placeholder="Enter Note 1" value={form.note1} onChange={v => updateField('note1', v)} rows={2} /></div>
         <div className="mb-4"><TextAreaField label="Note 2" placeholder="Enter Note 2" value={form.note2} onChange={v => updateField('note2', v)} rows={2} /></div>

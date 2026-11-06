@@ -28,6 +28,7 @@ import CommonButton from '../../../../../Share/Components/CommonButton';
 import "../../../../../Share/styles/global.scss";
 import { forceScrollToTop, stripHtml } from '../../../../../Share/utils';
 import { downloadNfaPdf } from '../../../../../Share/utils/nfaPdfGenerator';
+import { downloadFilesAsZip } from '../../../../../Share/utils/zipUtils';
 
 interface IApproverPageProps {
   context: WebPartContext;
@@ -132,6 +133,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const [comments, setComments] = useState<any[]>([]);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [isZippingDocs, setIsZippingDocs] = useState<boolean>(false);
 
   const handleDownloadPdf = async () => {
     if (!nfa) return;
@@ -143,6 +145,24 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
       alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadZip = async () => {
+    const isAttachmentTab = activeDocTab === 'attachments';
+    const targetFiles = isAttachmentTab ? docs : queryDocuments;
+    if (!targetFiles || targetFiles.length === 0) return;
+
+    try {
+      setIsZippingDocs(true);
+      const docType = isAttachmentTab ? 'Attachments' : 'Query_Documents';
+      const prefix = nfa?.requestNo ? `${nfa.requestNo}_${docType}` : `NFA_${docType}`;
+      await downloadFilesAsZip(targetFiles, `${prefix}.zip`);
+    } catch (err) {
+      console.error('Error downloading files as ZIP:', err);
+      alert('Failed to download files as ZIP. Please try again.');
+    } finally {
+      setIsZippingDocs(false);
     }
   };
 
@@ -1169,34 +1189,50 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
 
             {/* Header / Tabs in one row */}
-            <div className="flex items-center gap-4 pb-2 border-b border-slate-100 mb-3">
-              <button
-                type="button"
-                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'attachments'
-                  ? 'border-blue-600 text-blue-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
-                  }`}
-                onClick={() => setActiveDocTab('attachments')}
-              >
-                <div className="w-5 h-5 bg-blue-50 border border-blue-100 rounded flex items-center justify-center shrink-0">
-                  <FileText size={12} className={activeDocTab === 'attachments' ? 'text-blue-600' : 'text-slate-400'} />
-                </div>
-                <span className="text-[12px] font-semibold">Documents ({docs.length})</span>
-              </button>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-3">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'attachments'
+                    ? 'border-blue-600 text-blue-700 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
+                    }`}
+                  onClick={() => setActiveDocTab('attachments')}
+                >
+                  <div className="w-5 h-5 bg-blue-50 border border-blue-100 rounded flex items-center justify-center shrink-0">
+                    <FileText size={12} className={activeDocTab === 'attachments' ? 'text-blue-600' : 'text-slate-400'} />
+                  </div>
+                  <span className="text-[12px] font-semibold">Documents ({docs.length})</span>
+                </button>
 
-              <button
-                type="button"
-                className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'query'
-                  ? 'border-blue-600 text-blue-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
-                  }`}
-                onClick={() => setActiveDocTab('query')}
-              >
-                <div className="w-5 h-5 bg-slate-50 border border-slate-150 rounded flex items-center justify-center shrink-0">
-                  <HelpCircle size={12} className={activeDocTab === 'query' ? 'text-blue-600' : 'text-slate-400'} />
-                </div>
-                <span className="text-[12px] font-semibold">Query Docs ({queryDocuments.length})</span>
-              </button>
+                <button
+                  type="button"
+                  className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'query'
+                    ? 'border-blue-600 text-blue-700 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
+                    }`}
+                  onClick={() => setActiveDocTab('query')}
+                >
+                  <div className="w-5 h-5 bg-slate-50 border border-slate-150 rounded flex items-center justify-center shrink-0">
+                    <HelpCircle size={12} className={activeDocTab === 'query' ? 'text-blue-600' : 'text-slate-400'} />
+                  </div>
+                  <span className="text-[12px] font-semibold">Query Docs ({queryDocuments.length})</span>
+                </button>
+              </div>
+
+              {/* Download ZIP button */}
+              {((activeDocTab === 'attachments' && docs.length > 0) || (activeDocTab === 'query' && queryDocuments.length > 0)) && (
+                <button
+                  type="button"
+                  onClick={handleDownloadZip}
+                  disabled={isZippingDocs}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Download files in this tab as ZIP"
+                >
+                  <Download size={12} className={isZippingDocs ? "animate-spin" : ""} />
+                  <span>{isZippingDocs ? "Zipping..." : "Download ZIP"}</span>
+                </button>
+              )}
             </div>
 
             {/* Content area */}
