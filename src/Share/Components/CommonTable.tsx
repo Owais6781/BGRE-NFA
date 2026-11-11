@@ -4,6 +4,8 @@ import "../styles/global.scss";
 interface ColumnDef {
   key: string;
   label: string;
+  align?: 'left' | 'center' | 'right';
+  className?: string;
   render?: (value: any, row: any) => React.ReactNode;
 }
 
@@ -17,6 +19,7 @@ interface CommonTableProps {
   stickyFirstColumn?: boolean;
   maxHeight?: string;
   minWidth?: string;
+  footer?: React.ReactNode;
 }
 
 export const CommonTable: React.FC<CommonTableProps> = ({
@@ -29,6 +32,7 @@ export const CommonTable: React.FC<CommonTableProps> = ({
   stickyFirstColumn = false,
   maxHeight,
   minWidth,
+  footer,
 }) => {
   return (
     <div className="tableWrapper" style={{ maxHeight }}>
@@ -38,7 +42,8 @@ export const CommonTable: React.FC<CommonTableProps> = ({
             {columns.map((col, index) => (
               <th
                 key={col.key}
-                className={`tableHeader ${stickyHeader ? 'stickyHeader' : ''} ${stickyFirstColumn && index === 0 ? 'stickyCol' : ''}`}
+                className={`tableHeader ${stickyHeader ? 'stickyHeader' : ''} ${stickyFirstColumn && index === 0 ? 'stickyCol' : ''} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''} ${col.className || ''}`.trim()}
+                style={col.align ? { textAlign: col.align } : undefined}
               >
                 {col.label}
               </th>
@@ -62,22 +67,26 @@ export const CommonTable: React.FC<CommonTableProps> = ({
               </td>
             </tr>
           ) : (
-            data.map((row, i) => (
-              <tr
-                key={i}
-                className={`tableRow${onRowClick ? ' cursor-pointer' : ''}`}
-                onClick={() => onRowClick?.(row)}
-              >
-                {columns.map((col, index) => (
-                  <td
-                    key={col.key}
-                    className={`tableCell ${stickyFirstColumn && index === 0 ? 'stickyCol' : ''}`}
-                  >
-                    {col.render ? col.render(row[col.key], row) : row[col.key] ?? '—'}
-                  </td>
-                ))}
-              </tr>
-            ))
+            <>
+              {data.map((row, i) => (
+                <tr
+                  key={i}
+                  className={`tableRow${onRowClick ? ' cursor-pointer' : ''}`}
+                  onClick={() => onRowClick?.(row)}
+                >
+                  {columns.map((col, index) => (
+                    <td
+                      key={col.key}
+                      className={`tableCell ${stickyFirstColumn && index === 0 ? 'stickyCol' : ''} ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''} ${col.className || ''}`.trim()}
+                      style={col.align ? { textAlign: col.align } : undefined}
+                    >
+                      {col.render ? col.render(row[col.key], row) : row[col.key] ?? '—'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {footer}
+            </>
           )}
         </tbody>
       </table>

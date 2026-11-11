@@ -45,6 +45,97 @@ const getOrdinalLabel = (num: number): string => {
 };
 
 /**
+ * Enhances narrative content for PDF:
+ * 1. If HTML table exists, enhances with .excelDataTable styling, headers, and numeric cell alignments.
+ * 2. If tab-separated text (TSV from Excel), converts to a neat .excelDataTable.
+ * 3. If plain text with line breaks, wraps in pre-wrap styling to preserve all spacing and line breaks.
+ */
+export const formatPdfNarrativeContent = (content: string | undefined): string => {
+  if (!content) return '';
+  const trimmed = content.trim();
+  if (!trimmed) return '';
+
+  // 1. If HTML table exists
+  if (trimmed.includes('<table') || trimmed.includes('<TABLE')) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(trimmed, 'text/html');
+      const tables = doc.querySelectorAll('table');
+
+      tables.forEach((table) => {
+        table.classList.add('excelDataTable');
+        table.removeAttribute('width');
+        table.style.width = '100%';
+        table.style.maxWidth = '100%';
+        table.style.tableLayout = 'auto';
+
+        const trs = Array.from(table.querySelectorAll('tr'));
+        trs.forEach((tr, rIdx) => {
+          if (rIdx === 0 || tr.parentElement?.tagName.toLowerCase() === 'thead') {
+            tr.classList.add('excelHeaderRow');
+          }
+          const cells = Array.from(tr.querySelectorAll('th, td'));
+          cells.forEach((cell) => {
+            cell.removeAttribute('width');
+            const hCell = cell as HTMLElement;
+            if (hCell.style) {
+              hCell.style.width = '';
+              hCell.style.maxWidth = 'none';
+              hCell.style.position = 'static';
+              hCell.style.wordBreak = 'break-word';
+              hCell.style.overflowWrap = 'break-word';
+            }
+            const text = cell.textContent?.trim() || '';
+            if (/^[-+]?₹?\s*[\d,]+(\.\d+)?%?$/.test(text) && !/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(text)) {
+              cell.classList.add('excelCellNumeric');
+            }
+          });
+        });
+      });
+
+      return doc.body.innerHTML;
+    } catch (e) {
+      return trimmed;
+    }
+  }
+
+  // 2. Tab-separated text (copied from Excel into a plain textarea)
+  if (trimmed.includes('\t') && trimmed.includes('\n')) {
+    const lines = trimmed.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length > 1) {
+      const rows = lines.map((line) => line.split('\t').map((c) => c.trim()));
+      return `
+        <table class="excelDataTable">
+          <thead>
+            <tr class="excelHeaderRow">
+              ${rows[0].map((h) => `<th>${h}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.slice(1).map((r) => `
+              <tr>
+                ${r.map((c) => {
+                  const isNum = /^[-+]?₹?\s*[\d,]+(\.\d+)?%?$/.test(c) && !/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(c);
+                  const classes = [isNum ? 'excelCellNumeric' : ''].filter(Boolean).join(' ');
+                  return `<td class="${classes}">${c}</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+  }
+
+  // 3. Plain text: preserve newlines and spaces
+  if (!/<[a-z][\s\S]*>/i.test(trimmed)) {
+    return `<div style="white-space: pre-wrap; word-break: break-word;">${trimmed}</div>`;
+  }
+
+  return trimmed;
+};
+
+/**
  * Generates the clean HTML string representing the PDF template matching the exact BGRE layout.
  */
 export const buildNfaPdfHtml = (data: IPdfGeneratorData): string => {
@@ -175,7 +266,7 @@ if (form.boqSpecificationsRevisionsByDate) {
 
   const addNarrative = (title: string, content: string | undefined): void => {
     if (content && stripHtml(content).trim().length > 0) {
-      narrativeSections.push({ title, content: content.trim() });
+      narrativeSections.push({ title, content: formatPdfNarrativeContent(content) });
     }
   };
 
@@ -211,22 +302,22 @@ if (form.boqSpecificationsRevisionsByDate) {
  addNarrative('PAYMENT TERMS', form.paymentTerms);
    // Contract Terms block
   const contractParts: string[] = [];
-  if (form.liquidatedDamage && form.liquidatedDamage.trim() !== 'NA') {
+  if (form.liquidatedDamage && form.liquidatedDamage.trim() && !/^(na|n\/a)$/i.test(form.liquidatedDamage.trim())) {
     contractParts.push(`<strong>Liquidated Damage:</strong> ${form.liquidatedDamage}`);
   }
-  if (form.contractPerf && form.contractPerf.trim() !== 'NA') {
+  if (form.contractPerf && form.contractPerf.trim() && !/^(na|n\/a)$/i.test(form.contractPerf.trim())) {
     contractParts.push(`<strong>Contract Performance:</strong> ${form.contractPerf}`);
   }
-  if (form.defectLiability && form.defectLiability.trim() !== 'NA') {
+  if (form.defectLiability && form.defectLiability.trim() && !/^(na|n\/a)$/i.test(form.defectLiability.trim())) {
     contractParts.push(`<strong>Defect Liability Period:</strong> ${form.defectLiability}`);
   }
-  if (form.workCompletion && form.workCompletion.trim() && !form.workCompletion.includes('-------')) {
+  if (form.workCompletion && form.workCompletion.trim() && !/^(na|n\/a)$/i.test(form.workCompletion.trim())) {
     contractParts.push(`<strong>Work Completion:</strong> ${form.workCompletion}`);
   }
   if (contractParts.length > 0) {
     narrativeSections.push({
       title: 'CONTRACT TERMS',
-      content: contractParts.join('<br/>')
+      content: formatPdfNarrativeContent(contractParts.join('<br/>'))
     });
   }
 
@@ -318,27 +409,111 @@ if (form.boqSpecificationsRevisionsByDate) {
   // ── Render HTML ──
   return `
     <style>
-      * {
+      #nfa-pdf-root {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      #nfa-pdf-root * {
         box-sizing: border-box;
       }
       .pdf-section {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        margin-bottom: 14px;
       }
       tr {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
-      table {
-        max-width: 100%;
-        border-collapse: collapse;
+
+      /* ── Reset and disable any position sticky from global styles ── */
+      #nfa-pdf-root .excelCellPinned,
+      .excelCellPinned {
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        box-shadow: none !important;
+        font-weight: 600 !important;
       }
-      img {
-        max-width: 100%;
-        height: auto;
+      #nfa-pdf-root th, #nfa-pdf-root td {
+        position: static !important;
+      }
+
+      /* ── Prevent any table or element from overflowing horizontally or cutting off ── */
+      #nfa-pdf-root table,
+      #nfa-pdf-root .excelDataTable,
+      #nfa-pdf-root .pdf-narrative-content table {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        table-layout: auto !important;
+        border-collapse: collapse !important;
+        margin: 6px 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      #nfa-pdf-root th, #nfa-pdf-root td,
+      #nfa-pdf-root .excelDataTable th, #nfa-pdf-root .excelDataTable td,
+      #nfa-pdf-root .pdf-narrative-content table th, #nfa-pdf-root .pdf-narrative-content table td {
+        padding: 5px 8px !important;
+        border: 1px solid #cbd5e1 !important;
+        line-height: 1.35 !important;
+        vertical-align: middle !important;
+        box-sizing: border-box !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        white-space: normal !important;
+        font-size: 10.5px !important;
+      }
+
+      #nfa-pdf-root .excelDataTable tr:first-child th,
+      #nfa-pdf-root .excelDataTable tr:first-child td,
+      #nfa-pdf-root .excelDataTable thead th,
+      #nfa-pdf-root .excelDataTable thead td,
+      #nfa-pdf-root .excelDataTable tr.excelHeaderRow th,
+      #nfa-pdf-root .excelDataTable tr.excelHeaderRow td,
+      #nfa-pdf-root .pdf-narrative-content table tr:first-child th,
+      #nfa-pdf-root .pdf-narrative-content table thead th {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+        border-bottom: 2px solid #94a3b8 !important;
+      }
+
+      #nfa-pdf-root .excelDataTable tbody tr:nth-child(even),
+      #nfa-pdf-root .excelDataTable tr:not(:first-child):nth-child(even),
+      #nfa-pdf-root .pdf-narrative-content table tbody tr:nth-child(even) {
+        background-color: #f8fafc !important;
+      }
+
+      #nfa-pdf-root .excelCellNumeric {
+        text-align: right !important;
+      }
+
+      .pdf-narrative-content {
+        padding: 8px 10px;
+        background-color: #ffffff;
+        font-size: 11px;
+        color: #1e293b;
+        line-height: 1.45;
+        min-height: 24px;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        overflow: visible !important;
+      }
+
+      .pdf-narrative-content p {
+        margin: 0 0 6px 0;
+        line-height: 1.45;
+        word-break: break-word;
+        overflow-wrap: break-word;
       }
     </style>
-    <div style="font-family: Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; background: #ffffff; padding: 16px 20px; box-sizing: border-box; width: 100%; line-height: 1.4;">
+    <div id="nfa-pdf-root" style="font-family: Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; background: #ffffff; padding: 12px 14px; box-sizing: border-box; width: 100%; max-width: 100%; line-height: 1.4;">
 
       <!-- ── TOP HEADER ── -->
       <div class="pdf-section" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #5d1020; padding-bottom: 12px; margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid;">
@@ -353,7 +528,7 @@ if (form.boqSpecificationsRevisionsByDate) {
       </div>
 
       <!-- ── REQUEST DETAILS ── -->
-      <div class="pdf-section" style="margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; page-break-inside: avoid; break-inside: avoid;">
+      <div class="pdf-section" style="margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: visible; page-break-inside: avoid; break-inside: avoid;">
         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
           <tbody>
             ${gridRows
@@ -381,11 +556,11 @@ if (form.boqSpecificationsRevisionsByDate) {
       .map(
         (sec) => `
         <div class="pdf-section" style="margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid;">
-          <div style="color: #4A081E; font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 4px 2px 4px 2px; letter-spacing: 0.5px;">
+          <div style="color: #4A081E; font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 4px 2px 4px 2px; letter-spacing: 0.5px; page-break-after: avoid; break-after: avoid;">
             ${sec.title}
           </div>
-          <div style="border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
-            <div style="padding: 10px 12px; background-color: #ffffff; font-size: 11.5px; color: #1e293b; line-height: 1.5; min-height: 28px; word-break: break-word; overflow-wrap: break-word;">
+          <div style="border: 1px solid #cbd5e1; border-radius: 4px; overflow: visible;">
+            <div class="pdf-narrative-content">
               ${sec.content}
             </div>
           </div>
@@ -401,6 +576,7 @@ if (form.boqSpecificationsRevisionsByDate) {
           <div style="background-color: #f8fafc; text-align: center; color: #4A081E; font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 6px 12px; letter-spacing: 0.5px; border: 1px solid #cbd5e1; border-bottom: none;">
             APPROVALS
           </div>
+          
           <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #cbd5e1;">
             <thead>
               <tr style="background-color: #4A081E; color: #ffffff;">
@@ -408,7 +584,7 @@ if (form.boqSpecificationsRevisionsByDate) {
                 <th style="padding: 8px 10px; font-weight: 800; text-align: left; text-transform: uppercase; border: 1px solid #4A081E; width: 18%;">DESIGNATION</th>
                 <th style="padding: 8px 10px; font-weight: 800; text-align: left; text-transform: uppercase; border: 1px solid #4A081E; width: 20%;">NAME</th>
                 <th style="padding: 8px 10px; font-weight: 800; text-align: left; text-transform: uppercase; border: 1px solid #4A081E; width: 24%;">REMARKS</th>
-                <th style="padding: 8px 10px; font-weight: 800; text-align: center; text-transform: uppercase; border: 1px solid #4A081E; width: 11%;">STATUS</th>
+                <th style="padding: 8px 10px; font-weight: 800; text-align: center; text-transform: uppercase; border: 1px solid #4A081E; width: 12%;">STATUS</th>
                 <th style="padding: 8px 10px; font-weight: 800; text-align: left; text-transform: uppercase; border: 1px solid #4A081E; width: 13%;">DATE</th>
               </tr>
             </thead>
@@ -463,7 +639,7 @@ if (form.boqSpecificationsRevisionsByDate) {
     }
 
       <!-- ── FOOTER ── -->
-      <div class="pdf-section" style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 16px; page-break-inside: avoid; break-inside: avoid;">
+      <div class="pdf-no-break" style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 16px; page-break-inside: avoid; break-inside: avoid;">
         <span>This is an official system-generated Note for Approval from BGRE and does not require physical signature.</span>
         <span>Generated on: ${generatedDateStr}</span>
       </div>
@@ -568,11 +744,13 @@ export const downloadNfaPdf = async (data: IPdfGeneratorData): Promise<void> => 
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0
       },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: {
-        mode: ['css', 'legacy'],
+        mode: ['avoid-all', 'css', 'legacy'],
         avoid: ['.pdf-section', 'tr']
       }
     };
@@ -601,7 +779,7 @@ export const downloadNfaPdf = async (data: IPdfGeneratorData): Promise<void> => 
           <title>${cleanFileName}</title>
           <style>
             @page {
-              size: A4 landscape;
+              size: A4 portrait;
               margin: 8mm;
             }
             body {

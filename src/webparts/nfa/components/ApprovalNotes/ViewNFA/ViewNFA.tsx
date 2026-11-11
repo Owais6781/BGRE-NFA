@@ -346,40 +346,6 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
   return (
     <div className="pageContainer">
 
-      {/* Top Action Bar */}
-      {/* <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-2.5 px-4 mb-3.5">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs font-extrabold text-[#4A081E] tracking-tight">
-            {form.requestNo || 'Note for Approval'}
-          </span>
-          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-            Level {form.level || '1'}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            disabled={isGeneratingPdf}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="Download PDF"
-          >
-            <Download size={14} />
-            <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              forceScrollToTop();
-              navigate(-1);
-            }}
-            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs transition-all border border-slate-300 active:scale-95 cursor-pointer"
-          >
-            Back
-          </button>
-        </div>
-      </div> */}
-
       {/* Approval Chain Card */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm py-2 px-4 mb-3.5">
         <div
@@ -642,26 +608,28 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Contract Terms</span>
           </div>
 
-          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5"> */}
-          <div className="grid grid-cols-4 gap-2.5">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Liquidated Damage</span>
-              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.liquidatedDamage || '-'}</div>
+          <div className="grid grid-cols-1 gap-3 items-stretch">
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider h-6 flex items-center">Liquidated Damage</span>
+              <div className="flex-1 text-xs text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap break-words">{form.liquidatedDamage || '-'}</div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Contract Performance Gurantee</span>
-              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.contractPerf || '-'}</div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider h-6 flex items-center">Contract Performance Guarantee</span>
+              <div className="flex-1 text-xs text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap break-words">{form.contractPerf || '-'}</div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Defect Liability Period</span>
-              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.defectLiability || '-'}</div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider h-6 flex items-center">Defect Liability Period</span>
+              <div className="flex-1 text-xs text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap break-words">{form.defectLiability || '-'}</div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Work Completion</span>
-              <div className="text-xs text-slate-700 bg-slate-50/60 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap">{form.workCompletion || '-'}</div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider h-6 flex items-center">Work Completion</span>
+              <div className="flex-1 text-xs text-slate-700 bg-slate-50/60 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap break-words">{form.workCompletion || '-'}</div>
             </div>
           </div>
         </div>
+
+
+        
 
         {/* Annexures & Notes (Compact 2-Column Row for Notes) */}
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">

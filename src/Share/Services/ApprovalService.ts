@@ -26,7 +26,7 @@ export class ApprovalService {
     updateBody: Record<string, any>
   ): Promise<any> {
     const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-      .select("Status", "CommentHistory", "WorkflowHistory", "Title", "Project", "ProjectSubEntity", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause", "WorkflowType")
+      .select("Status", "CommentHistory", "WorkflowHistory", "WorkflowApprovalHistory", "Title", "Project", "ProjectSubEntity", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause", "WorkflowType")
       .expand("Author")();
 
     let userName = "Unknown User";
@@ -75,7 +75,7 @@ export class ApprovalService {
     }
 
     const currentCommentHistory = item.CommentHistory || "";
-    const currentWorkflowHistory = item.WorkflowHistory || "";
+    const currentWorkflowHistory = item.WorkflowHistory || item.WorkflowApprovalHistory || "";
 
     const isNormalAction = (action === "Approved" || action === "Rejected" || action === "Delegate");
     const isUnderQuery = item.Status === "Query";
@@ -102,9 +102,12 @@ export class ApprovalService {
         : newCommentEntry;
     }
 
-    bodyToUpdate.WorkflowHistory = currentWorkflowHistory
+    const updatedWorkflowHistory = currentWorkflowHistory
       ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
       : newWorkflowEntry;
+
+    bodyToUpdate.WorkflowHistory = updatedWorkflowHistory;
+    bodyToUpdate.WorkflowApprovalHistory = updatedWorkflowHistory;
 
     if ((!userName || userName === "Unknown User") && this.context?.pageContext?.user?.displayName) {
       userName = this.context.pageContext.user.displayName;
@@ -317,7 +320,7 @@ export class ApprovalService {
 
         let newStatus = action;
         if (action === "Approved") {
-          newStatus = newPendingAtId ? "Pending" : "Completed";
+          newStatus = newPendingAtId ? "Pending" : "Approved";
         } else if (action === "Delegate") {
           newStatus = "Pending";
         }
@@ -430,7 +433,7 @@ const dashboardWFLevel = isQueryAction
           const targetWFLevel = isQueryAction ? String(item.WFLevel || item.Level || 1) : String(newLevel !== undefined ? newLevel : (item.WFLevel || item.Level || 1));
           let newStatus = action;
           if (action === "Approved") {
-            newStatus = newPendingAtId ? "Pending" : "Completed";
+            newStatus = newPendingAtId ? "Pending" : "Approved";
           } else if (action === "Delegate") {
             newStatus = "Pending";
           }
@@ -817,7 +820,7 @@ const dashboardWFLevel = isQueryAction
     try {
       // 1. Fetch the NFA item from DigitalApprovalNotes first
       const item = await this.sp.web.lists.getByTitle(this.listName).items.getById(itemId)
-        .select("Status", "WorkflowHistory", "Title", "Project", "ProjectSubEntity", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause", "WorkflowType")
+        .select("Status", "WorkflowHistory", "WorkflowApprovalHistory", "Title", "Project", "ProjectSubEntity", "Dept", "ApprovalAmount", "WFLevel", "Author/Title", "RequestedOn", "DOAClause", "WorkflowType")
         .expand("Author")();
 
       // 2. Get the active query record from QueryMgt list (with robust fallback)
@@ -991,7 +994,7 @@ const dashboardWFLevel = isQueryAction
 
       // 6. Update DigitalApprovalNotes item
       const newWorkflowEntry = `Query responded by ${userName} at Level ${item.WFLevel || item.Level || 1}. on ${dateStr}</br>`;
-      const currentWorkflowHistory = item.WorkflowHistory || "";
+      const currentWorkflowHistory = item.WorkflowHistory || item.WorkflowApprovalHistory || "";
       const updatedWorkflowHistory = currentWorkflowHistory
         ? `${currentWorkflowHistory}\n${newWorkflowEntry}`
         : newWorkflowEntry;
@@ -1000,7 +1003,8 @@ const dashboardWFLevel = isQueryAction
         Status: "Pending",
         PendingAt: queryByName,
         PendingFrom: dateStr,
-        WorkflowHistory: updatedWorkflowHistory
+        WorkflowHistory: updatedWorkflowHistory,
+        WorkflowApprovalHistory: updatedWorkflowHistory
       });
 
       // 7. Write Log (Responded Log) in WFLogList (only one log)

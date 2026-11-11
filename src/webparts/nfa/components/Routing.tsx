@@ -83,10 +83,10 @@ const Routing: React.FC<INfaProps> = ({ context, sp }) => {
               <Route path="/detail-view"         element={<DetailView context={context} sp={sp}/>} />
               <Route path="/masters"             element={<Masters />} />
               <Route path="/function-wise-status"    element={<FunctionWiseStatus context={context} sp={sp}/>} />
-              <Route path="/approver-wise-pendency"  element={<ApproverWisePendency />} />
+              <Route path="/approver-wise-pendency"  element={<ApproverWisePendency context={context} sp={sp}/>} />
               <Route path="/ageing-report"       element={<AgeingReport context={context} sp={sp}/>} />
-              <Route path="/day-wise-ageing"     element={<DayWiseAgeing />} />
-              <Route path="/generic-report"      element={<GenericReport />} />
+              <Route path="/day-wise-ageing"     element={<DayWiseAgeing context={context} sp={sp}/>} />
+              <Route path="/generic-report"      element={<GenericReport context={context} sp={sp}/>} />
               {/* Fallback to Home */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

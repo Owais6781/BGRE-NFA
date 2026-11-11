@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState }    from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CommonTable } from '../../../../../Share/Components/CommonTable';
 import { Pagination }  from '../../../../../Share/Components/Pagination';
 import TableToolbar    from '../../../../../Share/Components/TableToolbar';
@@ -145,11 +145,27 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
       { key: 'packageAwardedCost',  label: 'Amount'  },
   ];
 
-  const filtered    = data.filter((row) =>
-    Object.keys(row).some((k) => String((row as any)[k]).toLowerCase().includes(search.toLowerCase()))
-  );
-  const totalPages  = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated   = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    if (!search || !search.trim()) return data;
+    const query = search.trim().toLowerCase();
+    return data.filter((row) =>
+      Object.keys(row).some((k) => {
+        const val = (row as any)[k];
+        return val !== null && val !== undefined && String(val).toLowerCase().includes(query);
+      })
+    );
+  }, [data, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage   = Math.min(Math.max(1, currentPage), totalPages);
+  const paginated  = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
 
   const handleSearch         = (val: string) => { setSearch(val);     setCurrentPage(1); };
   const handlePageSizeChange = (size: number) => { setPageSize(size); setCurrentPage(1); };
@@ -232,7 +248,7 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
       )}
 
       <Pagination
-        page={currentPage} total={totalPages} pageSize={pageSize}
+        page={safePage} total={totalPages} pageSize={pageSize}
         totalRecords={filtered.length} pageSizeOptions={PAGE_SIZE_OPTIONS}
         onPageChange={setCurrentPage} onPageSizeChange={handlePageSizeChange}
       />

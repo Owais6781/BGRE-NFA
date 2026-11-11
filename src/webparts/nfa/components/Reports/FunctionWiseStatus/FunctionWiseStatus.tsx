@@ -1,31 +1,26 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
-import { CommonTable } from '../../../../../Share/Components/CommonTable';
-import { Pagination }  from '../../../../../Share/Components/Pagination';
-import TableToolbar    from '../../../../../Share/Components/TableToolbar';
-import ExportToExcel   from '../../../../../Share/Components/ExportToExcel';
+import TableToolbar from '../../../../../Share/Components/TableToolbar';
+import ExportToExcel from '../../../../../Share/Components/ExportToExcel';
 import { SearchInput } from '../../../../../Share/Components/SearchInput';
-import { Skeleton }    from 'primereact/skeleton';
+import { Skeleton } from 'primereact/skeleton';
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPFI } from "@pnp/sp";
 import { ReportService, IFunctionStatusRecord } from '../../../../../Share/Services/ReportService';
 import { DropdownService, IDropdownOption } from '../../../../../Share/Services/DropdownService';
-import FunctionWiseStatusFilter from './FunctionWiseStatusFilter';
+import FunctionWiseStatusFilter, { FilterValues } from './FunctionWiseStatusFilter';
 import PageTitle from '../../../../../Share/Components/PageTitle';
 import "../../../../../Share/styles/global.scss";
 
 const COLUMNS = [
   { key: 'functionName', label: 'Function Name' },
-  { key: 'approved',     label: 'Approved'       },
-  { key: 'pending',      label: 'Pending'        },
-  { key: 'query',        label: 'Query'          },
-  { key: 'delegated',    label: 'Delegated'      },
-  { key: 'rejected',     label: 'Rejected'       },
-  { key: 'grandTotal',   label: 'Grand Total'    },
+  { key: 'approved',     label: 'Approved'      },
+  { key: 'pending',      label: 'Pending'       },
+  { key: 'query',        label: 'Query'         },
+  { key: 'delegated',    label: 'Delegated'     },
+  { key: 'rejected',     label: 'Rejected'      },
+  { key: 'grandTotal',   label: 'Grand Total'   },
 ];
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface IFunctionWiseStatusProps {
   context: WebPartContext;
@@ -35,12 +30,28 @@ interface IFunctionWiseStatusProps {
 const FunctionWiseStatus: React.FC<IFunctionWiseStatusProps> = ({ context, sp }) => {
   const [data, setData] = useState<IFunctionStatusRecord[]>([]);
   const [functionOptions, setFunctionOptions] = useState<IDropdownOption[]>([]);
-  const [filters, setFilters] = useState<any>(null);
+  const [filters, setFilters] = useState<FilterValues | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const loadData = async (fromDate: string, toDate: string, functionName: string) => {
+    setLoading(true);
+    try {
+      const reportService = new ReportService(sp);
+      const records = await reportService.getFunctionWiseStatus(
+        fromDate,
+        toDate,
+        functionName !== '0' ? functionName : undefined
+      );
+      setData(records);
+      setFilters({ fromDate, toDate, functionName });
+    } catch (err) {
+      console.error("FunctionWiseStatus: Error loading report data:", err);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const initPage = async () => {
@@ -50,14 +61,14 @@ const FunctionWiseStatus: React.FC<IFunctionWiseStatusProps> = ({ context, sp })
         const funcs = await dropdownService.getFunctionMaster();
         setFunctionOptions(funcs);
 
-        // Load default report data on page mount (last 21 days)
+        // Default: today to tomorrow
         const todayStr = new Date().toISOString().split('T')[0];
-        const minus21Str = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const tomorrowStr = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
         const reportService = new ReportService(sp);
-        const records = await reportService.getFunctionWiseStatus(minus21Str, todayStr, "");
+        const records = await reportService.getFunctionWiseStatus(todayStr, tomorrowStr, '0');
         setData(records);
-        setFilters({ fromDate: minus21Str, toDate: todayStr, functionName: "" });
+        setFilters({ fromDate: todayStr, toDate: tomorrowStr, functionName: '0' });
       } catch (err) {
         console.error("FunctionWiseStatus: Error initializing page data:", err);
       } finally {
@@ -65,32 +76,16 @@ const FunctionWiseStatus: React.FC<IFunctionWiseStatusProps> = ({ context, sp })
       }
     };
     initPage();
-  }, [context]);
+  }, [context, sp]);
 
-  const handleSearch = async (filterVals: any) => {
-    setLoading(true);
-    setFilters(filterVals);
-    try {
-      const reportService = new ReportService(sp);
-      const records = await reportService.getFunctionWiseStatus(
-        filterVals.fromDate,
-        filterVals.toDate,
-        filterVals.functionName
-      );
-      setData(records);
-      setCurrentPage(1);
-    } catch (err) {
-      console.error("FunctionWiseStatus: Error loading report data:", err);
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = (filterVals: FilterValues) => {
+    loadData(filterVals.fromDate, filterVals.toDate, filterVals.functionName);
   };
 
   const handleReset = () => {
     setData([]);
     setFilters(null);
     setSearch('');
-    setCurrentPage(1);
   };
 
   const displayData = useMemo(() => {
@@ -100,17 +95,28 @@ const FunctionWiseStatus: React.FC<IFunctionWiseStatusProps> = ({ context, sp })
     );
   }, [data, search]);
 
-  const totalPages = Math.ceil(displayData.length / pageSize) || 1;
-
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return displayData.slice(start, start + pageSize);
-  }, [displayData, currentPage, pageSize]);
+  const totals = useMemo(() => {
+    return displayData.reduce((acc, row) => ({
+      approved: acc.approved + row.approved,
+      pending: acc.pending + row.pending,
+      query: acc.query + row.query,
+      delegated: acc.delegated + row.delegated,
+      rejected: acc.rejected + row.rejected,
+      grandTotal: acc.grandTotal + row.grandTotal
+    }), {
+      approved: 0,
+      pending: 0,
+      query: 0,
+      delegated: 0,
+      rejected: 0,
+      grandTotal: 0
+    });
+  }, [displayData]);
 
   return (
     <div className="pageContainer">
       <PageTitle 
-        title="Function Wise Status Report" 
+        title="Note for Approval(NFA) | Function wise Status Report" 
         subtitle="Analyze approval requests and workflows grouped by department/function." 
       />
 
@@ -125,12 +131,9 @@ const FunctionWiseStatus: React.FC<IFunctionWiseStatusProps> = ({ context, sp })
 
       <div className="contentCard">
         <TableToolbar
-          pageSize={pageSize}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
-          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           right={
             <div className="flex items-center gap-3">
-              <SearchInput value={search} onChange={(val) => { setSearch(val); setCurrentPage(1); }} />
+              <SearchInput value={search} onChange={setSearch} />
               {displayData.length > 0 && (
                 <ExportToExcel 
                   data={displayData} 
@@ -143,47 +146,62 @@ const FunctionWiseStatus: React.FC<IFunctionWiseStatusProps> = ({ context, sp })
           }
         />
 
-        {loading ? (
-          <div className="w-full mt-3 border border-slate-200 rounded-xl overflow-hidden">
-            {/* Header Skeleton */}
-            <div className="flex bg-slate-50 border-b border-slate-200 p-4">
-              {COLUMNS.map((col) => (
-                <div key={col.key} className="flex-1">
-                  <Skeleton width="60%" height="1.2rem" />
-                </div>
-              ))}
-            </div>
-            {/* Rows Skeleton */}
-            {Array.from({ length: pageSize || 5 }).map((_, i) => (
-              <div key={i} className="flex border-b border-slate-100 p-4 items-center">
-                {COLUMNS.map((col) => (
-                  <div key={col.key} className="flex-1">
-                    <Skeleton width="80%" height="1rem" />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <CommonTable
-            columns={COLUMNS}
-            data={paginated}
-            emptyMessage={filters ? "No records found matching filters" : "Please click on Search to load the report"}
-            stickyFirstColumn={true}
-          />
-        )}
-
-        {displayData.length > 0 && (
-          <Pagination
-            page={currentPage}
-            total={totalPages}
-            pageSize={pageSize}
-            totalRecords={displayData.length}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
-          />
-        )}
+        <div className="tableWrapper mt-3">
+          <table className="commonTable" id="tblDataMain">
+            <thead>
+              <tr>
+                <th className="reportTableHeader" style={{ textAlign: 'left' }}>Function Name</th>
+                <th className="reportTableHeader" style={{ textAlign: 'center' }}>Approved</th>
+                <th className="reportTableHeader" style={{ textAlign: 'center' }}>Pending</th>
+                <th className="reportTableHeader" style={{ textAlign: 'center' }}>Query</th>
+                <th className="reportTableHeader" style={{ textAlign: 'center' }}>Delegated</th>
+                <th className="reportTableHeader" style={{ textAlign: 'center' }}>Rejected</th>
+                <th className="reportTableHeader" style={{ textAlign: 'center' }}>Grand Total</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyReport">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="reportTableCell text-center py-6" style={{ textAlign: 'center' }}>
+                    <span className="inline-flex items-center gap-2 text-[#94a3b8]">
+                      <span className="inline-block w-4 h-4 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
+                      Loading…
+                    </span>
+                  </td>
+                </tr>
+              ) : displayData.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="reportTableCell text-center py-8" style={{ color: '#94a3b8', textAlign: 'center' }}>
+                    {filters ? "No records found matching filters" : "Please click on search button to download report"}
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {displayData.map((row, i) => (
+                    <tr key={i} className={i % 2 === 0 ? 'dayWiseRowEven' : 'dayWiseRowOdd'}>
+                      <td className="reportTableCell font-medium text-[#1e3a5f]">{row.functionName}</td>
+                      <td className="reportTableCell text-center" style={{ textAlign: 'center' }}>{row.approved}</td>
+                      <td className="reportTableCell text-center" style={{ textAlign: 'center' }}>{row.pending}</td>
+                      <td className="reportTableCell text-center" style={{ textAlign: 'center' }}>{row.query}</td>
+                      <td className="reportTableCell text-center" style={{ textAlign: 'center' }}>{row.delegated}</td>
+                      <td className="reportTableCell text-center" style={{ textAlign: 'center' }}>{row.rejected}</td>
+                      <td className="reportTableCell text-center font-bold text-[#1e3a5f]" style={{ textAlign: 'center' }}><b>{row.grandTotal}</b></td>
+                    </tr>
+                  ))}
+                  <tr className="dayWiseGrandTotal font-bold" id="tfootReport">
+                    <td className="reportTableCell font-bold">Grand Total</td>
+                    <td className="reportTableCell text-center font-bold" style={{ textAlign: 'center' }}>{totals.approved}</td>
+                    <td className="reportTableCell text-center font-bold" style={{ textAlign: 'center' }}>{totals.pending}</td>
+                    <td className="reportTableCell text-center font-bold" style={{ textAlign: 'center' }}>{totals.query}</td>
+                    <td className="reportTableCell text-center font-bold" style={{ textAlign: 'center' }}>{totals.delegated}</td>
+                    <td className="reportTableCell text-center font-bold" style={{ textAlign: 'center' }}>{totals.rejected}</td>
+                    <td className="reportTableCell text-center font-bold text-[#1e3a5f]" style={{ textAlign: 'center' }}><b>{totals.grandTotal}</b></td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

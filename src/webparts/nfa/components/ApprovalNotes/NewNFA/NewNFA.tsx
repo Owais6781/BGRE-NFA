@@ -44,6 +44,13 @@ interface CollapsibleSectionProps {
 
 const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ icon, title, children, defaultOpen = true, hasError = false }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  React.useEffect(() => {
+    if (hasError) {
+      setIsOpen(true);
+    }
+  }, [hasError]);
+
   return (
     <div className={`formSection ${isOpen ? 'formSection--open' : 'formSection--closed'} ${hasError ? 'border-red-300 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`}>
       <div
@@ -161,8 +168,8 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     remark: '',
     commercialProposal: '',
     paymentTerms: '<p>1. Payment Terms :-</p><p>2. Adhoc Amount :-</p><p>3. Retention :-</p><p>4. Release Retention :-</p>',
-    liquidatedDamage: 'NA', contractPerf: 'NA',
-    defectLiability: 'NA', workCompletion: 'Work must be completed and handed over to the satisfaction of Owner on or before -------',
+    liquidatedDamage: 'N/A', contractPerf: 'N/A',
+    defectLiability: 'N/A', workCompletion: 'Work must be completed and handed over to the satisfaction of Owner on or before -------',
     budgetRemarks: '', packageAwardedCost: '0.00', budget: '0.00',
     budgetedNonBudgeted: "",
     capexSerialNo: '',
@@ -733,10 +740,10 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       </CollapsibleSection>
 
       <CollapsibleSection icon={<Wrench size={13} />} title="Contract Terms" defaultOpen={false} hasError={hasSectionErrors(['liquidatedDamage', 'contractPerf', 'defectLiability', 'workCompletion'])}>
-        <div className="mb-4"><TextAreaField label="Liquidated Damage" value={form.liquidatedDamage} onChange={v => updateField('liquidatedDamage', v)} required rows={3} /></div>
-        <div className="mb-4"><TextAreaField label="Contract Performance Gurantee" value={form.contractPerf} onChange={v => updateField('contractPerf', v)} required rows={3} /></div>
-        <div className="mb-4"><TextAreaField label="Defect Liability Period" value={form.defectLiability} onChange={v => updateField('defectLiability', v)} required rows={3} /></div>
-        <TextAreaField label="Work Completion" value={form.workCompletion} onChange={v => updateField('workCompletion', v)} required rows={3} />
+        <div className="mb-4"><TextAreaField label="Liquidated Damage" value={form.liquidatedDamage} onChange={v => updateField('liquidatedDamage', v)} required rows={3} error={getFieldError('liquidatedDamage')} /></div>
+        <div className="mb-4"><TextAreaField label="Contract Performance Gurantee" value={form.contractPerf} onChange={v => updateField('contractPerf', v)} required rows={3} error={getFieldError('contractPerf')} /></div>
+        <div className="mb-4"><TextAreaField label="Defect Liability Period" value={form.defectLiability} onChange={v => updateField('defectLiability', v)} required rows={3} error={getFieldError('defectLiability')} /></div>
+        <TextAreaField label="Work Completion" placeholder="Work must be completed and handed over to the satisfaction of Owner on or before -------" value={form.workCompletion} onChange={v => updateField('workCompletion', v)} required rows={3} error={getFieldError('workCompletion')} />
       </CollapsibleSection>
 
       <CollapsibleSection icon={<DollarSign size={13} />} title="Financials" defaultOpen={false} hasError={hasSectionErrors(['budgetRemarks', 'packageAwardedCost', 'budget'])}>
@@ -792,7 +799,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
 
       <CollapsibleSection icon={<Star size={13} />} title="Recommendation" defaultOpen={false} hasError={hasSectionErrors(['recommendation', 'contractorName'])}>
         <div className="mb-4"><RichTextEditor label="Recommendation with Justification" value={form.recommendation} onChange={v => updateField('recommendation', v)} /></div>
-        <InputField label="Contractor Name" value={form.contractorName} placeholder='Enter Contractor Name'required onChange={v => updateField('contractorName', v)} />
+        <InputField label="Contractor Name" value={form.contractorName} placeholder='Enter Contractor Name'required onChange={v => updateField('contractorName', v)} error={getFieldError('contractorName')} />
         <div className="mb-4"><TextAreaField label="Annexure/ Enclosur(if any)" placeholder="Enter Annexure/ Enclosure (if any)" value={form.annexure ?? ""} onChange={v => updateField('annexure', v)} rows={3} /></div>
         <div className="mb-4"><TextAreaField label="Note 1" placeholder="Enter Note 1" value={form.note1} onChange={v => updateField('note1', v)} rows={2} /></div>
         <div className="mb-4"><TextAreaField label="Note 2" placeholder="Enter Note 2" value={form.note2} onChange={v => updateField('note2', v)} rows={2} /></div>

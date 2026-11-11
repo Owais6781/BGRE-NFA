@@ -46,31 +46,35 @@ export const Pagination: React.FC<PaginationProps> = ({
 
       <div className="flex items-center gap-1">
         <button
-          onClick={() => onPageChange(1)}
-          disabled={page === 1}
+          type="button"
+          onClick={(e) => { e.preventDefault(); onPageChange(1); }}
+          disabled={page <= 1}
           className="btn btnSecondary"
           title="First"
         >
           «
         </button>
         <button
-          onClick={() => onPageChange(page - 1)}
-          disabled={page === 1}
+          type="button"
+          onClick={(e) => { e.preventDefault(); onPageChange(page - 1); }}
+          disabled={page <= 1}
           className="btn btnSecondary"
         >
           Previous
         </button>
         <span className="btn btnPrimary" style={{ cursor: 'default', pointerEvents: 'none' }}>{page}</span>
         <button
-          onClick={() => onPageChange(page + 1)}
-          disabled={page === total}
+          type="button"
+          onClick={(e) => { e.preventDefault(); onPageChange(page + 1); }}
+          disabled={page >= total}
           className="btn btnSecondary"
         >
           Next
         </button>
         <button
-          onClick={() => onPageChange(total)}
-          disabled={page === total}
+          type="button"
+          onClick={(e) => { e.preventDefault(); onPageChange(total); }}
+          disabled={page >= total}
           className="btn btnSecondary"
           title="Last"
         >

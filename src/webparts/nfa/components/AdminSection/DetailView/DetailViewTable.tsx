@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState }      from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CommonTable }   from '../../../../../Share/Components/CommonTable';
 import { SearchInput }   from '../../../../../Share/Components/SearchInput';
 import { Pagination }    from '../../../../../Share/Components/Pagination';
@@ -61,8 +61,9 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
       label: 'NFA',
       render: (val: string, row: DetailViewRecord) => (
         <button
+          type="button"
           className="tableLinkBtn"
-          onClick={(e) => { e.stopPropagation(); onRecordClick?.(row.id); }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRecordClick?.(row.id); }}
         >
           {val}
         </button>
@@ -101,19 +102,29 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
     { key: 'packageCost', label: 'Package Cost' },
   ];
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [data]);
+
   // ── Filter ──
-  const filtered = data.filter((row) =>
-    Object.keys(row).some((key) =>
-      String((row as any)[key]).toLowerCase().includes(search.toLowerCase())
-    )
-  );
+  const filtered = useMemo(() => {
+    if (!search || !search.trim()) return data;
+    const query = search.trim().toLowerCase();
+    return data.filter((row) =>
+      Object.keys(row).some((key) => {
+        const val = (row as any)[key];
+        return val !== null && val !== undefined && String(val).toLowerCase().includes(query);
+      })
+    );
+  }, [data, search]);
 
   // ── Paginate ──
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated  = filtered.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const safePage   = Math.min(Math.max(1, currentPage), totalPages);
+  const paginated  = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
 
   const handleSearch         = (val: string) => { setSearch(val);     setCurrentPage(1); };
   const handlePageSizeChange = (size: number) => { setPageSize(size); setCurrentPage(1); };
@@ -158,7 +169,7 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
 
       {/* ── Pagination ── */}
       <Pagination
-        page={currentPage}
+        page={safePage}
         total={totalPages}
         pageSize={pageSize}
         totalRecords={filtered.length}

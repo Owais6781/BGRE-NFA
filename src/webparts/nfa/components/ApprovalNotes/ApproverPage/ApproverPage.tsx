@@ -134,6 +134,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
   const [isZippingDocs, setIsZippingDocs] = useState<boolean>(false);
+  const [dashboardApprover, setDashboardApprover] = useState<{
+    currentApprover: string;
+    currentApproverId: string | number | null;
+  } | null>(null);
 
   const handleDownloadPdf = async () => {
     if (!nfa) return;
@@ -334,17 +338,51 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
       try {
         const commonService = new CommonService(context, sp);
-        const [nfaData, siteUsers, historyData, qHistory] = await Promise.all([
+        const [nfaData, siteUsers, historyData, qHistory, dashItems] = await Promise.all([
           nfaService.getNFA(parseInt(id)),
           sp.web.siteUsers.filter("PrincipalType eq 1").select("Id", "Title", "Email")()
             .then(users => users.map(u => ({ label: u.Title, value: String(u.Id), email: u.Email }))),
           nfaService.getHistory(parseInt(id)),
-          commonService.getQueryHistory(id)
+          commonService.getQueryHistory(id),
+          sp.web.lists.getByTitle("DashboardList").items
+            .filter(`WFID eq '${id}'`)
+            .top(1)()
+            .catch(async () => {
+              try {
+                return await sp.web.lists.getByTitle("DashboardList").items
+                  .filter(`WFID eq ${id}`)
+                  .top(1)();
+              } catch {
+                return [];
+              }
+            })
         ]);
+
+        let dashItem: any = null;
+        if (Array.isArray(dashItems) && dashItems.length > 0) {
+          dashItem = dashItems[0];
+        }
+
+        if (dashItem) {
+          // Check CurrentApprover and CurrentApproverID columns from DashboardList
+          const cApproverId = dashItem.CurrentApproverID ?? dashItem.CurrentApproverId ?? dashItem.CurrentApprovalID ?? (dashItem.CurrentApprover && typeof dashItem.CurrentApprover === 'object' ? dashItem.CurrentApprover.Id : null);
+          const cApprover = typeof dashItem.CurrentApprover === 'string'
+            ? dashItem.CurrentApprover
+            : (dashItem.CurrentApprover?.Title || dashItem.CurrentApprovalName || "");
+
+          setDashboardApprover({
+            currentApprover: cApprover,
+            currentApproverId: cApproverId ?? null
+          });
+        }
 
         if (nfaData) {
           // If status is Query and pending user is current user, redirect to query response page
-          if ((nfaData.status || "").toLowerCase() === 'query' && nfaData.pendingAtId === currentUserId) {
+          const pendingApproverId = dashItem
+            ? (dashItem.CurrentApproverID ?? dashItem.CurrentApproverId ?? dashItem.CurrentApprovalID ?? nfaData.pendingAtId)
+            : nfaData.pendingAtId;
+          const currentStatus = (dashItem?.Status || nfaData.status || "").toLowerCase();
+          if (currentStatus === 'query' && String(pendingApproverId).trim() === String(currentUserId).trim()) {
             navigate(`/query-respond/${id}`, { replace: true });
             return;
           }
@@ -540,13 +578,27 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
     return users.filter(u => u.label.toLowerCase().includes(userSearch.toLowerCase())).slice(0, 8);
   }, [userSearch, users]);
 
-  const isCurrentApprover = nfa?.pendingAtId === currentUserId;
+  // Check CurrentApproverID from DashboardList and compare with current logged-in user's ID
+  const isCurrentApprover = useMemo(() => {
+    if (dashboardApprover !== null) {
+      const approverId = dashboardApprover.currentApproverId;
+      if (approverId === null || approverId === undefined || approverId === "") {
+        return false;
+      }
+      return String(approverId).trim() === String(currentUserId).trim();
+    }
+    // Fallback to nfa.pendingAtId if DashboardList record is not loaded yet
+    return nfa?.pendingAtId === currentUserId;
+  }, [dashboardApprover, currentUserId, nfa?.pendingAtId]);
 
   const currentApproverName = useMemo(() => {
+    if (dashboardApprover?.currentApprover) {
+      return dashboardApprover.currentApprover;
+    }
     if (!nfa) return "Unknown";
-    const user = users.find(u => u.value === String(nfa.pendingAtId));
+    const user = users.find(u => u.value === String(dashboardApprover?.currentApproverId || nfa.pendingAtId));
     return user ? user.label : "Unknown";
-  }, [nfa, users]);
+  }, [dashboardApprover, nfa, users]);
 
   const receivedOnDate = useMemo(() => {
     if (!nfa) return "Unknown";
@@ -1186,37 +1238,33 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         <div className="w-full lg:w-[30%] space-y-6">
 
           {/* Documents Card — reference style */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
 
             {/* Header / Tabs in one row */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-3">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-100 mb-3 flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-2 min-w-0">
                 <button
                   type="button"
-                  className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'attachments'
+                  className={`flex items-center gap-1 pb-1.5 border-b-2 -mb-[10px] transition-all text-[11px] uppercase tracking-wider shrink-0 ${activeDocTab === 'attachments'
                     ? 'border-blue-600 text-blue-700 font-extrabold'
                     : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
                     }`}
                   onClick={() => setActiveDocTab('attachments')}
                 >
-                  <div className="w-5 h-5 bg-blue-50 border border-blue-100 rounded flex items-center justify-center shrink-0">
-                    <FileText size={12} className={activeDocTab === 'attachments' ? 'text-blue-600' : 'text-slate-400'} />
-                  </div>
-                  <span className="text-[12px] font-semibold">Documents ({docs.length})</span>
+                  <FileText size={13} className={activeDocTab === 'attachments' ? 'text-blue-600' : 'text-slate-400'} />
+                  <span className="text-[11px] font-semibold">Docs ({docs.length})</span>
                 </button>
 
                 <button
                   type="button"
-                  className={`flex items-center gap-1.5 pb-1.5 border-b-2 -mb-[10px] transition-all text-[12px] uppercase tracking-wider ${activeDocTab === 'query'
+                  className={`flex items-center gap-1 pb-1.5 border-b-2 -mb-[10px] transition-all text-[11px] uppercase tracking-wider shrink-0 ${activeDocTab === 'query'
                     ? 'border-blue-600 text-blue-700 font-extrabold'
                     : 'border-transparent text-slate-500 hover:text-slate-700 font-bold'
                     }`}
                   onClick={() => setActiveDocTab('query')}
                 >
-                  <div className="w-5 h-5 bg-slate-50 border border-slate-150 rounded flex items-center justify-center shrink-0">
-                    <HelpCircle size={12} className={activeDocTab === 'query' ? 'text-blue-600' : 'text-slate-400'} />
-                  </div>
-                  <span className="text-[12px] font-semibold">Query Docs ({queryDocuments.length})</span>
+                  <HelpCircle size={13} className={activeDocTab === 'query' ? 'text-blue-600' : 'text-slate-400'} />
+                  <span className="text-[11px] font-semibold">Query Docs ({queryDocuments.length})</span>
                 </button>
               </div>
 
@@ -1226,10 +1274,10 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                   type="button"
                   onClick={handleDownloadZip}
                   disabled={isZippingDocs}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer disabled:opacity-50"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer disabled:opacity-50 shrink-0 whitespace-nowrap ml-auto"
                   title="Download files in this tab as ZIP"
                 >
-                  <Download size={12} className={isZippingDocs ? "animate-spin" : ""} />
+                  <Download size={11} className={isZippingDocs ? "animate-spin" : ""} />
                   <span>{isZippingDocs ? "Zipping..." : "Download ZIP"}</span>
                 </button>
               )}
@@ -1669,7 +1717,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             >
               <HelpCircle size={14} strokeWidth={2.5} /> Query
             </button>
-            <button
+            {/* <button
               type="button"
               onClick={() => handleAction('Delegate')}
               disabled={isActionLoading}
@@ -1677,7 +1725,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               className="px-5 h-[38px] hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 active:scale-[0.98]"
             >
               <UserCheck size={14} strokeWidth={2.5} /> Delegate
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={handleDownloadPdf}

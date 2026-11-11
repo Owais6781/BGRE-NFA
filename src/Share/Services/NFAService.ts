@@ -130,16 +130,21 @@ export class NFAService {
     // if (!stripHtml(form.chronology)) errors.push({ field: "chronology", message: "Chronology is required." });
     // if (!stripHtml(form.commercialProposal)) errors.push({ field: "commercialProposal", message: "Commercial Proposals is required." });
 
-    if (!form.liquidatedDamage || !form.liquidatedDamage.trim()) {
+    const isInvalidOrNA = (val?: string) => {
+      if (!val || !val.trim()) return true;
+      return /^(na|n\/a)$/i.test(val.trim());
+    };
+
+    if (isInvalidOrNA(form.liquidatedDamage)) {
       errors.push({ field: "liquidatedDamage", message: "Liquidated Damage is required." });
     }
-    if (!form.contractPerf || !form.contractPerf.trim()) {
+    if (isInvalidOrNA(form.contractPerf)) {
       errors.push({ field: "contractPerf", message: "Contract Performance Guarantee is required." });
     }
-    if (!form.defectLiability || !form.defectLiability.trim()) {
+    if (isInvalidOrNA(form.defectLiability)) {
       errors.push({ field: "defectLiability", message: "Defect Liability Period is required." });
     }
-    if (!form.workCompletion || !form.workCompletion.trim()) {
+    if (isInvalidOrNA(form.workCompletion)) {
       errors.push({ field: "workCompletion", message: "Work Completion is required." });
     }
 
@@ -147,12 +152,21 @@ export class NFAService {
     if (isNaN(cost) || cost <= 0) {
       errors.push({ field: "packageAwardedCost", message: "Awarded Cost is required and must be greater than 0." });
     }
+
     const budgetVal = parseFloat(String(form.budget || "").replace(/,/g, ''));
     if (isNaN(budgetVal) || budgetVal <= 0) {
       errors.push({ field: "budget", message: "Budget is required and must be greater than 0." });
     }
-   
 
+    
+    if (!form.budgetedNonBudgeted || !form.budgetedNonBudgeted.trim()) {
+      errors.push({ field: "budgetedNonBudgeted", message: "Budgeted/Non-Budgeted is required." });
+    }
+
+
+    if (!form.contractorName  || !form.contractorName .trim()) {
+      errors.push({ field: "contractorName", message: "Contractor Name is required." });
+    }
 
     
     if (!form.approvers[0]) errors.push({ field: "approvers", message: "Approver Level-1 is required." });
@@ -797,7 +811,7 @@ export class NFAService {
         pendingAtId: (() => { const lvl = parseInt(item.WFLevel || item.Level || "1", 10); return (lvl >= 1 && lvl <= 12) ? (item[levels[lvl - 1]]?.Id || item[`ApprovalLevel${lvl}Id`] || null) : null; })(),
         initiatorId: item.Author ? item.Author.Id : undefined,
         commentHistory: item.CommentHistory || "",
-        workflowHistory: item.WorkflowHistory || "",
+        workflowHistory: item.WorkflowHistory || item.WorkflowApprovalHistory || "",
         workflowHistoryHTML: item.WorkflowHistoryHTML || "",
         status: item.Status || "",
         PendingFrom:item.PendingFrom || ""
@@ -812,13 +826,10 @@ export class NFAService {
 
   public async getNFAList(): Promise<any[]> {
     try {
-      const currentUser = await this.sp.web.currentUser();
-      const currentUserId = currentUser.Id;
-
       const items = await this.sp.web.lists.getByTitle(this.listName).items
         .select("*","Id", "Title", "Dept","ContractorName","ApprovalAmount","PendingFrom", "Approvedrejectedby","Approvedrejectdatetime","Project", "RequestedOn", "Status", "WFLevel", "ApprovalLevel1/Title")
         .expand("ApprovalLevel1")
-        .filter(`AuthorId eq ${currentUserId}`)();
+        .top(5000)();
 
       return items.map((item: any) => ({
         id: item.Id,
