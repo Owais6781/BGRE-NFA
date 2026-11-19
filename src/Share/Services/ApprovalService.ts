@@ -63,12 +63,14 @@ export class ApprovalService {
     const dateString = now.toLocaleString("en-IN");
     const newCommentEntry = `[${dateString}] ${userName} (${action}) [Level ${item.WFLevel || item.Level || 1}]: ${remarks || "No remarks"}`;
 
+    const isFinalApproval = (action === "Approved" && !updateBody.PendingAtId);
     const dateStr = formatHistoryDate(now);
     let newWorkflowEntry = "";
     if (action === "Query") {
       newWorkflowEntry = `Pending for Query response to ${queryUserName} at level-${item.WFLevel || item.Level || 1} on ${dateStr}</br>`;
     } else {
-      newWorkflowEntry = `NFA Request ${action} by ${userName} at Level ${item.WFLevel || item.Level || 1}. on ${dateStr}</br>`;
+      const historyAction = isFinalApproval ? "Completed" : action;
+      newWorkflowEntry = `NFA Request ${historyAction} by ${userName} at Level ${item.WFLevel || item.Level || 1}. on ${dateStr}</br>`;
       if (action === "Approved" && updateBody.PendingAtId) {
         newWorkflowEntry += `\nNFA Pending at ${nextApproverName} at level-${updateBody.WFLevel || parseInt(updateBody.WFLevel, 10) || (parseInt(item.WFLevel || item.Level || "1", 10) + 1)} on ${dateStr}</br>`;
       }
@@ -80,12 +82,14 @@ export class ApprovalService {
     const isNormalAction = (action === "Approved" || action === "Rejected" || action === "Delegate");
     const isUnderQuery = item.Status === "Query";
 
+    const isTerminal = isFinalApproval || action === "Rejected";
+
     const bodyToUpdate = { ...updateBody };
-    bodyToUpdate.PendingFrom = dateStr;
+    bodyToUpdate.PendingFrom = isTerminal ? "" : dateStr;
     delete bodyToUpdate.PendingAtId;
 
     if (action === "Approved") {
-      bodyToUpdate.PendingAt = nextApproverName && nextApproverName !== "Unknown Approver" ? nextApproverName : "";
+      bodyToUpdate.PendingAt = (!isFinalApproval && nextApproverName && nextApproverName !== "Unknown Approver") ? nextApproverName : "";
     } else if (action === "Query") {
       bodyToUpdate.PendingAt = queryUserName && queryUserName !== "Unknown User" ? queryUserName : "";
     } else if (action === "Delegate") {
@@ -94,6 +98,7 @@ export class ApprovalService {
       bodyToUpdate.PendingAt = item.Author ? item.Author.Title : "";
     } else if (action === "Rejected") {
       bodyToUpdate.PendingAt = "";
+      bodyToUpdate.PendingFrom = "";
     }
 
     if (isNormalAction && !isUnderQuery) {
@@ -350,12 +355,13 @@ const dashboardWFLevel = isQueryAction
           Status: newStatus,
           DOA: doaClause,
           CurrentApproverId: isTerminal ? null : (isQueryAction ? currentUserId : newPendingAtId),
+          CurrentApproverID: isTerminal ? "" : (isQueryAction ? String(currentUserId) : (newPendingAtId ? String(newPendingAtId) : "")),
           CurrentApprovalName: isTerminal ? "" : (isQueryAction ? actionTakerName : pendingAtName),
           CurrentApprovalID: isTerminal ? "" : (isQueryAction ? String(currentUserId) : (newPendingAtId ? String(newPendingAtId) : "")),
-          PendingFrom: formatHistoryDate(now),
+          PendingFrom: isTerminal ? "" : formatHistoryDate(now),
           InitiatedBy: initiatorName,
           InitiatedOn: initiatedOn,
-          PendingFromDate: now,
+          PendingFromDate: isTerminal ? null : now,
           DueDate: getDueDate()
         };
 
@@ -447,9 +453,10 @@ const dashboardWFLevel = isQueryAction
               WFLevel: targetWFLevel,
               Status: newStatus,
               CurrentApproverId: isTerminal ? null : (isQueryAction ? currentUserId : newPendingAtId),
+              CurrentApproverID: isTerminal ? "" : (isQueryAction ? String(currentUserId) : (newPendingAtId ? String(newPendingAtId) : "")),
               CurrentApprovalName: isTerminal ? "" : (isQueryAction ? actionTakerName : pendingAtName),
               CurrentApprovalID: isTerminal ? "" : (isQueryAction ? String(currentUserId) : (newPendingAtId ? String(newPendingAtId) : "")),
-              PendingFrom: formatHistoryDate(new Date())
+              PendingFrom: isTerminal ? "" : formatHistoryDate(new Date())
             });
           }
         } catch (coreErr) {
@@ -459,6 +466,42 @@ const dashboardWFLevel = isQueryAction
 
     } catch (logErr) {
       console.warn("ApprovalService: Failed to write to WFLogList:", logErr);
+    }
+  }
+
+  public async closeAllPendingQueriesForNFA(
+    itemId: number,
+    resolutionStatus: string = "Resolved",
+    resolutionRemarks?: string,
+    excludeId?: number
+  ): Promise<void> {
+    const listNames = ["QueryMgt", "QueryMgtList"];
+    for (const listTitle of listNames) {
+      try {
+        let filterStr = `WFID eq '${itemId}' and Status eq 'Pending'`;
+        if (excludeId) {
+          filterStr += ` and Id ne ${excludeId}`;
+        }
+        const pendingItems = await this.sp.web.lists.getByTitle(listTitle).items
+          .filter(filterStr)
+          .select("Id")();
+        for (const qItem of pendingItems) {
+          try {
+            const updatePayload: Record<string, any> = {
+              Status: resolutionStatus
+            };
+            if (resolutionRemarks) {
+              updatePayload.Response = resolutionRemarks;
+              updatePayload.RespondedOn = new Date().toLocaleString("en-IN");
+            }
+            await this.sp.web.lists.getByTitle(listTitle).items.getById(qItem.Id).update(updatePayload);
+          } catch (itemErr) {
+            console.warn(`ApprovalService: Error updating query item ${qItem.Id} in ${listTitle}:`, itemErr);
+          }
+        }
+      } catch (listErr) {
+        // List may not exist under this title
+      }
     }
   }
 
@@ -519,6 +562,13 @@ const dashboardWFLevel = isQueryAction
 
       await this.writeWFLog(item, itemId, remarks, "Approved", parseInt(updateBody.WFLevel, 10), updateBody.PendingAtId, currentUserId);
 
+      // Clean up / remove all pending queries for this NFA so they are removed from the Inbox of everyone to whom they were assigned
+      try {
+        await this.closeAllPendingQueriesForNFA(itemId, "Resolved", "NFA approved");
+      } catch (qCloseErr) {
+        console.warn("ApprovalService: Error closing pending queries on approve:", qCloseErr);
+      }
+
       return { success: true, message: nextApproverId ? "NFA approved and forwarded to next level." : "NFA fully approved!" };
     } catch (error) {
       console.error("ApprovalService: approveNFA failed:", error);
@@ -541,6 +591,12 @@ const dashboardWFLevel = isQueryAction
       const item = await this.getAndUpdateCommentHistory(itemId, "Rejected", remarks, currentUserId, updateBody);
 
       await this.writeWFLog(item, itemId, remarks, "Rejected", undefined, null, currentUserId);
+
+      try {
+        await this.closeAllPendingQueriesForNFA(itemId, "Resolved", "NFA rejected");
+      } catch (qCloseErr) {
+        console.warn("ApprovalService: Error closing pending queries on reject:", qCloseErr);
+      }
 
       return { success: true, message: "NFA has been rejected." };
     } catch (error) {
@@ -775,6 +831,12 @@ const dashboardWFLevel = isQueryAction
 
       await this.writeWFLog(item, itemId, remarks, "Returned", 0, initiatorId, currentUserId);
 
+      try {
+        await this.closeAllPendingQueriesForNFA(itemId, "Resolved", "NFA returned");
+      } catch (qCloseErr) {
+        console.warn("ApprovalService: Error closing pending queries on return:", qCloseErr);
+      }
+
       return { success: true, message: "NFA returned to initiator." };
     } catch (error) {
       console.error("ApprovalService: returnNFA failed:", error);
@@ -974,6 +1036,15 @@ const dashboardWFLevel = isQueryAction
           console.warn("ApprovalService: Error creating QueryMgt record on respond:", addErr);
         }
       }
+
+      // Also mark any other pending query records for this NFA for other assigned users as Responded
+      // so that the query is removed from the inbox of everyone to whom it was assigned
+      try {
+        const otherRemarks = `Query responded by ${userName}`;
+        await this.closeAllPendingQueriesForNFA(itemId, "Responded", otherRemarks, activeQuery ? activeQuery.Id : undefined);
+      } catch (qCloseErr) {
+        console.warn("ApprovalService: Error resolving other pending queries on respond:", qCloseErr);
+      }
       if (false) {
       await this.sp.web.lists.getByTitle(this.queryMgtListName).items.getById(activeQuery.Id).update({
         Response: remarks || "",
@@ -1083,6 +1154,7 @@ const dashboardWFLevel = isQueryAction
           Status: "Pending",
           DOA: doaClause,
           CurrentApproverId: queryById,
+          CurrentApproverID: String(queryById),
           CurrentApprovalName: queryByName,
           CurrentApprovalID: String(queryById),
           PendingFrom: dateStr,

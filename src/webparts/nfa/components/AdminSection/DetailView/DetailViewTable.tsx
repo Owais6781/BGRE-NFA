@@ -41,7 +41,7 @@ const exportColumns = [
   { key: 'pendingAt',     label: 'Pending At'            },
   { key: 'pendingFrom',   label: 'Pending From'          },
   { key: 'level',         label: 'Level'                 },
-  { key: 'project',       label: 'Project'               },
+  { key: 'project',       label: 'Entity'               },
   { key: 'packageCost',   label: 'Package Cost'          },
 ];
 
@@ -98,7 +98,7 @@ const DetailViewTable: React.FC<DetailViewTableProps> = ({
     { key: 'pendingAt',   label: 'Pending At'   },
     { key: 'pendingFrom', label: 'Pending From' },
     { key: 'level',       label: 'Level'        },
-    { key: 'project',     label: 'Project'      },
+    { key: 'project',     label: 'Entity'      },
     { key: 'packageCost', label: 'Package Cost' },
   ];
 

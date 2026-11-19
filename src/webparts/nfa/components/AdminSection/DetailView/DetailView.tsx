@@ -84,7 +84,7 @@ const DetailView: React.FC<IDetailViewProps> = ({ context, sp }) => {
         try {
           nfaItems = await sp.web.lists.getByTitle("DigitalApprovalNotes").items
             .select(
-              "Id", "Title", "SubjectMatter", "Dept", "FunctionName", "Project",
+              "Id", "Title", "UniqID", "SubjectMatter", "Dept", "FunctionName", "Project",
               "RequestedOn", "Status", "ApprovalAmount", "Author/Title", "Author/Id",
               "PendingAt", "Modified", "Created", "PendingFrom", "WFLevel",
               "Approvedrejectedby", "Approvedrejectdatetime"
@@ -95,14 +95,21 @@ const DetailView: React.FC<IDetailViewProps> = ({ context, sp }) => {
           console.error("DetailView: Error fetching DigitalApprovalNotes:", nfaErr);
         }
 
-        // 4. Fallback dropdown options from distinct values in nfaItems if master lists were empty
-        if ((!projects || projects.length === 0) && nfaItems.length > 0) {
-          const uniqueProjects = Array.from(new Set(nfaItems.map((it: any) => it.Project).filter(Boolean)));
+        // Filter only records that belong to NFA (UniqID check)
+        const filteredNfaItems = nfaItems.filter((item: any) => {
+          const uniqId = String(item.UniqID || item.UniqId || item.UniqNo || "").trim().toUpperCase();
+          if (!uniqId) return false;
+          return uniqId.startsWith("NFA") || uniqId.includes("NFA") || String(item.Title || "").toUpperCase().startsWith("NFA");
+        });
+
+        // 4. Fallback dropdown options from distinct values in filteredNfaItems if master lists were empty
+        if ((!projects || projects.length === 0) && filteredNfaItems.length > 0) {
+          const uniqueProjects = Array.from(new Set(filteredNfaItems.map((it: any) => it.Project).filter(Boolean)));
           projects = uniqueProjects.map((p: any) => ({ label: String(p), value: String(p) }));
         }
 
-        if ((!funcs || funcs.length === 0) && nfaItems.length > 0) {
-          const uniqueDepts = Array.from(new Set(nfaItems.map((it: any) => it.Dept || it.FunctionName).filter(Boolean)));
+        if ((!funcs || funcs.length === 0) && filteredNfaItems.length > 0) {
+          const uniqueDepts = Array.from(new Set(filteredNfaItems.map((it: any) => it.Dept || it.FunctionName).filter(Boolean)));
           funcs = uniqueDepts.map((d: any) => ({ label: String(d), value: String(d) }));
         }
 
@@ -110,7 +117,7 @@ const DetailView: React.FC<IDetailViewProps> = ({ context, sp }) => {
         setFunctionOptions(funcs || []);
 
         // 5. Map all records to DetailViewRecord
-        const mapped: DetailViewRecord[] = nfaItems.map((item: any) => {
+        const mapped: DetailViewRecord[] = filteredNfaItems.map((item: any) => {
           const dash = dashMap[item.Id.toString()];
           let approvedOnVal = "";
           if (item.Approvedrejectdatetime) {

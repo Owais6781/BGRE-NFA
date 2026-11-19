@@ -114,7 +114,7 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
           const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}Id`);
           nfaItems = await sp.web.lists.getByTitle("DigitalApprovalNotes").items
             .select(
-              "Id", "Title", "SubjectMatter", "Dept", "FunctionName", "Project",
+              "Id", "Title", "UniqID", "SubjectMatter", "Dept", "FunctionName", "Project",
               "RequestedOn", "Status", "ApprovalAmount", "Author/Title", "Author/Id",
               "PendingAt", "Modified", "Created", "PendingFrom", "WFLevel",
               ...levels
@@ -127,6 +127,12 @@ const ApprovalDetailsView: React.FC<IApprovalDetailsProps> = ({ context, sp }) =
 
         // 6. Filter notes assigned to the currently logged-in user
         const userNfaItems = nfaItems.filter((item: any) => {
+          // Must belong to NFA (UniqID check)
+          const uniqId = String(item.UniqID || item.UniqId || item.UniqNo || "").trim().toUpperCase();
+          if (!uniqId) return false;
+          const isNFA = uniqId.startsWith("NFA") || uniqId.includes("NFA") || String(item.Title || "").toUpperCase().startsWith("NFA");
+          if (!isNFA) return false;
+
           // Check if user is configured in any ApprovalLevel1..12
           for (let i = 1; i <= 12; i++) {
             const lvlVal = item[`ApprovalLevel${i}Id`];

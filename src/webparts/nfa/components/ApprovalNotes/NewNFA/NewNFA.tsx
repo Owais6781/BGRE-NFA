@@ -214,6 +214,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         file
       }));
       setPendingAttachments(prev => [...prev, ...newEntries]);
+      clearFieldError('attachments');
     }
   };
 
@@ -250,14 +251,14 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     );
   };
 
-  const shouldShowApprover = (idx: number) => {
-    if (form.workflow === 'AUTO') {
-      return form.approvers[idx] !== null && form.approvers[idx] !== '';
-    } else {
-      if (idx === 0) return true;
-      return (form.approvers[idx - 1] !== null && form.approvers[idx - 1] !== '') || (form.approvers[idx] !== null && form.approvers[idx] !== '');
-    }
-  };
+  // const shouldShowApprover = (idx: number) => {
+  //   if (form.workflow === 'AUTO') {
+  //     return form.approvers[idx] !== null && form.approvers[idx] !== '';
+  //   } else {
+  //     if (idx === 0) return true;
+  //     return (form.approvers[idx - 1] !== null && form.approvers[idx - 1] !== '') || (form.approvers[idx] !== null && form.approvers[idx] !== '');
+  //   }
+  // };
 
 
   // --- 1. THE MASTER INITIALIZATION (Runs exactly once) ---
@@ -442,7 +443,6 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     const getOptionsFromMatrix = async () => {
       try {
         const siteUrl = context.pageContext.web.absoluteUrl;
-        //const endpoint = `${siteUrl}/_api/web/lists/getbytitle('ApproverMatrix')/items?$filter=Title eq '${form.originatorDept}' and IsActive eq 1&$select=Approver/Id,Approver/Title&$expand=Approver`;
         const funcName = functionOptions.find(f => f.value === String(form.originatorDept))?.label || form.originatorDept;
         const endpoint = `${siteUrl}/_api/web/lists/getbytitle('ApproverMaster')/items?$filter=(FunctionName eq '${funcName}' or FunctionName eq '${form.originatorDept}' or FunctionID eq '${form.originatorDept}')&$select=Id,ApproverName/Id,ApproverName/Title&$expand=ApproverName`;
         const response = await context.spHttpClient.get(endpoint, SPHttpClient.configurations.v1);
@@ -451,8 +451,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         console.log("ApproverMaster Data:", data);
         if (data.value) {
           const options = data.value.map((item: any) => ({
-            //  label: item.Approver.Title,
-            //  value: String(item.Approver.Id)
+           
             label: item.ApproverName.Title,
             value: String(item.ApproverName.Id)
           }));
@@ -661,8 +660,19 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
     setErrors([]);
     const service = new NFAService(context);
     const result = service.validateForm(form, status);
-    if (!result.isValid) {
-      setErrors(result.errors);
+    const formErrors: IValidationError[] = [...result.errors];
+
+    // Require at least one attachment when submitting the NFA into workflow
+    const totalAttachments = savedDocuments.length + pendingAttachments.length;
+    if (status === 'Pending' && totalAttachments === 0) {
+      formErrors.push({
+        field: 'attachments',
+        message: 'At least one attachment / supporting document is required to submit the NFA.'
+      });
+    }
+
+    if (formErrors.length > 0) {
+      setErrors(formErrors);
       return false;
     }
     return true;
@@ -679,23 +689,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
       <PageTitle
         title={id ? "Edit NFA" : "New NFA"}
         subtitle={id ? "Modify existing Note for Approval details." : "Create a new Note for Approval."}
-        // action={(form.status || '').toLowerCase() === 'draft' ? (
-        //   // <button
-        //   //   type="button"
-        //   //   onClick={handleDownloadPdf}
-        //   //   disabled={isGeneratingPdf || isSaving}
-        //   //   style={{
-        //   //     backgroundColor: "#4A081E",
-        //   //     color: "#ffffff",
-        //   //   }}
-        //   //   className="flex items-center gap-2 px-4 h-[36px] hover:!bg-[#380617] rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 disabled:opacity-50 cursor-pointer"
-        //   // >
-        //   //   <Download size={14} />
-        //   //   <span>
-        //   //     {isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
-        //   //   </span>
-        //   // </button>
-        // ) : undefined}
+       
       />
 
       <CollapsibleSection icon={<Building2 size={13} />} title="Basic Information" hasError={hasSectionErrors(['project', 'projectSubEntity', 'originatorDept'])}>
@@ -704,7 +698,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             <DropdownField label="Entity" value={form.project} options={projectOptions} required onChange={handleProjectChange} emptyLabel="Select Entity..." error={getFieldError('project')} />
           </div>
           <div className="flex-1 min-w-[220px]">
-            <MultiSelectDropdown label="Sub-Entity" options={subEntityOptions} selectedValues={form.projectSubEntity} onChange={v => updateField('projectSubEntity', v)} disabled={loadingSubEntity || !form.project} required error={getFieldError('projectSubEntity')} />
+            <MultiSelectDropdown label="Sub-Entity" options={subEntityOptions} selectedValues={form.projectSubEntity} onChange={v => updateField('projectSubEntity', v)} disabled={loadingSubEntity || !form.project}  error={getFieldError('projectSubEntity')} />
           </div>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
@@ -914,7 +908,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection icon={<Paperclip size={13} />} title="Attachments" >
+      <CollapsibleSection icon={<Paperclip size={13} />} title="Attachments"  hasError={hasSectionErrors(['attachments'])} >
         {/* Attachment Guidelines Banner */}
         <div
           style={{
@@ -969,6 +963,11 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
             e.stopPropagation();
           }}
         >
+          {getFieldError('attachments') && (
+            <div className="text-xs text-rose-600 font-semibold mb-3 flex items-center gap-1.5 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
+              <span>⚠️ {getFieldError('attachments')}</span>
+            </div>
+          )}
           <div className="flex justify-end mb-4"><CommonButton text="+ Add Attachment" variant="primary" onClick={() => setIsPopupOpen(true)} /></div>
           {(savedDocuments.length > 0 || pendingAttachments.length > 0) ? (
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
@@ -1034,7 +1033,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         <CollapsibleSection icon={<History size={13} />} title="Workflow History" defaultOpen={false}>
           <div className="space-y-4 max-w-2xl px-2 py-1">
             {history.map((item, idx) => {
-              const isApproved = item.action === 'Approved';
+              const isApproved = item.action === 'Approved' || item.action === 'Completed';
               const isRejected = item.action === 'Rejected';
               const isQuery = item.action === 'Query';
 
@@ -1090,6 +1089,9 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
         onClose={() => setIsPopupOpen(false)}
         onSave={(entries) => {
           setPendingAttachments(prev => [...prev, ...entries]);
+          if (entries && entries.length > 0) {
+            clearFieldError('attachments');
+          }
           setIsPopupOpen(false);
         }}
         existingFileNames={[
@@ -1338,6 +1340,7 @@ const NewNFA: React.FC<INewNFAProps> = ({ context, sp }) => {
           navigate('/');
         }} />
       </div>
+    
     </div>
   );
 };

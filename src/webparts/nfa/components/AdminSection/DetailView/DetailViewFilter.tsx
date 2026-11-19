@@ -106,11 +106,11 @@ const DetailViewFilter: React.FC<DetailViewFilterProps> = ({
           </div>
           <div className="flex-1 min-w-[160px] max-w-[220px]">
             <DropdownField
-              label="Project"
+              label="Entity"
               value={projectVal}
               onChange={setProjectVal}
               options={projectOptions || []}
-              emptyLabel="All Projects"
+              emptyLabel="All Entities"
             />
           </div>
           <div className="flex items-center gap-2 pb-0.5">

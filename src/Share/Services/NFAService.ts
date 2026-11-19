@@ -73,6 +73,7 @@ export interface INFAFormData {
   PendingFrom : string;
   initiatorId?: number;
   commentHistory?: string;
+  workflowApprovalHistory?: string;
   workflowHistory?: string;
   workflowHistoryHTML?: string;
   status?: string;
@@ -121,7 +122,7 @@ export class NFAService {
     const errors: IValidationError[] = [];
     if (!form.project.trim()) errors.push({ field: "project", message: "Entity  is required." });
     if (status === "Draft") return { isValid: errors.length === 0, errors };
-    if (!form.projectSubEntity || form.projectSubEntity.length === 0) errors.push({ field: "projectSubEntity", message: "Sub-Entity is required." });
+    // if (!form.projectSubEntity || form.projectSubEntity.length === 0) errors.push({ field: "projectSubEntity", message: "Sub-Entity is required." });
 
     if (!form.originatorDept.trim()) errors.push({ field: "originatorDept", message: "Function is required." });
     if (!stripHtml(form.referenceSubject)) errors.push({ field: "referenceSubject", message: "Subject is required." });
@@ -488,6 +489,7 @@ export class NFAService {
           DOA: form.doaMatrix || "",
           WorkflowType: form.workflow || "",
           CurrentApproverId: pendingAtId,
+          CurrentApproverID: pendingAtId ? String(pendingAtId) : "",
           CurrentApprovalName: pendingAtName,
           CurrentApprovalID: pendingAtId ? String(pendingAtId) : "",
           PendingFrom: formattedDateTime,
@@ -504,10 +506,21 @@ export class NFAService {
           .filter(`WFID eq '${itemId}'`)
           .select("Id")();
 
-        if (existingItems.length > 0) {
-          await this.sp.web.lists.getByTitle("DashboardList").items.getById(existingItems[0].Id).update(dashboardBody);
-        } else {
-          await this.sp.web.lists.getByTitle("DashboardList").items.add(dashboardBody);
+        try {
+          if (existingItems.length > 0) {
+            await this.sp.web.lists.getByTitle("DashboardList").items.getById(existingItems[0].Id).update(dashboardBody);
+          } else {
+            await this.sp.web.lists.getByTitle("DashboardList").items.add(dashboardBody);
+          }
+        } catch (dashUpdateErr) {
+          // Fallback without CurrentApproverID if column is not present in SharePoint list
+          const fallbackBody = { ...dashboardBody };
+          delete fallbackBody.CurrentApproverID;
+          if (existingItems.length > 0) {
+            await this.sp.web.lists.getByTitle("DashboardList").items.getById(existingItems[0].Id).update(fallbackBody);
+          } else {
+            await this.sp.web.lists.getByTitle("DashboardList").items.add(fallbackBody);
+          }
         }
 
         try {
@@ -745,7 +758,6 @@ export class NFAService {
           .expand("Author")();
       }
 
-      
       console.log("Raw SharePoint Item:", item);
       return {
         project: item.Project || "",
@@ -811,10 +823,11 @@ export class NFAService {
         pendingAtId: (() => { const lvl = parseInt(item.WFLevel || item.Level || "1", 10); return (lvl >= 1 && lvl <= 12) ? (item[levels[lvl - 1]]?.Id || item[`ApprovalLevel${lvl}Id`] || null) : null; })(),
         initiatorId: item.Author ? item.Author.Id : undefined,
         commentHistory: item.CommentHistory || "",
+        workflowApprovalHistory: item.WorkflowApprovalHistory || item.WorkflowHistory || "",
         workflowHistory: item.WorkflowHistory || item.WorkflowApprovalHistory || "",
         workflowHistoryHTML: item.WorkflowHistoryHTML || "",
         status: item.Status || "",
-        PendingFrom:item.PendingFrom || ""
+        PendingFrom: item.PendingFrom || ""
       };
     } catch (error) {
       console.error("NFAService: Exception in getNFA:", error);
@@ -826,27 +839,47 @@ export class NFAService {
 
   public async getNFAList(): Promise<any[]> {
     try {
+      const currentUser = await this.sp.web.currentUser();
+      const currentUserId = currentUser.Id;
+
       const items = await this.sp.web.lists.getByTitle(this.listName).items
-        .select("*","Id", "Title", "Dept","ContractorName","ApprovalAmount","PendingFrom", "Approvedrejectedby","Approvedrejectdatetime","Project", "RequestedOn", "Status", "WFLevel", "ApprovalLevel1/Title")
-        .expand("ApprovalLevel1")
+        .select("*", "Id", "Title", "AuthorId", "Author/Id", "Author/Title", "Dept", "ContractorName", "ApprovalAmount", "PendingFrom", "Approvedrejectedby", "Approvedrejectdatetime", "Project", "RequestedOn", "Status", "WFLevel", "ApprovalLevel1/Title")
+        .expand("Author", "ApprovalLevel1")
         .top(5000)();
 
-      return items.map((item: any) => ({
-        id: item.Id,
-        requestNo: item.Title,
-        function: item.Dept,
-        contractorName: item.ContractorName || "",
-        project: item.Project,
-        createdOn: item.RequestedOn || item.Created || "",
-        status: item.Status,
-        Approvedrejectedby: item.Approvedrejectedby,
-        Approvedrejectdatetime : item.Approvedrejectdatetime,
-        pendingAt: item.PendingAt || (item.ApprovalLevel1 ? item.ApprovalLevel1.Title : ""),
-        level: parseInt(item.WFLevel || item.Level || "0", 10),
-        PendingFrom:item.PendingFrom ,
-        doaMatrix: item.DOAClause || "",
-        packageAwardedCost: item.ApprovalAmount || "0.00",
-      }));
+      // Filter records that belong to NFA using the UniqID column and match current user's ID
+      const nfaItems = items.filter((item: any) => {
+        const uniqId = String(item.UniqID || item.UniqId || item.UniqNo || "").trim().toUpperCase();
+        if (!uniqId) return false;
+        const isNFA = uniqId.startsWith("NFA") || uniqId.includes("NFA") || String(item.Title || "").toUpperCase().startsWith("NFA");
+        if (!isNFA) return false;
+
+        const authorId = item.AuthorId || (item.Author && item.Author.Id);
+        return authorId === currentUserId;
+      });
+
+      return nfaItems.map((item: any) => {
+        const statusLower = (item.Status || "").toLowerCase();
+        const isActivelyPending = (statusLower === "pending" || statusLower === "query") && !item.Approvedrejectedby;
+
+        return {
+          id: item.Id,
+          uniqId: item.UniqID || item.UniqId || item.UniqNo || "",
+          requestNo: item.Title,
+          function: item.Dept,
+          contractorName: item.ContractorName || "",
+          project: item.Project,
+          createdOn: item.RequestedOn || item.Created || "",
+          status: item.Status,
+          Approvedrejectedby: item.Approvedrejectedby,
+          Approvedrejectdatetime: item.Approvedrejectdatetime,
+          pendingAt: isActivelyPending ? (item.PendingAt || (item.ApprovalLevel1 ? item.ApprovalLevel1.Title : "")) : "",
+          level: parseInt(item.WFLevel || item.Level || "0", 10),
+          PendingFrom: isActivelyPending ? (item.PendingFrom || "") : "",
+          doaMatrix: item.DOAClause || "",
+          packageAwardedCost: item.ApprovalAmount || "0.00",
+        };
+      });
     } catch (error) {
       console.error("Error fetching NFA list:", error);
       return [];
@@ -933,6 +966,27 @@ export class NFAService {
           const wfid = parseInt(q.WFID || q.Id, 10);
           if (!wfid || isNaN(wfid)) continue;
 
+          // Verify if the NFA in DigitalApprovalNotes is still in Query status
+          try {
+            const nfaItem = await this.sp.web.lists.getByTitle(this.listName).items.getById(wfid)
+              .select("Id", "Status")();
+            if (!nfaItem || (nfaItem.Status || "").toLowerCase() !== "query") {
+              // NFA is already approved, completed, or no longer under query.
+              // Remove / do not show this query in the user's Inbox!
+              const cleanStatus = (nfaItem?.Status === "Approved" || nfaItem?.Status === "Completed") ? "Resolved" : "Responded";
+              void (async () => {
+                for (const lName of ["QueryMgt", "QueryMgtList"]) {
+                  try {
+                    await this.sp.web.lists.getByTitle(lName).items.getById(q.Id).update({ Status: cleanStatus });
+                  } catch { }
+                }
+              })();
+              continue;
+            }
+          } catch {
+            continue;
+          }
+
           const createdDate = q.Created ? new Date(q.Created) : new Date();
           const today = new Date();
           const diffTime = Math.abs(today.getTime() - createdDate.getTime());
@@ -954,8 +1008,8 @@ export class NFAService {
             initiator: queryByName,
             agingDays: diffDays
           });
-        
-      } }catch (qErr) {
+        }
+      } catch (qErr) {
         console.warn("NFAService: Error fetching queries from QueryMgt:", qErr);
       }
 
@@ -968,6 +1022,17 @@ export class NFAService {
         for (const d of queryDashItems) {
           const wfid = parseInt(d.WFID || d.Id, 10);
           if (!wfid || isNaN(wfid)) continue;
+
+          // Verify if NFA in DigitalApprovalNotes is still in Query status
+          try {
+            const nfaItem = await this.sp.web.lists.getByTitle(this.listName).items.getById(wfid)
+              .select("Id", "Status")();
+            if (!nfaItem || (nfaItem.Status || "").toLowerCase() !== "query") {
+              continue;
+            }
+          } catch {
+            continue;
+          }
 
           if (!resultMap.has(wfid)) {
             const createdDate = d.Created ? new Date(d.Created) : new Date();

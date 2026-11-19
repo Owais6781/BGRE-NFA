@@ -78,18 +78,18 @@ const ApprovedForFinanceView: React.FC<IApprovedForFinanceProps> = ({ context, s
           console.warn("ApprovalDetailsView: Failed to load functions from FunctionMaster:", fErr);
         }
 
-        // 3. Query WFLogList for note IDs where user acted or was assigned as approver
-        const userWfLogIds = new Set<string>();
+        // 3. Query WFLogList for note IDs where the current user personally approved
+        const userApprovedWfIds = new Set<string>();
         try {
           const logItems = await sp.web.lists.getByTitle("WFLogList").items
-            .filter(`AuthorId eq ${currentUserId} or PPLPendingAtId eq ${currentUserId}`)
-            .select("WFID")
+            .filter(`(AuthorId eq ${currentUserId} or PPLPendingAtId eq ${currentUserId}) and (Status eq 'Approved' or Status eq 'Completed')`)
+            .select("WFID", "Status", "AuthorId", "PPLPendingAtId")
             .top(5000)();
           logItems.forEach((l: any) => {
-            if (l.WFID) userWfLogIds.add(String(l.WFID));
+            if (l.WFID) userApprovedWfIds.add(String(l.WFID).trim());
           });
         } catch (logErr) {
-          console.warn("ApprovalDetailsView: Failed to query WFLogList:", logErr);
+          console.warn("ApprovedForFinanceView: Failed to query WFLogList:", logErr);
         }
 
         // 4. Fetch dashboard items
@@ -105,56 +105,54 @@ const ApprovedForFinanceView: React.FC<IApprovedForFinanceProps> = ({ context, s
             }
           });
         } catch (dashErr) {
-          console.warn("ApprovalDetailsView: Error fetching DashboardList:", dashErr);
+          console.warn("ApprovedForFinanceView: Error fetching DashboardList:", dashErr);
         }
 
-        // 5. Fetch approval notes from DigitalApprovalNotes including all 12 approver levels
+        // 5. Fetch approval notes from DigitalApprovalNotes
         let nfaItems: any[] = [];
         try {
-          const levels = Array.from({ length: 12 }, (_, i) => `ApprovalLevel${i + 1}Id`);
           nfaItems = await sp.web.lists.getByTitle("DigitalApprovalNotes").items
             .select(
-              "Id", "Title", "SubjectMatter", "Dept", "FunctionName", "Project",
-              "RequestedOn", "Status", "ApprovalAmount", "Author/Title", "Author/Id",
+              "Id", "Title", "UniqID", "SubjectMatter", "Dept", "FunctionName", "Project",
+              "RequestedOn", "Status", "ApprovalAmount", "Author/Title", "Author/Id", "AuthorId",
               "PendingAt", "Modified", "Created", "PendingFrom", "WFLevel",
-              ...levels
+              "Approvedrejectedby", "WorkflowHistory", "WorkflowApprovalHistory"
             )
             .expand("Author")
             .top(5000)();
         } catch (nfaErr) {
-          console.error("ApprovalDetailsView: Error fetching DigitalApprovalNotes:", nfaErr);
+          console.error("ApprovedForFinanceView: Error fetching DigitalApprovalNotes:", nfaErr);
         }
 
-        // 6. Filter notes assigned to the currently logged-in user
+        // 6. Filter only approved NFA records that the currently logged-in user has personally approved
         const userNfaItems = nfaItems.filter((item: any) => {
-          // Check if user is configured in any ApprovalLevel1..12
-          for (let i = 1; i <= 12; i++) {
-            const lvlVal = item[`ApprovalLevel${i}Id`];
-            if (lvlVal && (lvlVal === currentUserId || String(lvlVal) === String(currentUserId))) {
-              return true;
-            }
+          // Must have Approved or Completed status
+          const statusLower = (item.Status || "").trim().toLowerCase();
+          if (statusLower !== 'approved' && statusLower !== 'completed') {
+            return false;
           }
 
-          // Check if PendingAt text matches current user's name
-          const pendingAt = (typeof item.PendingAt === 'string' ? item.PendingAt : (item.PendingAt?.Title || "")).trim().toLowerCase();
-          if (pendingAt && (pendingAt === currentUserName || pendingAt.includes(currentUserName))) {
+          // Must belong to NFA (UniqID check)
+          const uniqId = String(item.UniqID || item.UniqId || item.UniqNo || "").trim().toUpperCase();
+          const isNFA = uniqId.startsWith("NFA") || uniqId.includes("NFA") || String(item.Title || "").toUpperCase().startsWith("NFA");
+          if (!isNFA) return false;
+
+          const itemIdStr = String(item.Id);
+
+          // 1. Check if logged in WFLogList as Approved/Completed by current user
+          if (userApprovedWfIds.has(itemIdStr)) {
             return true;
           }
 
-          // Check DashboardList for active assignment
-          const dash = dashMap[item.Id.toString()];
-          if (dash) {
-            if (dash.CurrentApproverId === currentUserId || String(dash.CurrentApprovalID) === String(currentUserId)) {
-              return true;
-            }
-            const dashApprover = (dash.CurrentApprovalName || "").trim().toLowerCase();
-            if (dashApprover && (dashApprover === currentUserName || dashApprover.includes(currentUserName))) {
-              return true;
-            }
+          // 2. Check WorkflowApprovalHistory / WorkflowHistory for approval by current user
+          const historyText = String(item.WorkflowApprovalHistory || item.WorkflowHistory || "").toLowerCase();
+          if (currentUserName && (historyText.includes("approved by " + currentUserName) || historyText.includes("completed by " + currentUserName))) {
+            return true;
           }
 
-          // Check if recorded in WFLogList for this user
-          if (userWfLogIds.has(String(item.Id))) {
+          // 3. Check Approvedrejectedby column
+          const approvedByText = String(item.Approvedrejectedby || "").toLowerCase();
+          if (currentUserName && approvedByText.includes(currentUserName)) {
             return true;
           }
 

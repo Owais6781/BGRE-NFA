@@ -115,10 +115,10 @@ export const formatPdfNarrativeContent = (content: string | undefined): string =
             ${rows.slice(1).map((r) => `
               <tr>
                 ${r.map((c) => {
-                  const isNum = /^[-+]?₹?\s*[\d,]+(\.\d+)?%?$/.test(c) && !/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(c);
-                  const classes = [isNum ? 'excelCellNumeric' : ''].filter(Boolean).join(' ');
-                  return `<td class="${classes}">${c}</td>`;
-                }).join('')}
+        const isNum = /^[-+]?₹?\s*[\d,]+(\.\d+)?%?$/.test(c) && !/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(c);
+        const classes = [isNum ? 'excelCellNumeric' : ''].filter(Boolean).join(' ');
+        return `<td class="${classes}">${c}</td>`;
+      }).join('')}
               </tr>
             `).join('')}
           </tbody>
@@ -212,7 +212,7 @@ export const buildNfaPdfHtml = (data: IPdfGeneratorData): string => {
     '';
   const tenantName = form.contractorName || '';
   const provisionedForBadDebts = form.budgetedNonBudgeted || '';
-  
+
 
   // ── Construct Grid Items (Exclude empty pairs) ──
   const rawFields: { key: string; value: string }[] = [];
@@ -239,16 +239,16 @@ export const buildNfaPdfHtml = (data: IPdfGeneratorData): string => {
   if (form.RFQRefNo) addField('RFQ REF NO', form.RFQRefNo);
   if (form.budget && parseFloat(form.budget) > 0) addField('BUDGET', `₹ ${form.budget}`);
   if (form.doaMatrix) addField('DOA MATRIX', form.doaMatrix);
-   if (form.completeIndentPRReceivedFromDate) {
-  const date = new Date(form.completeIndentPRReceivedFromDate);
-  const formattedDate = date.toLocaleDateString('en-GB');
-  addField('COMPLETE INDENT/PR RECEIVED FROM & DATE.', formattedDate);
-}
-if (form.boqSpecificationsRevisionsByDate) {
-  const date = new Date(form.boqSpecificationsRevisionsByDate);
-  const formattedDate = date.toLocaleDateString('en-GB');
-  addField('BOQ/SPECIFICATIONS REVISIONS BY & DATE', formattedDate);
-}
+  if (form.completeIndentPRReceivedFromDate) {
+    const date = new Date(form.completeIndentPRReceivedFromDate);
+    const formattedDate = date.toLocaleDateString('en-GB');
+    addField('COMPLETE INDENT/PR RECEIVED FROM & DATE.', formattedDate);
+  }
+  if (form.boqSpecificationsRevisionsByDate) {
+    const date = new Date(form.boqSpecificationsRevisionsByDate);
+    const formattedDate = date.toLocaleDateString('en-GB');
+    addField('BOQ/SPECIFICATIONS REVISIONS BY & DATE', formattedDate);
+  }
 
   // Group fields into pairs of 2 for table rows
   const gridRows: { key1: string; val1: string; key2: string; val2: string }[] = [];
@@ -299,8 +299,8 @@ if (form.boqSpecificationsRevisionsByDate) {
   addNarrative('Remarks', effectiveRemark);
   addNarrative('CHRONOLOGY', form.chronology);
   addNarrative('COMMERCIAL PROPOSAL', form.commercialProposal);
- addNarrative('PAYMENT TERMS', form.paymentTerms);
-   // Contract Terms block
+  addNarrative('PAYMENT TERMS', form.paymentTerms);
+  // Contract Terms block
   const contractParts: string[] = [];
   if (form.liquidatedDamage && form.liquidatedDamage.trim() && !/^(na|n\/a)$/i.test(form.liquidatedDamage.trim())) {
     contractParts.push(`<strong>Liquidated Damage:</strong> ${form.liquidatedDamage}`);
@@ -321,7 +321,7 @@ if (form.boqSpecificationsRevisionsByDate) {
     });
   }
 
- 
+
   addNarrative('BUDGET REMARKS', form.budgetRemarks);
   addNarrative('RECOMMENDATION WITH JUSTIFICATION', form.recommendation);
   addNarrative('ANNEXURE / ENCLOSURE', form.annexure);
@@ -330,79 +330,251 @@ if (form.boqSpecificationsRevisionsByDate) {
   addNarrative('NOTE 3', form.note3);
   addNarrative('NOTE 4', form.note4);
 
- 
 
-  // ── Approver Rows ──
+
+  // ── Approver Rows parsed from WorkflowApprovalHistory ──
   const approverRows: IPdfApproverRow[] = [];
+  const rawWfHistory = (
+    form.workflowApprovalHistory ||
+    form.workflowHistory ||
+    (form as any).WorkflowApprovalHistory ||
+    (form as any).WorkflowHistory ||
+    ''
+  ).trim();
 
-  form.approvers.forEach((appId, idx) => {
-    if (!appId) return;
+  // 1. Try parsing HTML table if WorkflowApprovalHistory contains table markup
+  if (rawWfHistory.includes('<table') || rawWfHistory.includes('<TABLE') || rawWfHistory.includes('<tr') || rawWfHistory.includes('<TR')) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawWfHistory, 'text/html');
+      const trs = Array.from(doc.querySelectorAll('tr'));
+      trs.forEach((tr) => {
+        const cells = Array.from(tr.querySelectorAll('td, th')).map((td) => td.textContent?.trim() || '');
+        if (cells.length >= 5) {
+          const levelLabel = cells[0];
+          const designation = cells[1] || '';
+          const name = cells[2] || '';
+          const remarks = cells[3] || '';
 
-    const levelNum = idx + 1;
+          const rawStatus = cells[4] || 'Approved';
+          const status = rawStatus.toLowerCase() === 'completed' ? 'Approved' : rawStatus;
+          const date = cells[5] || '';
+          if (levelLabel && (name || status)) {
+            approverRows.push({
+              levelLabel,
+              designation,
+              name,
+              remarks,
+              status,
+              date
+            });
+          }
+        }
+      });
+    } catch (e) {
+      // ignore table parse error
+    }
+  }
 
-    // Show only approved levels + the immediate next pending level (hide all subsequent pending levels)
-    const shouldInclude = isOverallApproved || levelNum <= currentWfLevel;
-    if (!shouldInclude) return;
+  // 2. Parse text lines from WorkflowApprovalHistory
+  if (approverRows.length === 0 && rawWfHistory) {
+    const cleanHistoryText = rawWfHistory
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/br>/gi, '\n');
 
-    const levelLabel = getOrdinalLabel(levelNum);
-    const userObj = users.find((u) => u.value === String(appId));
-    let userName = userObj ? userObj.label : `Approver ${levelNum}`;
+    const lines = cleanHistoryText.split('\n');
+    const levelMap = new Map<number, IPdfApproverRow>();
 
-    // Determine status of this level
-    let status = 'Pending';
-    if (isOverallApproved) {
-      status = (levelNum === totalApprovers && statusUpper.includes('CLOSE')) ? 'Closed' : 'Approved';
-    } else if (isOverallRejected) {
-      if (levelNum < currentWfLevel) status = 'Approved';
-      else if (levelNum === currentWfLevel) status = 'Rejected';
-      else status = 'Pending';
-    } else {
-      if (levelNum < currentWfLevel) {
-        status = 'Approved';
+    for (const rawLine of lines) {
+      const cleanLine = rawLine
+        .replace(/<[^>]*>/g, '')
+        .replace(/&#58;/g, ':')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim();
+
+      if (!cleanLine) continue;
+
+      // Match 1: NFA Request [Action] by [User] at Level [N]. on [Date]
+      const actionMatch = cleanLine.match(
+        /^NFA Request\s+(.*?)\s+by\s+(.*?)\s+at Level\s+(\d+)\.?(?:\s+on\s+(.*))?$/i
+      );
+      if (actionMatch) {
+        const rawAction = actionMatch[1].trim();
+        const userName = actionMatch[2].trim();
+        const levelNum = parseInt(actionMatch[3].trim(), 10);
+        const date = (actionMatch[4] || '').trim();
+
+        const commentEntry = comments.find((c) => c.level && parseInt(String(c.level), 10) === levelNum);
+        const histEntry = history.find((h) => h.level && parseInt(String(h.level), 10) === levelNum);
+        const rawRemark = commentEntry?.remarks || histEntry?.remarks || '';
+        const remarks = (rawRemark && rawRemark.trim().toLowerCase() !== 'no remarks') ? rawRemark.trim() : '';
+
+        const userObj = users.find((u) => u.label?.trim().toLowerCase() === userName.toLowerCase());
+        const approverDetail = form.approverDetails ? form.approverDetails[levelNum - 1] : null;
+        const designation = (
+          approverDetail?.designation ||
+          userObj?.designation ||
+          (userObj as any)?.jobTitle ||
+          (userObj as any)?.department ||
+          ''
+        ).trim();
+
+        // Display "Approved" in the PDF table even if stored as "Completed" in SharePoint
+        const displayStatus = rawAction.toLowerCase() === 'completed' ? 'Approved' : rawAction;
+        levelMap.set(levelNum, {
+          levelLabel: getOrdinalLabel(levelNum),
+          designation,
+          name: userName,
+          remarks,
+          status: displayStatus,
+          date
+        });
+        continue;
+      }
+
+
+
+      // Match 2: NFA Pending at [User] at level-[N] on [Date] OR Pending at [User] at level-[N] on [Date]
+      const pendingMatch = cleanLine.match(
+        /^(?:NFA\s+)?Pending at\s+(.*?)\s+at level-(\d+)(?:\s+on\s+(.*))?$/i
+      );
+      if (pendingMatch) {
+        const userName = pendingMatch[1].trim();
+        const levelNum = parseInt(pendingMatch[2].trim(), 10);
+        const date = (pendingMatch[3] || '').trim();
+
+        const existing = levelMap.get(levelNum);
+        if (!existing || existing.status === 'Pending') {
+          const userObj = users.find((u) => u.label?.trim().toLowerCase() === userName.toLowerCase());
+          const approverDetail = form.approverDetails ? form.approverDetails[levelNum - 1] : null;
+          const designation = (
+            approverDetail?.designation ||
+            userObj?.designation ||
+            (userObj as any)?.jobTitle ||
+            (userObj as any)?.department ||
+            ''
+          ).trim();
+
+          levelMap.set(levelNum, {
+            levelLabel: getOrdinalLabel(levelNum),
+            designation,
+            name: userName,
+            remarks: '',
+            status: 'Pending',
+            date
+          });
+        }
+        continue;
+      }
+
+      // Match 3: Query responded by [User] at Level [N]. on [Date]
+      const queryRespMatch = cleanLine.match(
+        /^Query responded by\s+(.*?)\s+at Level\s+(\d+)\.?(?:\s+on\s+(.*))?$/i
+      );
+      if (queryRespMatch) {
+        const userName = queryRespMatch[1].trim();
+        const levelNum = parseInt(queryRespMatch[2].trim(), 10);
+        const date = (queryRespMatch[3] || '').trim();
+
+        const existing = levelMap.get(levelNum);
+        if (!existing || existing.status === 'Pending') {
+          const userObj = users.find((u) => u.label?.trim().toLowerCase() === userName.toLowerCase());
+          const approverDetail = form.approverDetails ? form.approverDetails[levelNum - 1] : null;
+          const designation = (
+            approverDetail?.designation ||
+            userObj?.designation ||
+            (userObj as any)?.jobTitle ||
+            (userObj as any)?.department ||
+            ''
+          ).trim();
+
+          levelMap.set(levelNum, {
+            levelLabel: getOrdinalLabel(levelNum),
+            designation,
+            name: userName,
+            remarks: '',
+            status: 'Query Responded',
+            date
+          });
+        }
+        continue;
+      }
+    }
+
+    const sortedLevels = Array.from(levelMap.keys()).sort((a, b) => a - b);
+    for (const lvl of sortedLevels) {
+      const row = levelMap.get(lvl);
+      if (row) approverRows.push(row);
+    }
+  }
+
+  // 3. Fallback to form.approvers if WorkflowApprovalHistory yielded no rows and not in draft
+  if (approverRows.length === 0 && !isDraftStatus && form.approvers && form.approvers.length > 0) {
+    form.approvers.forEach((appId, idx) => {
+      if (!appId) return;
+
+      const levelNum = idx + 1;
+      const shouldInclude = isOverallApproved || levelNum <= currentWfLevel;
+      if (!shouldInclude) return;
+
+      const levelLabel = getOrdinalLabel(levelNum);
+      const userObj = users.find((u) => u.value === String(appId));
+      let userName = userObj ? userObj.label : `Approver ${levelNum}`;
+
+      let status = 'Pending';
+      if (isOverallApproved) {
+        status = (levelNum === totalApprovers && statusUpper.includes('CLOSE')) ? 'Closed' : 'Approved';
+      } else if (isOverallRejected) {
+        if (levelNum < currentWfLevel) status = 'Approved';
+        else if (levelNum === currentWfLevel) status = 'Rejected';
+        else status = 'Pending';
       } else {
-        status = 'Pending';
+        if (levelNum < currentWfLevel) {
+          status = 'Approved';
+        } else {
+          status = 'Pending';
+        }
       }
-    }
 
-    // Only populate remarks and date for levels that have been approved/rejected
-    // Each level must show strictly its own approver's submitted remark
-    let remarks = '';
-    let date = '';
-    if (status === 'Approved' || status === 'Closed' || status === 'Rejected') {
-      const commentEntry = comments.find((c) => c.level && parseInt(String(c.level), 10) === levelNum);
-      const histEntry = history.find((h) => h.level && parseInt(String(h.level), 10) === levelNum);
-      
-      const rawRemark = commentEntry?.remarks || histEntry?.remarks || '';
-      remarks = (rawRemark && rawRemark.trim().toLowerCase() !== 'no remarks') ? rawRemark.trim() : '';
-      date = histEntry?.date || commentEntry?.date || '';
+      let remarks = '';
+      let date = '';
+      if (status === 'Approved' || status === 'Closed' || status === 'Rejected' || status === 'Completed') {
+        const commentEntry = comments.find((c) => c.level && parseInt(String(c.level), 10) === levelNum);
+        const histEntry = history.find((h) => h.level && parseInt(String(h.level), 10) === levelNum);
 
-      // If comment or history has the actual person who acted on this level, use their name
-      if (commentEntry?.user && commentEntry.user !== 'System') {
-        userName = commentEntry.user;
-      } else if (histEntry?.user && histEntry.user !== 'System') {
-        userName = histEntry.user;
+        const rawRemark = commentEntry?.remarks || histEntry?.remarks || '';
+        remarks = (rawRemark && rawRemark.trim().toLowerCase() !== 'no remarks') ? rawRemark.trim() : '';
+        date = histEntry?.date || commentEntry?.date || '';
+
+        if (commentEntry?.user && commentEntry.user !== 'System') {
+          userName = commentEntry.user;
+        } else if (histEntry?.user && histEntry.user !== 'System') {
+          userName = histEntry.user;
+        }
       }
-    }
 
-    // Actual user designation mentioned in the Approver ID field
-    const approverDetail = form.approverDetails ? form.approverDetails[idx] : null;
-    const rawDesignation =
-      approverDetail?.designation ||
-      userObj?.designation ||
-      (userObj as any)?.jobTitle ||
-      (userObj as any)?.department;
+      const approverDetail = form.approverDetails ? form.approverDetails[idx] : null;
+      const rawDesignation =
+        approverDetail?.designation ||
+        userObj?.designation ||
+        (userObj as any)?.jobTitle ||
+        (userObj as any)?.department;
 
-    let designation = rawDesignation && rawDesignation.trim() ? rawDesignation.trim() : '';
-   
-    approverRows.push({
-      levelLabel,
-      designation,
-      name: userName,
-      remarks,
-      status,
-      date
+      let designation = rawDesignation && rawDesignation.trim() ? rawDesignation.trim() : '';
+
+      approverRows.push({
+        levelLabel,
+        designation,
+        name: userName,
+        remarks,
+        status,
+        date
+      });
     });
-  });
+  }
 
   const generatedDateStr = formatDateTime(new Date());
 
@@ -573,12 +745,20 @@ if (form.boqSpecificationsRevisionsByDate) {
       ${(approverRows.length > 0 || isDraftStatus)
       ? `
         <div class="pdf-section" style="margin-top: 18px; margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid;">
-          <div style="background-color: #f8fafc; text-align: center; color: #4A081E; font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 6px 12px; letter-spacing: 0.5px; border: 1px solid #cbd5e1; border-bottom: none;">
+          <div style="background-color: #f8fafc; text-align: center; color: #4A081E; font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 6px 12px; letter-spacing: 0.5px; border: 1px solid #cbd5e1; border-bottom: none; ">
             APPROVALS
           </div>
           
-          <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #cbd5e1;">
-            <thead>
+          <table style="
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 11px;
+  border: 1px solid #cbd5e1;
+  margin: 0;
+  padding: 0;
+">  
+          <thead>
               <tr style="background-color: #4A081E; color: #ffffff;">
                 <th style="padding: 8px 10px; font-weight: 800; text-align: left; text-transform: uppercase; border: 1px solid #4A081E; width: 14%;">LEVEL</th>
                 <th style="padding: 8px 10px; font-weight: 800; text-align: left; text-transform: uppercase; border: 1px solid #4A081E; width: 18%;">DESIGNATION</th>
@@ -598,26 +778,26 @@ if (form.boqSpecificationsRevisionsByDate) {
                   </tr>
                 `
         : approverRows
-        .map((app, i) => {
-          let badgeBg = '#f1f5f9';
-          let badgeText = '#475569';
-          if (app.status === 'Approved') {
-            badgeBg = '#dcfce7';
-            badgeText = '#15803d';
-          } else if (app.status === 'Closed') {
-            badgeBg = '#e0f2fe';
-            badgeText = '#0369a1';
-          } else if (app.status === 'Rejected') {
-            badgeBg = '#fee2e2';
-            badgeText = '#b91c1c';
-          } else if (app.status === 'Pending') {
-            badgeBg = '#fef3c7';
-            badgeText = '#b45309';
-          }
+          .map((app, i) => {
+            let badgeBg = '#f1f5f9';
+            let badgeText = '#475569';
+            if (app.status === 'Approved' || app.status === 'Completed') {
+              badgeBg = '#dcfce7';
+              badgeText = '#15803d';
+            } else if (app.status === 'Closed') {
+              badgeBg = '#e0f2fe';
+              badgeText = '#0369a1';
+            } else if (app.status === 'Rejected') {
+              badgeBg = '#fee2e2';
+              badgeText = '#b91c1c';
+            } else if (app.status === 'Pending') {
+              badgeBg = '#fef3c7';
+              badgeText = '#b45309';
+            }
 
-          const rowBg = i % 2 === 1 ? '#f8fafc' : '#ffffff';
+            const rowBg = i % 2 === 1 ? '#f8fafc' : '#ffffff';
 
-          return `
+            return `
                   <tr style="background-color: ${rowBg};">
                     <td style="padding: 7px 10px; border: 1px solid #cbd5e1; font-weight: 700; color: #334155;">${app.levelLabel}</td>
                     <td style="padding: 7px 10px; border: 1px solid #cbd5e1; color: #475569;">${app.designation}</td>
@@ -629,8 +809,8 @@ if (form.boqSpecificationsRevisionsByDate) {
                     <td style="padding: 7px 10px; border: 1px solid #cbd5e1; color: #475569; font-size: 10px;">${app.date || ''}</td>
                   </tr>
                 `;
-        })
-        .join('')}
+          })
+          .join('')}
             </tbody>
           </table>
         </div>
@@ -652,31 +832,7 @@ if (form.boqSpecificationsRevisionsByDate) {
 let html2pdfModule: any = null;
 let html2pdfPromise: Promise<any> | null = null;
 
-// const getHtml2Pdf = async (): Promise<any> => {
-//   const win = window as any;
-//   if (win.html2pdf) return win.html2pdf;
-//   if (html2pdfModule) return html2pdfModule;
 
-//   try {
-//     const mod: any = await import('./html2pdf.bundle.min.js');
-//     html2pdfModule = mod && mod.default ? mod.default : mod;
-//     if (!html2pdfModule) {
-//   html2pdfModule = await import('html2pdf.js');
-// }
-//     if (html2pdfModule) return html2pdfModule;
-//   } catch (e) {
-//     console.warn('import html2pdf bundle failed, trying require:', e);
-//     try {
-//       html2pdfModule = reqMod && reqMod.default ? reqMod.default : reqMod;
-//       if (html2pdfModule) return html2pdfModule;
-//     } catch (e2) {
-//       console.warn('require html2pdf bundle failed:', e2);
-//     }
-//   }
-
-//   if (win.html2pdf) return win.html2pdf;
-//   return null;
-// };
 
 const getHtml2Pdf = async (): Promise<any> => {
   const win = window as any;
@@ -700,7 +856,7 @@ const getHtml2Pdf = async (): Promise<any> => {
         console.warn('import html2pdf bundle failed:', e);
 
         try {
-         const fallback: any = await import('html2pdf.js');
+          const fallback: any = await import('html2pdf.js');
           return fallback?.default || fallback;
         } catch (e2) {
           console.warn('require html2pdf bundle failed:', e2);

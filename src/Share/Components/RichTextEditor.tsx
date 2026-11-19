@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Editor, EditorTextChangeEvent } from 'primereact/editor';
+import 'quill/dist/quill.snow.css';
 
 import "../styles/global.scss";
 
@@ -81,11 +82,72 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
   const [exceededColumns, setExceededColumns] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<any>(null);
+  const quillRef = useRef<any>(null);
   const lastValidValueRef = useRef<string>(value || '');
 
   useEffect(() => {
     lastValidValueRef.current = value || '';
   }, [value]);
+
+  const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>): void => {
+    if (readOnly || showValidationModal) return;
+
+    // Ignore clicks on the toolbar or inside dropdown/pickers
+    if ((e.target as HTMLElement).closest('.p-editor-toolbar') || (e.target as HTMLElement).closest('.ql-toolbar')) {
+      return;
+    }
+
+    const quill = quillRef.current || editorRef.current?.getQuill();
+    const container = containerRef.current;
+    if (!quill || !container) return;
+
+    const editorEl = container.querySelector('.ql-editor') as HTMLElement | null;
+    if (!editorEl) return;
+
+    // Check if the click happened below the last child element
+    const lastChild = editorEl.lastElementChild;
+    const isBelowContent = lastChild ? (e.clientY > lastChild.getBoundingClientRect().bottom + 4) : false;
+    const isDirectContainerClick = (e.target === container || (e.target as HTMLElement).classList.contains('p-editor-content'));
+
+    if (isBelowContent || isDirectContainerClick) {
+      quill.focus();
+
+      // Check if the last element is a table or contains a table
+      if (lastChild && (lastChild.tagName === 'TABLE' || lastChild.querySelector('table'))) {
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        editorEl.appendChild(p);
+        if (quill.update) quill.update();
+        const range = document.createRange();
+        range.setStart(p, 0);
+        range.collapse(true);
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        onChange(editorEl.innerHTML);
+        return;
+      }
+
+      const length = quill.getLength();
+      const editorText = quill.getText();
+      const endsWithEmptyLine = editorText.endsWith('\n\n') || editorEl.innerHTML.endsWith('<p><br></p>');
+
+      if (isBelowContent && !endsWithEmptyLine) {
+        try {
+          const insertPos = Math.max(0, length - 1);
+          quill.insertText(insertPos, '\n', 'user');
+          quill.setSelection(insertPos + 1, 0, 'user');
+        } catch {
+          quill.setSelection(length, 0, 'user');
+        }
+      } else {
+        quill.setSelection(Math.max(0, length - 1), 0, 'user');
+      }
+    }
+  }, [readOnly, showValidationModal, onChange]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -147,13 +209,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         )}
       </label>
 
-      <Editor
-        value={value || ''}
-        placeholder={placeholder}
-        onTextChange={handleTextChange}
-        style={{ height }}
-        readOnly={readOnly}
-      />
+      <div
+        className="w-full cursor-text"
+        onClick={handleEditorClick}
+      >
+        <Editor
+          ref={editorRef}
+          onLoad={(quill) => {
+            quillRef.current = quill;
+          }}
+          value={value || ''}
+          placeholder={placeholder}
+          onTextChange={handleTextChange}
+          style={{ height }}
+          readOnly={readOnly}
+        />
+      </div>
       {error && (
         <span className="text-red-500 text-[11px] font-medium mt-1 block">
           {error}

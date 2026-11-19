@@ -23,7 +23,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const exportColumns = [
   { key: 'requestNo',            label: 'Request No.'                },
   { key: 'function',             label: 'Function'                   },
-  { key: 'project',              label: 'Project'                    },
+  { key: 'project',              label: 'Entity'                    },
   { key: 'createdBy',            label: 'Created By'                 },
   { key: 'createdOn',            label: 'Created On'                 },
   { key: 'status',               label: 'Status'                     },
@@ -298,7 +298,7 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
       ) 
     },
     { key: 'function',  label: 'Function'   },
-    { key: 'project',   label: 'Project'    },
+    { key: 'project',   label: 'Entity'    },
     { key: 'createdBy', label: 'Created By' },
     { key: 'createdOn', label: 'Created On',
       render: (val: string, row: ApprovedRejectedRecord) => formatDateFriendly(row.createdOnRaw || val)
@@ -388,7 +388,7 @@ const ApprovedRejectedByMe: React.FC<IApprovedRejectedProps> = ({ context, sp })
               />
               <SummaryCard 
                 icon={Building2}     
-                label="Projects"          
+                label="Entity"          
                 count={stats.projects}    
                 iconBgClass="bg-cyan-500 bg-opacity-10"   
                 iconColorClass="text-cyan-500" 

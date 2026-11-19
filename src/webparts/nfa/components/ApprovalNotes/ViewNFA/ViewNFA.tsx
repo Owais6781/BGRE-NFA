@@ -26,6 +26,30 @@ interface IViewNFAProps {
   sp: SPFI;
 }
 
+const renderHistoryText = (text: string) => {
+  const statusRegex = /(Pending|Approved?|Rejected?|Initiated|Queried|Query|Returned?|Delegated?|Resolved|Submitted)/i;
+  const parts = text.split(statusRegex);
+
+  return (
+    <span className="leading-relaxed text-[13px] text-slate-600 font-medium">
+      {parts.map((part, idx) => {
+        if (statusRegex.test(part)) {
+          return (
+            <span key={idx} className="font-bold text-slate-800">
+              {part}
+            </span>
+          );
+        }
+        return (
+          <span key={idx}>
+            {part}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
+
 const getInitials = (name: string) => {
   if (!name || name === 'Pending') return 'UN';
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -183,7 +207,13 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
 
           const parseWorkflowHistory = (workflowHistoryText: string): any[] => {
             if (!workflowHistoryText) return [];
-            const lines = workflowHistoryText.split("\n");
+            // Normalize <br>, </br>, <br/>, </p>, </div> and boundary patterns into newlines
+            const normalized = workflowHistoryText
+              .replace(/<\/?[bB][rR]\s*\/?>/gi, "\n")
+              .replace(/<\/(?:p|div)>/gi, "\n")
+              .replace(/(?<=(?:AM|PM|\d{2}:\d{2}))(?=(?:NFA\s+Request\s+|NFA\s+)?(?:Pending\s+at|Initiated\s+by|(?:Approved|Completed|Rejected|Returned|Delegated|Queried|Query|Resolved|Submitted)\s+by))/gi, "\n");
+
+            const lines = normalized.split(/\r?\n/);
             const parsed: any[] = [];
             for (const line of lines) {
               const cleanLine = line
@@ -196,7 +226,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                 .trim();
               if (!cleanLine) continue;
 
-              const appMatch = cleanLine.match(/^NFA Request (.*?) by (.*?) at Level\s+(.*?)\.\s+on\s+(.*)$/);
+              const appMatch = cleanLine.match(/^(?:NFA Request\s+|NFA\s+)?(Approved|Completed|Rejected|Returned|Delegated|Delegate)\s+by\s+(.*?)(?:\s+at\s+Level\s*[-]?\s*(\d+)\.?)?\s+on\s+(.*)$/i);
               if (appMatch) {
                 parsed.push({
                   id: Math.random(),
@@ -209,7 +239,20 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                 continue;
               }
 
-              const initMatch = cleanLine.match(/^NFA Request Initiated by (.*?) on (.*)$/);
+              const pendingMatch = cleanLine.match(/^(?:NFA\s+)?Pending\s+at\s+(.*?)\s+(?:at\s+(level-?\s*\d+)\s+)?on\s+(.*)$/i);
+              if (pendingMatch) {
+                parsed.push({
+                  id: Math.random(),
+                  date: pendingMatch[3].trim(),
+                  user: pendingMatch[1].trim(),
+                  action: "Pending",
+                  rawText: cleanLine,
+                  remarks: ""
+                });
+                continue;
+              }
+
+              const initMatch = cleanLine.match(/^(?:NFA Request\s+)?Initiated\s+by\s+(.*?)\s+on\s+(.*)$/i);
               if (initMatch) {
                 parsed.push({
                   id: Math.random(),
@@ -222,27 +265,34 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
                 continue;
               }
 
+              const dateRegex = /\s+on\s+(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)$/i;
+              const match = cleanLine.match(dateRegex);
               parsed.push({
                 id: Math.random(),
-                date: "",
+                date: match ? match[1].trim() : "",
                 user: "System",
                 action: "Log",
                 rawText: cleanLine,
                 remarks: cleanLine
               });
             }
-            return parsed;
+
+            // Ensure newest-first order (Initiated is always at the bottom)
+            const isFirstInitiated = parsed.length > 0 && (parsed[0].action === 'Initiated' || parsed[0].rawText.toLowerCase().includes('initiated'));
+            return isFirstInitiated ? parsed.reverse() : parsed;
           };
 
-          let finalHistory = historyData;
-          if (!finalHistory || finalHistory.length === 0) {
-            if (nfaData.workflowHistory) {
-              finalHistory = parseWorkflowHistory(nfaData.workflowHistory);
-            } else if (nfaData.commentHistory) {
-              finalHistory = parseCommentHistory(nfaData.commentHistory);
-            }
+          let finalHistory: any[] = [];
+          if (nfaData.workflowHistory) {
+            finalHistory = parseWorkflowHistory(nfaData.workflowHistory);
+          } else if (nfaData.workflowApprovalHistory) {
+            finalHistory = parseWorkflowHistory(nfaData.workflowApprovalHistory);
+          } else if (historyData && historyData.length > 0) {
+            finalHistory = historyData;
+          } else if (nfaData.commentHistory) {
+            finalHistory = parseCommentHistory(nfaData.commentHistory);
           }
-          setHistory(finalHistory.reverse());
+          setHistory(finalHistory);
 
           let finalComments: any[] = [];
           if (nfaData.commentHistory) {
@@ -345,6 +395,59 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
 
   return (
     <div className="pageContainer">
+      {/* Top Action Bar */}
+      <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-4 px-4 mb-1.5">
+        <div className="flex items-center gap-3">
+          {/* Request Number */}
+          <span className="text-base font-extrabold text-[#4A081E] tracking-tight">
+            {form.requestNo || 'Note for Approval'}
+          </span>
+
+          {/* Level */}
+          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            Level {form.level || '1'}
+          </span>
+
+          {/* Status */}
+          <span
+            className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border ${form.status?.toLowerCase() === 'approved' ||
+              form.status?.toLowerCase() === 'completed'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : form.status?.toLowerCase() === 'pending'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : form.status?.toLowerCase() === 'rejected'
+                  ? 'bg-red-50 text-red-700 border-red-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+          >
+            {form.status || 'Unknown'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#4A081E] hover:bg-[#380617] text-white rounded-lg font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Download PDF"
+          >
+            <Download size={14} />
+            <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              forceScrollToTop();
+              navigate('/inbox');
+            }}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs transition-all border border-slate-300 active:scale-95 cursor-pointer"
+          >
+            Back
+          </button>
+        </div>
+      </div>
 
       {/* Approval Chain Card */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm py-2 px-4 mb-3.5">
@@ -354,8 +457,12 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         >
           {workflowSteps.map((step, idx) => {
             const user = users.find(u => u.value === String(step.id));
-            const isCompleted = idx < form.level;
-            const isCurrent = idx === form.level;
+            const isFinalApproved = form.status?.toLowerCase() === 'approved';
+            const isCompleted = isFinalApproved || idx < form.level;
+            const isCurrent = !isFinalApproved && idx === form.level;
+            const isRejected = form.status?.toLowerCase() === 'rejected';
+            const isRejectedLevel = isRejected && idx === form.level;
+
             const isInitiator = idx === 0;
             const userLabel = user?.label || 'Pending';
             const initials = getInitials(userLabel);
@@ -365,7 +472,13 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
             let dotClass = 'bg-slate-300';
             let labelColor = 'text-slate-400';
 
-            if (isInitiator) {
+
+            if (isRejectedLevel) {
+              borderClass = 'border-rejected-step shadow-sm';
+              avatarClass = 'bg-rose-100 text-rose-600 border border-rose-300';
+              dotClass = 'bg-rose-500';
+              labelColor = 'text-rose-700 font-extrabold';
+            } else if (isInitiator) {
               borderClass = 'border-blue-500 bg-blue-50/10 shadow-sm shadow-blue-50';
               avatarClass = 'bg-blue-500 text-white';
               dotClass = 'bg-blue-500';
@@ -629,7 +742,7 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
         </div>
 
 
-        
+
 
         {/* Annexures & Notes (Compact 2-Column Row for Notes) */}
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
@@ -673,10 +786,10 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
       </div>
 
       {/* ── SECONDARY INFORMATION & AUDIT HISTORY (EXACT SAME ROW) ── */}
-      <div className="mt-5 pt-3.5 border-t border-slate-200/80">
-        <div className="flex items-center gap-2 mb-3">
+      <div className="mt-5  pt-3.5 border-t border-slate-200/80">
+        <div className="flex  items-center gap-2 mb-3">
           <div className="w-1.5 h-3.5 bg-emerald-600 rounded-full" />
-          <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+          <span className="font-bold  text-slate-800 text-xs uppercase tracking-wider">
             Supporting Information & Audit History
           </span>
         </div>
@@ -823,42 +936,101 @@ const ViewNFA: React.FC<IViewNFAProps> = ({ context, sp }) => {
 
             {/* Workflow History */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-2.5 border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
                 <History size={15} className="text-blue-500 shrink-0" />
                 <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Workflow History</span>
               </div>
 
-              <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
+              <div className="space-y-4 max-h-[320px] overflow-y-auto pr-1">
                 {history.length > 0 ? history.map((item, idx) => {
-                  const isApproved = item.action === 'Approved';
-                  const isRejected = item.action === 'Rejected';
-                  const isQuery = item.action === 'Query';
+                  const rawText = item.rawText || "";
+                  const lower = rawText.toLowerCase();
 
-                  let dotClass = 'bg-blue-500';
 
-                  if (isApproved) {
+                  let dotClass = 'bg-amber-500';
+
+                  if (lower.includes("initiated") || lower.includes("initiator")) {
+                    dotClass = 'bg-blue-500';
+                  } else if (
+                    lower.includes("approved") ||
+                    lower.includes("completed") ||
+                    lower.includes("resolved") ||
+                    lower.includes("submitted")
+                  ) {
                     dotClass = 'bg-emerald-500';
-                  } else if (isRejected) {
+                  } else if (lower.includes("rejected")) {
                     dotClass = 'bg-rose-500';
-                  } else if (isQuery) {
+                  } else if (lower.includes("query")) {
+                    dotClass = 'bg-amber-500';
+                  } else if (lower.includes("pending")) {
                     dotClass = 'bg-amber-500';
                   }
 
+                  let descText = rawText;
+                  let dateText = item.date || "";
+
+                  if (dateText) {
+                    const dateStr = dateText.trim();
+                    const lastOnIndex = rawText.lastIndexOf(" on " + dateStr);
+                    if (lastOnIndex !== -1) {
+                      descText = rawText.substring(0, lastOnIndex).trim();
+                    } else {
+                      const dateIndex = rawText.lastIndexOf(dateStr);
+                      if (dateIndex !== -1) {
+                        descText = rawText.substring(0, dateIndex).replace(/\s+on\s*$/, "").trim();
+                      }
+                    }
+                  } else {
+                    const dateRegex = /\s+on\s+(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)$/i;
+                    const match = rawText.match(dateRegex);
+                    if (match) {
+                      descText = rawText.substring(0, match.index).trim();
+                      dateText = match[1].trim();
+                    }
+                  }
+
+                  // Strip prefixes like "NFA Request " or "NFA " to match screenshot
+                  descText = descText.replace(/^NFA Request\s+/i, "").replace(/^NFA\s+/i, "").trim();
+
                   return (
-                    <div key={item.id || idx} className="relative pl-6 pb-0.5 last:pb-0">
+
+                    <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
+
                       {idx < history.length - 1 && (
-                        <div className="absolute left-[6px] top-4 bottom-0 w-[1.5px] bg-slate-100" />
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: "5.25px",
+                            top: "12px",
+                            height: "calc(100% - 0px)",
+                            width: "1.5px",
+                            backgroundColor: "#cbd5e1",
+                            display: "block",
+                            zIndex: 1
+                          }}
+                        />
                       )}
-                      <div className={`absolute left-0 top-1 w-3 h-3 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
-                      <div className="flex flex-col min-w-0">
-                        <p className="text-[10.5px] text-slate-600 font-medium leading-relaxed">
-                          {item.rawText || `${item.user} (${item.action})${item.remarks ? `: ${item.remarks}` : ""}`}
+
+                      <div
+                        className={`absolute left-0 top-1 w-3 h-3 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`}
+                      />
+
+                      <div className="flex flex-col min-w-0 relative z-10">
+                        <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                          {renderHistoryText(descText)}
                         </p>
+
+                        {dateText && (
+                          <span className="text-[11px] text-slate-400 mt-0.5 font-normal">
+                            {dateText}
+                          </span>
+                        )}
                       </div>
                     </div>
+
                   );
                 }) : (
-                  <div className="text-center py-3 text-slate-400 italic text-[10.5px]">
+                  <div className="text-center py-3 text-slate-400 italic text-[11px]">
                     No audit history found.
                   </div>
                 )}

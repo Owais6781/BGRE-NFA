@@ -10,6 +10,7 @@ import "../../../../../Share/styles/global.scss";
 
 interface NFARecord {
   id: number;
+  uniqId?: string;
   requestNo: string; 
   function: string;
   contractorName: string;
@@ -38,7 +39,7 @@ const exportColumns = [
   { key: 'requestNo', label: 'Request No.' },
   { key: 'function',  label: 'Function'    },
   { key: 'contractorName',  label: 'Contractor Name'    },
-  { key: 'project',   label: 'Project'     },
+  { key: 'project',   label: 'Entity'     },
   { key: 'createdOn', label: 'CDate'       },
   { key: 'status',    label: 'Status'      },
   { key: 'Approvedrejectedby',    label: 'Approved Reject By'      },
@@ -111,8 +112,10 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
     { 
       key: 'pendingAt', 
       label: 'Pending At',
-      render: (val: string) => {
-        if (!val) return <span className="text-slate-400 font-normal italic">—</span>;
+      render: (val: string, row: NFARecord) => {
+        const statusLower = (row.status || "").toLowerCase();
+        const isActivelyPending = (statusLower === "pending" || statusLower === "query") && !row.Approvedrejectedby;
+        if (!isActivelyPending || !val) return <span className="text-slate-400 font-normal italic">—</span>;
         
         const parts = val.trim().split(/\s+/);
         const initials = parts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
@@ -138,7 +141,16 @@ const HomeTable: React.FC<HomeTableProps> = ({ data, onRowClick, loading = false
         );
       }
     },
-    { key: 'PendingFrom',     label: 'Pending From'      },
+    { 
+      key: 'PendingFrom',     
+      label: 'Pending From',
+      render: (val: string, row: NFARecord) => {
+        const statusLower = (row.status || "").toLowerCase();
+        const isActivelyPending = (statusLower === "pending" || statusLower === "query") && !row.Approvedrejectedby;
+        if (!isActivelyPending || !val) return <span className="text-slate-400 font-normal italic">—</span>;
+        return <span>{val}</span>;
+      }
+    },
     { key: 'level',     label: 'Level'      },
      { key: 'doaMatrix',     label: 'DOA Clause'},
      { key: 'project',  label: 'Entity'  },

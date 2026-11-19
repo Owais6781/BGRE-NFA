@@ -43,8 +43,10 @@
   width: 100%;
   height: 64px;
   flex-shrink: 0;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
@@ -101,6 +103,24 @@
 }
 
 /* ── Sidebar Wrapper ── */
+// .sidebarWrapper {
+//   flex-shrink: 0;
+//   width: 224px;
+//   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+//   overflow: hidden;
+//   background: $sidebar-bg;
+//   display: flex;
+//   flex-direction: column;
+//   height: calc(100vh - 84px);
+//   position: sticky;
+//   top: 74px;
+//   border: 1px solid $sidebar-border;
+//   border-radius: $radius-xl;
+
+//   &.sidebarCollapsed {
+//     width: 56px;
+//   }
+// }
 .sidebarWrapper {
   flex-shrink: 0;
   width: 224px;
@@ -712,6 +732,70 @@
 }
 
 /* ── Rich Text Editor ── */
+.p-editor-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  .p-editor-toolbar {
+    background: #f8fafc;
+    border: 1px solid $input-border;
+    border-bottom: none;
+    border-top-left-radius: $radius-lg;
+    border-top-right-radius: $radius-lg;
+    padding: 6px 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .p-editor-content {
+    border: 1px solid $input-border;
+    border-bottom-left-radius: $radius-lg;
+    border-bottom-right-radius: $radius-lg;
+    background: #ffffff;
+    cursor: text;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    position: relative;
+
+    .ql-editor {
+      min-height: 100% !important;
+      height: 100% !important;
+      flex: 1 1 auto;
+      cursor: text !important;
+      padding: 12px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #334155;
+      outline: none;
+      word-break: break-word;
+
+      & > * {
+        cursor: text;
+      }
+
+      p {
+        margin: 0;
+        padding: 0;
+      }
+
+      table {
+        border-collapse: collapse;
+        margin-bottom: 8px;
+        width: 100%;
+
+        td, th {
+          border: 1px solid #cbd5e1;
+          padding: 4px 8px;
+        }
+      }
+    }
+  }
+}
+
 .rteToolbar {
   background: #f8fafc;
   border: 1.5px solid $input-border;

@@ -125,7 +125,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ context, sp }) => {
           {NAV.map((item, i) => {
             if (item.kind === 'section') {
               return (
-                <div key={i} className="sidebarSectionTitle">
+                <div key={i} className="sidebarSectionTitle" title={item.label}>
                   {item.label}
                 </div>
               );
@@ -138,7 +138,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ context, sp }) => {
                 to={item.to}
                 end={item.end}
                 className={linkClass}
-                title={isCollapsed ? item.label : undefined}
+                title={item.label}
               >
                 <span className="sidebarLinkIcon">
                   <Icon size={16} strokeWidth={1.75} />

@@ -895,7 +895,7 @@ const QueryRespond: React.FC<IQueryRespondProps> = ({ context, sp }) => {
             
             <div className="space-y-4">
               {history.length > 0 ? history.map((item, idx) => {
-                const isApproved = item.action === 'Approved';
+                const isApproved = item.action === 'Approved' || item.action === 'Completed';
                 const isRejected = item.action === 'Rejected';
                 const isQuery = item.action === 'Query';
                 

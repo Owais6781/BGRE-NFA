@@ -24,10 +24,8 @@ interface ApprovedForFinanceFilterProps {
 }
 
 const statusOptions = [
-  { label: 'Pending', value: 'Pending' },
   { label: 'Approved', value: 'Approved' },
   { label: 'Completed', value: 'Completed' },
-  { label: 'Rejected', value: 'Rejected' },
 ];
 
 const ApprovedForFinanceFilter: React.FC<ApprovedForFinanceFilterProps> = ({ 

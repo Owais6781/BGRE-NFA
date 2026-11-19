@@ -264,7 +264,8 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
           const currentHTML = itemObj.WorkflowHistoryHTML || "";
 
           const approverName = context.pageContext.user.displayName || "Approver";
-          const actionName = actionType === 'Approve' ? 'Approved' : 'Rejected';
+          const isFinal = result.message?.toLowerCase().includes('fully');
+          const actionName = actionType === 'Approve' ? (isFinal ? 'Completed' : 'Approved') : 'Rejected';
 
           const pad = (num: number) => num < 10 ? '0' + num : String(num);
           const now = new Date();
@@ -370,10 +371,48 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             ? dashItem.CurrentApprover
             : (dashItem.CurrentApprover?.Title || dashItem.CurrentApprovalName || "");
 
+          // Match CurrentApprover with CurrentApproverID to ensure both fields contain the correct corresponding information
+          let matchedApproverId = cApproverId ? String(cApproverId).trim() : "";
+          let matchedApproverName = cApprover ? String(cApprover).trim() : "";
+
+          if (matchedApproverId) {
+            const userById = siteUsers.find(u => u.value === matchedApproverId);
+            if (userById) {
+              matchedApproverName = userById.label;
+            }
+          } else if (matchedApproverName) {
+            const userByName = siteUsers.find(u => u.label.toLowerCase() === matchedApproverName.toLowerCase());
+            if (userByName) {
+              matchedApproverId = userByName.value;
+            }
+          }
+
           setDashboardApprover({
-            currentApprover: cApprover,
-            currentApproverId: cApproverId ?? null
+            currentApprover: matchedApproverName,
+            currentApproverId: matchedApproverId ? Number(matchedApproverId) : null
           });
+
+          // Sync back to SharePoint DashboardList if there was a mismatch between CurrentApprover and CurrentApproverID
+          const rawDashId = String(dashItem.CurrentApproverID ?? dashItem.CurrentApproverId ?? dashItem.CurrentApprovalID ?? "").trim();
+          const rawDashName = String(dashItem.CurrentApprovalName ?? (typeof dashItem.CurrentApprover === 'string' ? dashItem.CurrentApprover : dashItem.CurrentApprover?.Title) ?? "").trim();
+
+          if (matchedApproverId && (rawDashId !== matchedApproverId || (rawDashName && rawDashName !== matchedApproverName))) {
+            const syncPayload: Record<string, any> = {
+              CurrentApproverId: Number(matchedApproverId),
+              CurrentApproverID: matchedApproverId,
+              CurrentApprovalID: matchedApproverId,
+              CurrentApprovalName: matchedApproverName
+            };
+            sp.web.lists.getByTitle("DashboardList").items.getById(dashItem.Id).update(syncPayload).catch(async () => {
+              try {
+                await sp.web.lists.getByTitle("DashboardList").items.getById(dashItem.Id).update({
+                  CurrentApproverId: Number(matchedApproverId),
+                  CurrentApprovalID: matchedApproverId,
+                  CurrentApprovalName: matchedApproverName
+                });
+              } catch { }
+            });
+          }
         }
 
         if (nfaData) {
@@ -428,7 +467,14 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
 
           const parseWorkflowHistory = (workflowHistoryText: string): any[] => {
             if (!workflowHistoryText) return [];
-            const lines = workflowHistoryText.split("\n");
+
+            // Normalize <br>, </br>, <br/>, </p>, </div> and boundary patterns into newlines
+            const normalized = workflowHistoryText
+              .replace(/<\/?[bB][rR]\s*\/?>/gi, "\n")
+              .replace(/<\/(?:p|div)>/gi, "\n")
+              .replace(/(?<=(?:AM|PM|\d{2}:\d{2}))(?=(?:NFA\s+Request\s+|NFA\s+)?(?:Pending\s+at|Initiated\s+by|(?:Approved|Completed|Rejected|Returned|Delegated|Queried|Query|Resolved|Submitted)\s+by))/gi, "\n");
+
+            const lines = normalized.split(/\r?\n/);
             const parsed: any[] = [];
             for (const line of lines) {
               const cleanLine = line
@@ -441,7 +487,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 .trim();
               if (!cleanLine) continue;
 
-              const appMatch = cleanLine.match(/^NFA Request (.*?) by (.*?) at Level\s+(.*?)\.\s+on\s+(.*)$/);
+              const appMatch = cleanLine.match(/^(?:NFA Request\s+)?(Approved|Completed|Rejected|Returned|Delegated|Queried|Query|Resolved|Submitted)\s+by\s+(.*?)\s+(?:at\s+(?:Level|level-?)\s*(\d+)[.\s]*)?on\s+(.*)$/i);
               if (appMatch) {
                 parsed.push({
                   id: Math.random(),
@@ -454,7 +500,20 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 continue;
               }
 
-              const initMatch = cleanLine.match(/^NFA Request Initiated by (.*?) on (.*)$/);
+              const pendingMatch = cleanLine.match(/^(?:NFA\s+)?Pending\s+at\s+(.*?)\s+(?:at\s+(level-?\s*\d+)\s+)?on\s+(.*)$/i);
+              if (pendingMatch) {
+                parsed.push({
+                  id: Math.random(),
+                  date: pendingMatch[3].trim(),
+                  user: pendingMatch[1].trim(),
+                  action: "Pending",
+                  rawText: cleanLine,
+                  remarks: ""
+                });
+                continue;
+              }
+
+              const initMatch = cleanLine.match(/^(?:NFA Request\s+)?Initiated\s+by\s+(.*?)\s+on\s+(.*)$/i);
               if (initMatch) {
                 parsed.push({
                   id: Math.random(),
@@ -467,27 +526,34 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                 continue;
               }
 
+              const dateRegex = /\s+on\s+(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)$/i;
+              const match = cleanLine.match(dateRegex);
               parsed.push({
                 id: Math.random(),
-                date: "",
+                date: match ? match[1].trim() : "",
                 user: "System",
                 action: "Log",
                 rawText: cleanLine,
                 remarks: cleanLine
               });
             }
-            return parsed;
+
+            // Ensure newest-first order (Initiated is always at the bottom)
+            const isFirstInitiated = parsed.length > 0 && (parsed[0].action === 'Initiated' || parsed[0].rawText.toLowerCase().includes('initiated'));
+            return isFirstInitiated ? parsed.reverse() : parsed;
           };
 
-          let finalHistory = historyData;
-          if (!finalHistory || finalHistory.length === 0) {
-            if (nfaData.workflowHistory) {
-              finalHistory = parseWorkflowHistory(nfaData.workflowHistory);
-            } else if (nfaData.commentHistory) {
-              finalHistory = parseCommentHistory(nfaData.commentHistory);
-            }
+          let finalHistory: any[] = [];
+          if (nfaData.workflowHistory) {
+            finalHistory = parseWorkflowHistory(nfaData.workflowHistory);
+          } else if (nfaData.workflowApprovalHistory) {
+            finalHistory = parseWorkflowHistory(nfaData.workflowApprovalHistory);
+          } else if (historyData && historyData.length > 0) {
+            finalHistory = historyData;
+          } else if (nfaData.commentHistory) {
+            finalHistory = parseCommentHistory(nfaData.commentHistory);
           }
-          setHistory(finalHistory.reverse());
+          setHistory(finalHistory);
 
           let finalComments: any[] = [];
           if (nfaData.commentHistory) {
@@ -592,12 +658,15 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
   }, [dashboardApprover, currentUserId, nfa?.pendingAtId]);
 
   const currentApproverName = useMemo(() => {
+    const approverId = dashboardApprover?.currentApproverId ?? nfa?.pendingAtId;
+    if (approverId) {
+      const user = users.find(u => u.value === String(approverId));
+      if (user) return user.label;
+    }
     if (dashboardApprover?.currentApprover) {
       return dashboardApprover.currentApprover;
     }
-    if (!nfa) return "Unknown";
-    const user = users.find(u => u.value === String(dashboardApprover?.currentApproverId || nfa.pendingAtId));
-    return user ? user.label : "Unknown";
+    return "Unknown";
   }, [dashboardApprover, nfa, users]);
 
   const receivedOnDate = useMemo(() => {
@@ -709,15 +778,34 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
       `}</style>
 
       {/* Top Action Bar */}
-      {/* <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-2.5 px-4 mb-3.5">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs font-extrabold text-[#4A081E] tracking-tight">
+      <div className="flex items-center justify-between gap-4 bg-white rounded-xl border border-slate-200/80 shadow-sm py-4 px-4 mb-1.5">
+        <div className="flex items-center gap-3">
+          {/* Request Number */}
+          <span className="text-base font-extrabold text-[#4A081E] tracking-tight">
             {nfa.requestNo || 'Note for Approval'}
           </span>
+
+          {/* Level */}
           <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
             Level {nfa.level || '1'}
           </span>
+
+          {/* Status */}
+          <span
+            className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border ${nfa.status?.toLowerCase() === 'approved' ||
+                nfa.status?.toLowerCase() === 'completed'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : nfa.status?.toLowerCase() === 'pending'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : nfa.status?.toLowerCase() === 'rejected'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+          >
+            {nfa.status || 'Unknown'}
+          </span>
         </div>
+
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -729,6 +817,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             <Download size={14} />
             <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
           </button>
+
           <button
             type="button"
             onClick={() => {
@@ -740,10 +829,9 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
             Back
           </button>
         </div>
-      </div> */}
-
+      </div>
       {/* Approval Chain Card */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-4 px-6 mb-6">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-4 px-6 mb-2">
         <div
           ref={stepperContainerRef}
           className="relative flex items-center justify-start gap-1 overflow-x-auto pb-2 pt-0.5 no-scrollbar"
@@ -837,7 +925,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
       <div className="flex flex-col lg:flex-row gap-6 items-start">
 
         {/* ── Left Column (70% Width) ── */}
-        <div className="w-full lg:w-[70%] space-y-6">
+        <div className="w-full lg:w-[70%] space-y-2">
 
           {/* Request Details Card */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
@@ -1235,7 +1323,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
         </div>
 
         {/* ── Right Column (30% Width) ── */}
-        <div className="w-full lg:w-[30%] space-y-6">
+        <div className="w-full lg:w-[30%] space-y-2">
 
           {/* Documents Card — reference style */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
@@ -1386,7 +1474,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               <span className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Workflow History</span>
             </div>
 
-            <div className="space-y-4">
+            <div className="relative">
               {history.length > 0 ? (
                 (() => {
                   const displayedHistory = isHistoryExpanded ? history : history.slice(0, 4);
@@ -1396,12 +1484,23 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                         const rawText = item.rawText || "";
                         const lower = rawText.toLowerCase();
 
-                        let dotClass = 'bg-blue-500';
-                        if (lower.includes("approved") || lower.includes("resolved") || lower.includes("submitted")) {
+
+                        let dotClass = 'bg-amber-500';
+
+                        if (lower.includes("initiated") || lower.includes("initiator")) {
+                          dotClass = 'bg-blue-500';
+                        } else if (
+                          lower.includes("approved") ||
+                          lower.includes("completed") ||
+                          lower.includes("resolved") ||
+                          lower.includes("submitted")
+                        ) {
                           dotClass = 'bg-emerald-500';
                         } else if (lower.includes("rejected")) {
                           dotClass = 'bg-rose-500';
                         } else if (lower.includes("query")) {
+                          dotClass = 'bg-amber-500';
+                        } else if (lower.includes("pending")) {
                           dotClass = 'bg-amber-500';
                         }
 
@@ -1428,17 +1527,35 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
                           }
                         }
 
-                        return (
-                          <div key={item.id || idx} className="relative pl-7 pb-1 last:pb-0">
-                            {idx < displayedHistory.length - 1 && (
-                              <div className="absolute left-[7px] top-5 bottom-0 w-[1.5px] bg-slate-100" />
-                            )}
-                            <div className={`absolute left-0 top-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`} />
+                        // Strip prefixes like "NFA Request " or "NFA " to match screenshot
+                        descText = descText.replace(/^NFA Request\s+/i, "").replace(/^NFA\s+/i, "").trim();
 
-                            <div className="flex flex-col min-w-0">
+                        return (
+                          <div key={item.id || idx} className="relative pl-7 pb-4 last:pb-0">
+                            {idx < displayedHistory.length - 1 && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  left: "5.25px",
+                                  top: "14px",
+                                  bottom: "-2px",
+                                  width: "1.5px",
+                                  backgroundColor: "#cbd5e1",
+                                  display: "block",
+                                  zIndex: 1
+                                }}
+                              />
+                            )}
+
+                            <div
+                              className={`absolute left-0 top-1 w-3 h-3 rounded-full border border-white flex items-center justify-center z-10 ${dotClass} shadow-sm`}
+                            />
+
+                            <div className="flex flex-col min-w-0 relative z-10">
                               <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
                                 {renderHistoryText(descText)}
                               </p>
+
                               {dateText && (
                                 <span className="text-[11px] text-slate-400 mt-0.5 font-normal">
                                   {dateText}
@@ -1607,7 +1724,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               {/* Custom People Picker */}
               <div className="relative" ref={suggestionsRef}>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">
-                  Delegate / Query User
+                  Query User
                 </label>
 
                 {selectedUserObj ? (
@@ -1682,7 +1799,7 @@ const ApproverPage: React.FC<IApproverPageProps> = ({ context, sp }) => {
               </div>
 
               <span className="text-[11px] text-slate-400 font-semibold mt-2.5 block leading-none pl-0.5">
-                Delegated user will be notified to take action.
+                Query user will be notified to take action.
               </span>
             </div>
 
